@@ -1,62 +1,156 @@
 <?xml version="1.0"?>
 
 <!-- This is the starting point of the experiment -->
-<!-- This is where you import the robot(s) and other specific modules that will be used in the experiment -->
+<!-- This is where you import the robot(s) and other speficic modules that will be used in the experiment. -->
 
-<!-- EpiTorsorMinimal settings
-
-Serial ports (servos):
-Typical:
-Linux
-HeadSerialDevice = "/dev/ttyXXXX" 
-OSX: 
-HeadSerialDevice = "/dev/cu_XXXX" 
-
-Servo mode:
-The system can simulate the servos to be able to run the simulation without the robot. 
-The feedback from the servoes is very limited. The goal position sent to the simulated servos is used as feedback position. 
-The rest of the feedback channels (feedback speed, current, load etc. is just zeros).
-
-Use Robot servos:
-HeadDynamixel = "Dynamixel"
-PupilDynamixel = "Dynamixel"
-Use simlated servos:
-HeadDynamixel = "DynamixelSimulate"
-PupilDynamixel = "DynamixelSimulate"
-
-
-Vision input mode:
-The vision input can also be simulated by instead of the camera stream read a local image from file (NoCamera.jpg).
-From video stream:
-VisionInputLeft = "InputVideoStream"
-VisionInputRight = "InputVideoStream"
-
-From local image:
-VisionInputLeft = "InputJPEG"
-VisionInputRight = "InputJPEG"
--->
 <group name="Experimental setup">
 
-	<!-- Importing Epi Green -->
-	<!--<module class = "EpiTorsoMinimal" name = "EpiGreen" 
-	HeadDynamixel = "DynamixelSimulate" 
-	PupilDynamixel = "DynamixelSimulate" 
-	HeadSerialDevice = "/dev/cu.usbserial-FT3WI37F" 
-	PupilSerialDevice = "/dev/cu.usbserial-FT3WKHCT"
-	VisionInputLeft = "InputJPEG"
-	VisionInputRight = "InputJPEG"
-	pupilOffset = "-15 -10"
-	/>
-	-->
+		<!-- Importing Epi Green -->
+		<module
+			class = "EpiTorsorMinimal"
+			name = "EpiGreen"
+			HeadDynamixel = "DynamixelSimulate"
+			PupilDynamixel = "DynamixelSimulate"
+			VisionInputLeft = "InputJPEG"
+			VisionInputRight = "InputJPEG"
+		/>
+		<module
+			class   = "InputVideo"
+			name	= "CAMERA"
+			size_x  = "640"
+			size_y  =  "480"
+		/>
 
-	<!-- Importing Epi Orange-->
-	<module class = "EpiTorsoMinimal" name = "EpiOrange" 
-	HeadDynamixel = "Dynamixel" 
-	PupilDynamixel = "Dynamixel" 
-	HeadSerialDevice = "/dev/cu.usbserial-FT3WI2K2" 
-	PupilSerialDevice = "/dev/cu.usbserial-FT3WI2WH"
-	VisionInputLeft = "InputVideoStream"
-	VisionInputRight = "InputVideoStream"
-	pupilOffset = "-15 -28"
-	/>
+		<module
+			class = "VocalReaction"
+			name = "VocalReaction"
+			number_sound_categories = "3"
+			sounds_per_category = "3"
+			intensity_levels = "3"
+			total_number_sounds = "27"
+		/>
+
+		<module
+			class = "SoundOutput"
+			name = "SoundOutput"
+			command = "play"
+			sounds = "Sounds/disgusted_4_low.mp3, Sounds/disgusted_1_low.mp3, Sounds/disgusted_2_low.mp3,
+								Sounds/disgusted_4_med.mp3, Sounds/disgusted_1_med.mp3, Sounds/disgusted_2_med.mp3,
+								Sounds/disgusted_4_high.mp3, Sounds/disgusted_2_high.mp3, Sounds/disgusted_2_high.mp3,
+								Sounds/disagree_1_low.wav, Sounds/disagree_2_low.wav, Sounds/disagree_3_low.wav,
+								Sounds/disagree_1_med.wav, Sounds/disagree_2_med.wav, Sounds/disagree_3_med.wav,
+								Sounds/disagree_1_high.wav, Sounds/disagree_2_high.wav, Sounds/disagree_3_high.wav,
+								Sounds/pleased_1_low.wav, Sounds/pleased_2_low.wav, Sounds/pleased_3_low.wav,
+								Sounds/pleased_1_med.wav, Sounds/pleased_2_med.wav, Sounds/pleased_3_med.wav,
+								Sounds/pleased_1_high.wav, Sounds/pleased_2_high.wav, Sounds/pleased_3_high.wav, "
+			/>
+
+
+		<connection  source = "VocalReaction.REACTION_OUTPUT"  target = "SoundOutput.INPUT" delay = "1"/>
+
+
+		<module
+		class   = "MarkerTracker"
+		name	= "MarkerTracker"
+		description = "The calibration parameters are set to no camera distortion to produce vertices in image coodinates."
+		_calibrationForKinect = "640 480 317.584948 260.888465 522.573778 522.756999 0.161722 -0.285527 0.004218 0.001601  0.00000 0 10"
+		calibration = "640 480 317.584948 260.888465 522.573778 522.756999 0.161722 -0.285527 0.004218 0.001601  0.00000 0 10"
+		max_markers	="20"
+		sort    = "yes"
+		marker_size = "0 57 60; 1000 9000 25"
+		use_history = "yes"
+		threshold = "auto"
+		/>
+
+			<connection  source = "CAMERA.INTENSITY"  target = "MarkerTracker.INPUT" delay="0" />
+			<connection  source = "MarkerTracker.OBJECT_ID"  target = "VocalReaction.OBJECT_INPUT" delay="0" />
+			<connection  source = "MarkerTracker.IMAGE_POSITION"  target = "VocalReaction.POSITION_INPUT" delay="0" />
+
+
+		<view name="Inputs">
+			<image
+			title   = "CAMERA"
+			format	= "rgb"
+			source  = "CAMERA.RED+GREEN+BLUE"
+			x="100"
+			y="500"
+			min = "0"
+			max = "1"
+			width ="400"
+			height = "300"
+			/>
+
+			<button
+				label = "Sundtrigger"
+				parameter = "Constant.data"
+				xindex = "0"
+				x = "500"
+				y = "500"
+				/>
+			<path
+			source  = "MarkerTracker.MARKERS"
+			x="140"
+			y="20"
+			width="200"
+			height="200"
+			fill = "transparent"
+			select = "20"
+			length_source = "MARKER_COUNT"
+			line_join="round"
+			close = "yes"
+
+
+			/>
+
+		 <label
+				type    = "value"
+				select  = "18"
+				select_value = "16"
+				decimals = "0"
+				offset_x = "0"
+				offset_y = "0.01"
+				size = "30"
+				color = "white"
+				source  = "MarkerTracker.MARKERS"
+				x="100"
+				y="20"
+				width="100"
+				height="500"
+			/>
+
+		<table
+				source  = "MarkerTracker.MARKER_COUNT"
+				title = "No of markers"
+				x="100"
+				y="20"
+				width="100"
+				height="100"
+				font_size = "48"
+				decimals = "0"
+			/>
+
+			<table
+					source  = "MarkerTracker.OBJECT_ID"
+					title = "Object ID"
+					x="200"
+					y="20"
+					width="100"
+					height="100"
+					font_size = "48"
+					decimals = "0"
+			/>
+
+			<table
+					source  = "MarkerTracker.MARKERS"
+					title = "Markers"
+					x="400"
+					y="20"
+					width="100"
+					height="100"
+					font_size = "48"
+					decimals = "0"
+			/>
+		/>
+	</view>
+
 </group>
