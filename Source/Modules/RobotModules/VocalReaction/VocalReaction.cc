@@ -28,6 +28,7 @@
 #include <iostream>
 #include <cstdlib>
 #include <ctime>
+#include <IKAROS.h>
 
 using namespace std;
 
@@ -49,6 +50,7 @@ VocalReaction::Init()
     Bind(num_categories, "number_sound_categories");
     Bind (num_sounds_per_category, "sounds_per_category");
     Bind(num_intensity_levels, "intensity_levels");
+    Bind(pauseTime, "pause_in_miliseconds");
 
 
     io(input_Pos_matrix, input_Pos_matrix_size_x, input_Pos_matrix_size_y, "POSITION_INPUT");
@@ -75,6 +77,12 @@ VocalReaction::Init()
     // IMPORTANT: For the matrix the sizes are given in order X, Y
     // in all functions including when the matrix is created
     // See: http://www.ikaros-project.org/articles/2007/datastructures/
+
+    //Bool changed to true if object has been identified an tick sholud pause
+    bool pause = false;
+
+    //Create a timer constructor
+    Timer timer;
 
 
 }
@@ -111,27 +119,46 @@ VocalReaction::Random(int min, int max) //range : [min, max]
 void
 VocalReaction::Tick()
 {
+  cout << "paustime: ";
+  cout << pauseTime << '\n';
+  cout << "pauseBool: : ";
+  cout << pause << '\n';
+
 
   //Sets all elements in reaction_output_array to 0
   for (int i = 0; i < reaction_output_array_size; i++)
+  {
     reaction_output_array[i] = 0;
+  }
+    
 
-  //Search the input matrix to see if a marker has been identified
-  for (int j = 0; j < input_ID_matrix_size_y; j++)
-    for (int i = 0; i < input_ID_matrix_size_x; i++)
-    {
-      if (input_ID_matrix[j][i] > 0)
+  //Checks if enough time has been gone by before enabling a new object to be identified   
+  if(pause = false || timer.GetTime() > pauseTime)
+  {
+    //Search the input matrix to see if a marker has been identified
+    for (int j = 0; j < input_ID_matrix_size_y; j++)
+      for (int i = 0; i < input_ID_matrix_size_x; i++)
       {
-        //Sets lower and higher boundary for randomizing a sound in the identified category
-        int lower_bound = input_ID_matrix[j][i] * num_sounds_per_category - num_sounds_per_category;
-        int upper_bound = lower_bound + num_sounds_per_category;
+        if (input_ID_matrix[j][i] > 0 && timer.GetTime() > pauseTime)
+        {
+          //Starts timer
+          timer.Restart();
 
-        //Generate a random number between boundaries
-        int rand_num = Random(lower_bound, upper_bound);
+          pause = true;
 
-        reaction_output_array[rand_num] = 1;
+          //Sets lower and higher boundary for randomizing a sound in the identified category
+          int lower_bound = input_ID_matrix[j][i] * num_sounds_per_category - num_sounds_per_category;
+          int upper_bound = lower_bound + num_sounds_per_category;
+
+          //Generate a random number between boundaries
+          int rand_num = Random(lower_bound, upper_bound);
+
+          reaction_output_array[rand_num] = 1;
+        }
       }
-    }
+
+  }
+  
 
     std::cout << "Output:" << "\n";
     for (int i = 0; i < reaction_output_array_size; i++)
@@ -139,12 +166,8 @@ VocalReaction::Tick()
       std::cout << reaction_output_array[i];
     }
     std::cout << '\n';
-
-  
-
-
-
-
+    cout << "GetTime: ";
+    cout << timer.GetTime() << '\n';
 
 
 }

@@ -3,42 +3,143 @@
 <group title="VocalReaction Example">
 
 	<module
-		class   = "MarkerTracker"
-		name	= "MarkerTracker"
-		description = "The calibration parameters are set to no camera distortion to produce vertices in image coodinates."
-		_calibrationForKinect = "640 480 317.584948 260.888465 522.573778 522.756999 0.161722 -0.285527 0.004218 0.001601  0.00000 0 10"
-		calibration = "640 480 317.584948 260.888465 522.573778 522.756999 0.161722 -0.285527 0.004218 0.001601  0.00000 0 10"
-		max_markers	="20"
-		sort    = "no"
-		marker_size = "0 57 60; 1000 9000 25"
-		use_history = "no"
-		threshold = "auto"
-	/>
+            class   = "InputVideo"
+            name    = "CAMERA"
+            size_x  = "640"
+            size_y  =  "480"
+        />
 
-	<module
-		class   = "InputVideo"
-		name	= "CAMERA"
-		size_x  = "640"
-		size_y  =  "480"
-	/>
+        <module
+            class = "VocalReaction"
+            name = "VocalReaction"
+            number_sound_categories = "3"
+            sounds_per_category = "3"
+            intensity_levels = "3"
+            total_number_sounds = "27"
+        />
 
-		<module
-			class = "VocalReaction"
-			name = "VocalReaction"
-		/>
+        <module
+            class = "SoundOutput"
+            name = "SoundOutput"
+            command = "play"
+            sounds = "Sounds/disgusted_4_low_1.wav, Sounds/disgusted_1_low_1.wav, Sounds/disgusted_2_low_1.wav,
+                                Sounds/disgusted_4_med_1.wav, Sounds/disgusted_1_med_1.wav, Sounds/disgusted_2_med_1.wav,
+                                Sounds/disgusted_4_high_1.wav, Sounds/disgusted_2_high_1.wav, Sounds/disgusted_2_high_1.wav,
+                                Sounds/disagree_1_low.wav, Sounds/disagree_2_low.wav, Sounds/disagree_3_low.wav,
+                                Sounds/disagree_1_med.wav, Sounds/disagree_2_med.wav, Sounds/disagree_3_med.wav,
+                                Sounds/disagree_1_high.wav, Sounds/disagree_2_high.wav, Sounds/disagree_3_high.wav,
+                                Sounds/pleased_1_low.wav, Sounds/pleased_2_low.wav, Sounds/pleased_3_low.wav,
+                                Sounds/pleased_1_med.wav, Sounds/pleased_2_med.wav, Sounds/pleased_3_med.wav,
+                                Sounds/pleased_1_high.wav, Sounds/pleased_2_high.wav, Sounds/pleased_3_high.wav"
+            />
 
-		<connection  source = "MarkerTracker.OBJECT_ID"  target = "VocalReaction.OBJECT_INPUT" delay="0" />
-		<connection  source = "CAMERA.INTENSITY"  target = "MarkerTracker.INPUT" delay="0" />
+
+        <connection  source = "VocalReaction.REACTION_OUTPUT"  target = "SoundOutput.INPUT" delay = "1"/>
 
 
+        <module
+        class   = "MarkerTracker"
+        name    = "MarkerTracker"
+        description = "The calibration parameters are set to no camera distortion to produce vertices in image coodinates."
+        _calibrationForKinect = "640 480 317.584948 260.888465 522.573778 522.756999 0.161722 -0.285527 0.004218 0.001601  0.00000 0 10"
+        calibration = "640 480 317.584948 260.888465 522.573778 522.756999 0.161722 -0.285527 0.004218 0.001601  0.00000 0 10"
+        max_markers ="20"
+        sort    = "yes"
+        marker_size = "0 57 60; 1000 9000 25"
+        use_history = "yes"
+        threshold = "auto"
+        />
+
+            <connection  source = "CAMERA.INTENSITY"  target = "MarkerTracker.INPUT" delay="0" />
+            <connection  source = "MarkerTracker.OBJECT_ID"  target = "VocalReaction.OBJECT_INPUT" delay="0" />
+            <connection  source = "MarkerTracker.IMAGE_POSITION"  target = "VocalReaction.POSITION_INPUT" delay="0" />
 
 
+        <view name="Inputs">
+            <image
+            title   = "CAMERA"
+            format  = "rgb"
+            source  = "CAMERA.RED+GREEN+BLUE"
+            x="100"
+            y="500"
+            min = "0"
+            max = "1"
+            width ="400"
+            height = "300"
+            />
 
-		<view name="View" >
-			<bar-graph  x = "240" y = "20" height = "200" width = "200" title = "Output 1" source = "VocalReactionInstance.REACTION_OUTPUT" direction = "vertical" />
-			<bar-graph  x = "480" y = "20" height = "200" width = "200" title = "Output 2" source = "VocalReactionInstance.OUTPUT2" direction = "vertical" />
-			<bar-graph  x = "20" y = "20" height = "200" width = "200" title = "Constant" source = "MyConstant.OUTPUT" direction = "vertical" />
-		</view>
+            <button
+                label = "Sundtrigger"
+                parameter = "Constant.data"
+                xindex = "0"
+                x = "500"
+                y = "500"
+                />
+            <path
+            source  = "MarkerTracker.MARKERS"
+            x="140"
+            y="20"
+            width="200"
+            height="200"
+            fill = "transparent"
+            select = "20"
+            length_source = "MARKER_COUNT"
+            line_join="round"
+            close = "yes"
+
+
+            />
+
+         <label
+                type    = "value"
+                select  = "18"
+                select_value = "16"
+                decimals = "0"
+                offset_x = "0"
+                offset_y = "0.01"
+                size = "30"
+                color = "white"
+                source  = "MarkerTracker.MARKERS"
+                x="100"
+                y="20"
+                width="100"
+                height="500"
+            />
+
+        <table
+                source  = "MarkerTracker.MARKER_COUNT"
+                title = "No of markers"
+                x="100"
+                y="20"
+                width="100"
+                height="100"
+                font_size = "48"
+                decimals = "0"
+            />
+
+            <table
+                    source  = "MarkerTracker.OBJECT_ID"
+                    title = "Object ID"
+                    x="200"
+                    y="20"
+                    width="100"
+                    height="100"
+                    font_size = "48"
+                    decimals = "0"
+            />
+
+            <table
+                    source  = "MarkerTracker.MARKERS"
+                    title = "Markers"
+                    x="400"
+                    y="20"
+                    width="100"
+                    height="100"
+                    font_size = "48"
+                    decimals = "0"
+            />
+        />
+    </view>
 
     	<module class = "Logger" name = "Logger" />
 </group>

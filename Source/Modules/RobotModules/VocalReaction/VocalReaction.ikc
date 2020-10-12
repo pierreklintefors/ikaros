@@ -3,7 +3,7 @@
 <class name="VocalReaction" description="minimal example module">
 
 	<description type="text">
-		Module that can be to elicit vocal reactions by scanning BCH-codes via MarkerTracker and playing .mp3-files listed in Sounds bas on the ID och the BCH-code
+		Module that can be to elicit vocal reactions by scanning BCH-codes via MarkerTracker and playing .wav-files listed in Sounds bas on the ID och the BCH-code
 	</description>
 
 	<example description="A simple example, output_size should be set to  number_sound_categories * sound_per_category * intensity_levels">
@@ -26,8 +26,9 @@
 	<parameter name="sound_per_category" type="int" default="10" description="Number of variations of each category" />
 	<parameter name="intensity_levels" type="int" default="3" description="Number of intesity levels of each sound" />
 	<parameter name="total_number_sounds" type="int" default="150" description="Should be equal to number of sounds in soundlibrary (i.e.  number_sound_categories * sound_per_category * intensity_levels" />
+	<parameter name="pause_in_miliseconds" type="float" default="3000" description="Pause in miliseconds between playing different sounds" />
 
-	<output name="REACTION_OUTPUT" description="Binary array with where the elements position corresponds to a mp3.file listed in Sounds" size_param = "total_number_sounds" />
+	<output name="REACTION_OUTPUT" description="Binary array  where the element's position corresponds to a .wav-file listed in Sounds" size_param = "total_number_sounds" />
 
 
 	<link class="VocalReaction" />

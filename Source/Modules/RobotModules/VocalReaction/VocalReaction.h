@@ -36,8 +36,11 @@ public:
     void 		Init();
     void 		Tick();
 
+    //Randomizer function
     int     Random(int,int);
 
+    bool        pause;
+    Timer       timer;
     // pointers to inputs and outputs
     // and integers to represent their sizes
 
@@ -69,6 +72,7 @@ public:
     int         num_categories;
     int         num_sounds_per_category;
     int         num_intensity_levels;
+    float       pauseTime;
 
 
 };
