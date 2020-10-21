@@ -27,6 +27,9 @@
 	<parameter name="intensity_levels" type="int" default="3" description="Number of intesity levels of each sound" />
 	<parameter name="total_number_sounds" type="int" default="150" description="Should be equal to number of sounds in soundlibrary (i.e.  number_sound_categories * sound_per_category * intensity_levels" />
 	<parameter name="pause_in_miliseconds" type="float" default="3000" description="Pause in miliseconds between playing different sounds" />
+	<parameter name="repetitions_before_bored" type="int" default="4" description="Number of times the same code can be played before triggering a bored sound" />
+
+	
 
 	<output name="REACTION_OUTPUT" description="Binary array  where the element's position corresponds to a .wav-file listed in Sounds" size_param = "total_number_sounds" />
 

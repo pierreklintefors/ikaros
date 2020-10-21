@@ -73,6 +73,11 @@ public:
     int         num_sounds_per_category;
     int         num_intensity_levels;
     float       pauseTime;
+    int         valid_repetitions;
+
+    //
+    int         input_repetition;
+    int         object_id_previous_tick;
 
 
 };

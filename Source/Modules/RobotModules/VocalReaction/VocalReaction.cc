@@ -51,6 +51,7 @@ VocalReaction::Init()
     Bind (num_sounds_per_category, "sounds_per_category");
     Bind(num_intensity_levels, "intensity_levels");
     Bind(pauseTime, "pause_in_miliseconds");
+    Bind(valid_repetitions, "repetitions_before_bored");
 
 
     io(input_Pos_matrix, input_Pos_matrix_size_x, input_Pos_matrix_size_y, "POSITION_INPUT");
@@ -83,6 +84,14 @@ VocalReaction::Init()
 
     //Create a timer constructor
     Timer timer;
+
+    //Counter that increases when current input is the same as previous
+    input_repetition = 0;
+
+    object_id_previous_tick = 0;
+
+   
+
 
 
 }
@@ -133,7 +142,7 @@ VocalReaction::Tick()
     
 
   //Checks if enough time has been gone by before enabling a new object to be identified   
-  if(pause = false || timer.GetTime() > pauseTime)
+  if(pause == false || timer.GetTime() > pauseTime)
   {
     //Search the input matrix to see if a marker has been identified
     for (int j = 0; j < input_ID_matrix_size_y; j++)
@@ -141,19 +150,46 @@ VocalReaction::Tick()
       {
         if (input_ID_matrix[j][i] > 0 && timer.GetTime() > pauseTime)
         {
+          
           //Starts timer
           timer.Restart();
 
           pause = true;
 
           //Sets lower and higher boundary for randomizing a sound in the identified category
-          int lower_bound = input_ID_matrix[j][i] * num_sounds_per_category - num_sounds_per_category;
-          int upper_bound = lower_bound + num_sounds_per_category;
+          int lower_bound = input_ID_matrix[j][i] * num_sounds_per_category* num_intensity_levels;
+          int upper_bound = lower_bound + num_sounds_per_category*num_intensity_levels;
+          
+          //If the object id is - the question is " are you ready"
+          if  (input_ID_matrix[j][i]==1)
+          {
+            lower_bound = input_ID_matrix[j][i];
+            upper_bound = upper_bound * 2;
+          }
+
+          
+          if(object_id_previous_tick == input_ID_matrix[j][i])
+          {
+            input_repetition +=1;
+          }
+          else 
+            input_repetition = 0;   
+          
+          //Checks if same object has been repeated to the point of set boundary of valid repetitions 
+          if(input_repetition > valid_repetitions)  
+          {
+            int lower_bound = reaction_output_array_size - (num_sounds_per_category*num_intensity_levels);
+            int upper_bound = lower_bound + num_sounds_per_category* num_intensity_levels;
+
+            input_repetition = 0;
+          }     
 
           //Generate a random number between boundaries
           int rand_num = Random(lower_bound, upper_bound);
-
           reaction_output_array[rand_num] = 1;
+
+          object_id_previous_tick = input_ID_matrix[j][i];
+
         }
       }
 
@@ -165,9 +201,10 @@ VocalReaction::Tick()
     {
       std::cout << reaction_output_array[i];
     }
+
     std::cout << '\n';
-    cout << "GetTime: ";
-    cout << timer.GetTime() << '\n';
+    cout << "Input repetition: ";
+    cout << input_repetition << '\n';
 
 
 }

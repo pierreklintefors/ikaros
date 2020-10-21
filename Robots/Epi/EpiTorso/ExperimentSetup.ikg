@@ -9,7 +9,8 @@ Typical:
 Linux
 HeadSerialDevice = "/dev/ttyXXXX" 
 OSX: 
-HeadSerialDevice = "/dev/cu_XXXX" 
+HeadSerialDevice = "/dev/cu.usbserial-FT3WI2K2" 
+PupilSerialDevice = "/dev/cu.usbserial-FT3WI2WH"
 Servo mode:
 The system can simulate the servos to be able to run the simulation without the robot. 
 The feedback from the servoes is very limited. The goal position sent to the simulated servos is used as feedback position. 
@@ -35,13 +36,16 @@ VisionInputRight = "InputJPEG"
         <module
             class = "EpiTorsoMinimal"
             name = "EpiOrange"
-            HeadDynamixel = "DynamixelSimulate"
-            PupilDynamixel = "DynamixelSimulate"
-            VisionInputLeft = "InputJPEG"
-            VisionInputRight = "InputJPEG"
+            HeadDynamixel = "Dynamixel"
+            PupilDynamixel = "Dynamixel"
+	        HeadSerialDevice = "/dev/cu.usbserial-FT3WI2K2" 
+	        PupilSerialDevice = "/dev/cu.usbserial-FT3WI2WH"
+            VisionInputLeft = "InputVideoStream"
+            VisionInputRight = "InputVideoStream"
             pupilOffset = "-15 -28"
         />
-        <module
+
+        <_module
             class   = "InputVideo"
             name    = "CAMERA"
             size_x  = "640"
@@ -51,18 +55,126 @@ VisionInputRight = "InputJPEG"
         <module
             class = "VocalReaction"
             name = "VocalReaction"
-            number_sound_categories = "3"
-            sounds_per_category = "1"
-            intensity_levels = "1"
-            total_number_sounds = "3"
-            pause_in_miliseconds = "5000"
+            number_sound_categories = "6"
+            sounds_per_category = "50"
+            intensity_levels = "3"
+            total_number_sounds = "900"
+            pause_in_miliseconds = "2000"
+            repetitions_before_bored = "2"
         />
 
         <module
             class = "SoundOutput"
             name = "SoundOutput"
-            command = "aplay"
-            sounds = "Sounds/agree_1_high_10.wav, Sounds/bored_2_low_5.wav, Sounds/confused_2_low_7.wav"
+            command = "afplay"
+            sounds = "Sounds/agree_1_high_1.wav, Sounds/agree_1_high_2.wav, Sounds/agree_1_high_3.wav, Sounds/agree_1_high_4.wav,Sounds/agree_1_high_5.wav,Sounds/agree_1_high_6.wav,Sounds/agree_1_high_7.wav,Sounds/agree_1_high_8.wav,Sounds/agree_1_high_9.wav,Sounds/agree_1_high_10.wav,Sounds/agree_1_low_1.wav,Sounds/agree_1_low_2.wav,Sounds/agree_1_low_3.wav,Sounds/agree_1_low_4.wav, Sounds/agree_1_low_5.wav,Sounds/agree_1_low_6.wav,Sounds/agree_1_low_7.wav,Sounds/agree_1_low_8.wav, Sounds/agree_1_low_9.wav,Sounds/agree_1_low_10.wav,Sounds/agree_1_med_1.wav,Sounds/agree_1_med_2.wav, Sounds/agree_1_med_3.wav,Sounds/agree_1_med_4.wav,Sounds/agree_1_med_5.wav,Sounds/agree_1_med_6.wav, Sounds/agree_1_med_7.wav,Sounds/agree_1_med_8.wav,Sounds/agree_1_med_9.wav,Sounds/agree_1_med_10.wav, Sounds/agree_2_high_1.wav,Sounds/agree_2_high_2.wav,Sounds/agree_2_high_3.wav,Sounds/agree_2_high_4.wav,Sounds/agree_2_high_5.wav, Sounds/agree_2_high_6.wav,Sounds/agree_2_high_7.wav, Sounds/agree_2_high_8.wav,Sounds/agree_2_high_9.wav,Sounds/agree_2_high_10.wav,Sounds/agree_2_low_1.wav,Sounds/agree_2_low_2.wav,Sounds/agree_2_low_3.wav,Sounds/agree_2_low_4.wav,Sounds/agree_2_low_5.wav,Sounds/agree_2_low_6.wav,Sounds/agree_2_low_7.wav,
+Sounds/agree_2_low_8.wav,Sounds/agree_2_low_9.wav,Sounds/agree_2_low_10.wav,Sounds/agree_2_med_1.wav,Sounds/agree_2_med_2.wav,Sounds/agree_2_med_3.wav,Sounds/agree_2_med_4.wav,Sounds/agree_2_med_5.wav,
+Sounds/agree_2_med_6.wav,Sounds/agree_2_med_7.wav,Sounds/agree_2_med_8.wav,Sounds/agree_2_med_9.wav,Sounds/agree_2_med_10.wav,Sounds/agree_3_high_1.wav,Sounds/agree_3_high_2.wav,Sounds/agree_3_high_3.wav,
+Sounds/agree_3_high_4.wav,Sounds/agree_3_high_5.wav,Sounds/agree_3_high_6.wav,Sounds/agree_3_high_7.wav,Sounds/agree_3_high_8.wav, Sounds/agree_3_high_9.wav,Sounds/agree_3_high_10.wav, Sounds/agree_3_low_1.wav,
+Sounds/agree_3_low_2.wav,Sounds/agree_3_low_3.wav,Sounds/agree_3_low_4.wav,Sounds/agree_3_low_5.wav,Sounds/agree_3_low_6.wav,Sounds/agree_3_low_7.wav,Sounds/agree_3_low_8.wav,Sounds/agree_3_low_9.wav,
+Sounds/agree_3_low_10.wav,Sounds/agree_3_med_1.wav,Sounds/agree_3_med_2.wav,Sounds/agree_3_med_3.wav,Sounds/agree_3_med_4.wav,Sounds/agree_3_med_5.wav,Sounds/agree_3_med_6.wav,Sounds/agree_3_med_7.wav,
+Sounds/agree_3_med_8.wav,Sounds/agree_3_med_9.wav,Sounds/agree_3_med_10.wav,Sounds/agree_4_high_1.wav,Sounds/agree_4_high_2.wav,Sounds/agree_4_high_3.wav,Sounds/agree_4_high_4.wav,Sounds/agree_4_high_5.wav,
+Sounds/agree_4_high_6.wav,Sounds/agree_4_high_7.wav,Sounds/agree_4_high_8.wav,Sounds/agree_4_high_9.wav,Sounds/agree_4_high_10.wav,Sounds/agree_4_low_1.wav,Sounds/agree_4_low_2.wav,Sounds/agree_4_low_3.wav,
+Sounds/agree_4_low_4.wav,Sounds/agree_4_low_5.wav,Sounds/agree_4_low_6.wav,Sounds/agree_4_low_7.wav,Sounds/agree_4_low_8.wav,Sounds/agree_4_low_9.wav,Sounds/agree_4_low_10.wav,Sounds/agree_4_med_1.wav,
+Sounds/agree_4_med_2.wav,Sounds/agree_4_med_3.wav,Sounds/agree_4_med_4.wav,Sounds/agree_4_med_5.wav,Sounds/agree_4_med_6.wav,Sounds/agree_4_med_7.wav,Sounds/agree_4_med_8.wav,Sounds/agree_4_med_9.wav,
+Sounds/agree_4_med_10.wav,Sounds/agree_5_high_1.wav,Sounds/agree_5_high_2.wav,Sounds/agree_5_high_3.wav,Sounds/agree_5_high_4.wav,Sounds/agree_5_high_5.wav,Sounds/agree_5_high_6.wav,Sounds/agree_5_high_7.wav,
+Sounds/agree_5_high_8.wav,Sounds/agree_5_high_9.wav,Sounds/agree_5_high_10.wav,Sounds/agree_5_low_1.wav,Sounds/agree_5_low_2.wav,Sounds/agree_5_low_3.wav,Sounds/agree_5_low_4.wav,Sounds/agree_5_low_5.wav,
+Sounds/agree_5_low_6.wav,Sounds/agree_5_low_7.wav,Sounds/agree_5_low_8.wav,Sounds/agree_5_low_9.wav,Sounds/agree_5_low_10.wav,Sounds/agree_5_med_1.wav,Sounds/agree_5_med_2.wav,Sounds/agree_5_med_3.wav,
+Sounds/agree_5_med_4.wav,Sounds/agree_5_med_5.wav,Sounds/agree_5_med_6.wav,Sounds/agree_5_med_7.wav,Sounds/agree_5_med_8.wav,Sounds/agree_5_med_9.wav,Sounds/agree_5_med_10.wav,Sounds/disagree_1_high_1.wav,
+Sounds/disagree_1_high_2.wav,Sounds/disagree_1_high_3.wav,Sounds/disagree_1_high_4.wav,Sounds/disagree_1_high_5.wav,Sounds/disagree_1_high_6.wav,Sounds/disagree_1_high_7.wav,Sounds/disagree_1_high_8.wav,Sounds/disagree_1_high_9.wav,
+Sounds/disagree_1_high_10.wav,Sounds/disagree_1_low_1.wav,Sounds/disagree_1_low_2.wav,Sounds/disagree_1_low_3.wav,Sounds/disagree_1_low_4.wav,Sounds/disagree_1_low_5.wav,Sounds/disagree_1_low_6.wav,Sounds/disagree_1_low_7.wav,
+Sounds/disagree_1_low_8.wav,Sounds/disagree_1_low_9.wav,Sounds/disagree_1_low_10.wav,Sounds/disagree_1_med_1.wav,Sounds/disagree_1_med_2.wav,Sounds/disagree_1_med_3.wav,Sounds/disagree_1_med_4.wav,Sounds/disagree_1_med_5.wav,
+Sounds/disagree_1_med_6.wav,Sounds/disagree_1_med_7.wav,Sounds/disagree_1_med_8.wav,Sounds/disagree_1_med_9.wav,Sounds/disagree_1_med_10.wav,Sounds/disagree_2_high_1.wav,Sounds/disagree_2_high_2.wav,Sounds/disagree_2_high_3.wav,
+Sounds/disagree_2_high_4.wav,Sounds/disagree_2_high_5.wav,Sounds/disagree_2_high_6.wav,Sounds/disagree_2_high_7.wav,Sounds/disagree_2_high_8.wav,Sounds/disagree_2_high_9.wav,Sounds/disagree_2_high_10.wav,Sounds/disagree_2_low_1.wav,
+Sounds/disagree_2_low_2.wav,Sounds/disagree_2_low_3.wav,Sounds/disagree_2_low_4.wav,Sounds/disagree_2_low_5.wav,Sounds/disagree_2_low_6.wav,Sounds/disagree_2_low_7.wav,Sounds/disagree_2_low_8.wav,Sounds/disagree_2_low_9.wav,
+Sounds/disagree_2_low_10.wav,Sounds/disagree_2_med_1.wav,Sounds/disagree_2_med_2.wav,Sounds/disagree_2_med_3.wav,Sounds/disagree_2_med_4.wav,Sounds/disagree_2_med_5.wav,Sounds/disagree_2_med_6.wav,Sounds/disagree_2_med_7.wav,
+Sounds/disagree_2_med_8.wav,Sounds/disagree_2_med_9.wav,Sounds/disagree_2_med_10.wav,Sounds/disagree_3_high_1.wav,Sounds/disagree_3_high_2.wav,Sounds/disagree_3_high_3.wav,Sounds/disagree_3_high_4.wav,Sounds/disagree_3_high_5.wav,
+Sounds/disagree_3_high_6.wav,Sounds/disagree_3_high_7.wav,Sounds/disagree_3_high_8.wav,Sounds/disagree_3_high_9.wav,Sounds/disagree_3_high_10.wav,Sounds/disagree_3_low_1.wav,Sounds/disagree_3_low_2.wav,Sounds/disagree_3_low_3.wav,
+Sounds/disagree_3_low_4.wav,Sounds/disagree_3_low_5.wav,Sounds/disagree_3_low_6.wav,Sounds/disagree_3_low_7.wav,Sounds/disagree_3_low_8.wav,Sounds/disagree_3_low_9.wav,Sounds/disagree_3_low_10.wav,Sounds/disagree_3_med_1.wav,
+Sounds/disagree_3_med_2.wav,Sounds/disagree_3_med_3.wav,Sounds/disagree_3_med_4.wav,Sounds/disagree_3_med_5.wav,Sounds/disagree_3_med_6.wav,Sounds/disagree_3_med_7.wav,Sounds/disagree_3_med_8.wav,Sounds/disagree_3_med_9.wav,
+Sounds/disagree_3_med_10.wav,Sounds/disagree_4_high_1.wav,Sounds/disagree_4_high_2.wav,Sounds/disagree_4_high_3.wav,Sounds/disagree_4_high_4.wav,Sounds/disagree_4_high_5.wav,Sounds/disagree_4_high_6.wav,Sounds/disagree_4_high_7.wav,
+Sounds/disagree_4_high_8.wav,Sounds/disagree_4_high_9.wav,Sounds/disagree_4_high_10.wav,Sounds/disagree_4_low_1.wav,Sounds/disagree_4_low_2.wav,Sounds/disagree_4_low_3.wav,Sounds/disagree_4_low_4.wav,Sounds/disagree_4_low_5.wav,
+Sounds/disagree_4_low_6.wav,Sounds/disagree_4_low_7.wav,Sounds/disagree_4_low_8.wav,Sounds/disagree_4_low_9.wav,Sounds/disagree_4_low_10.wav,Sounds/disagree_4_med_1.wav,Sounds/disagree_4_med_2.wav,Sounds/disagree_4_med_3.wav,
+Sounds/disagree_4_med_4.wav,Sounds/disagree_4_med_5.wav,Sounds/disagree_4_med_6.wav,Sounds/disagree_4_med_7.wav,Sounds/disagree_4_med_8.wav,Sounds/disagree_4_med_9.wav,Sounds/disagree_4_med_10.wav,Sounds/disagree_5_high_1.wav,
+Sounds/disagree_5_high_2.wav,Sounds/disagree_5_high_3.wav,Sounds/disagree_5_high_4.wav,Sounds/disagree_5_high_5.wav,Sounds/disagree_5_high_6.wav,Sounds/disagree_5_high_7.wav,Sounds/disagree_5_high_8.wav,Sounds/disagree_5_high_9.wav,
+Sounds/disagree_5_high_10.wav,Sounds/disagree_5_low_1.wav,Sounds/disagree_5_low_2.wav,Sounds/disagree_5_low_3.wav,Sounds/disagree_5_low_4.wav,Sounds/disagree_5_low_5.wav,Sounds/disagree_5_low_6.wav,Sounds/disagree_5_low_7.wav,
+Sounds/disagree_5_low_8.wav,Sounds/disagree_5_low_9.wav,Sounds/disagree_5_low_10.wav,Sounds/disagree_5_med_1.wav,Sounds/disagree_5_med_2.wav,Sounds/disagree_5_med_3.wav,Sounds/disagree_5_med_4.wav,Sounds/disagree_5_med_5.wav,
+Sounds/disagree_5_med_6.wav,Sounds/disagree_5_med_7.wav,Sounds/disagree_5_med_8.wav,Sounds/disagree_5_med_9.wav,Sounds/disagree_5_med_10.wav,Sounds/disgusted_1_high_1.wav,Sounds/disgusted_1_high_2.wav,Sounds/disgusted_1_high_3.wav,
+Sounds/disgusted_1_high_4.wav,Sounds/disgusted_1_high_5.wav,Sounds/disgusted_1_high_6.wav,Sounds/disgusted_1_high_7.wav,Sounds/disgusted_1_high_8.wav,Sounds/disgusted_1_high_9.wav,Sounds/disgusted_1_high_10.wav,Sounds/disgusted_1_low_1.wav,
+Sounds/disgusted_1_low_2.wav,Sounds/disgusted_1_low_3.wav,Sounds/disgusted_1_low_4.wav,Sounds/disgusted_1_low_5.wav,Sounds/disgusted_1_low_6.wav,Sounds/disgusted_1_low_7.wav,Sounds/disgusted_1_low_8.wav,Sounds/disgusted_1_low_9.wav,
+Sounds/disgusted_1_low_10.wav,Sounds/disgusted_1_med_1.wav,Sounds/disgusted_1_med_2.wav,Sounds/disgusted_1_med_3.wav,Sounds/disgusted_1_med_4.wav,Sounds/disgusted_1_med_5.wav,Sounds/disgusted_1_med_6.wav,Sounds/disgusted_1_med_7.wav,
+Sounds/disgusted_1_med_8.wav,Sounds/disgusted_1_med_9.wav,Sounds/disgusted_1_med_10.wav,Sounds/disgusted_2_high_1.wav,Sounds/disgusted_2_high_2.wav,Sounds/disgusted_2_high_3.wav,Sounds/disgusted_2_high_4.wav,Sounds/disgusted_2_high_5.wav,Sounds/disgusted_2_high_6.wav,Sounds/disgusted_2_high_7.wav,Sounds/disgusted_2_high_8.wav,Sounds/disgusted_2_high_9.wav,Sounds/disgusted_2_high_10.wav,Sounds/disgusted_2_low_1.wav,Sounds/disgusted_2_low_2.wav,Sounds/disgusted_2_low_3.wav,
+Sounds/disgusted_2_low_4.wav,Sounds/disgusted_2_low_5.wav,Sounds/disgusted_2_low_6.wav,Sounds/disgusted_2_low_7.wav,Sounds/disgusted_2_low_8.wav,Sounds/disgusted_2_low_9.wav,Sounds/disgusted_2_low_10.wav,Sounds/disgusted_2_med_1.wav,
+Sounds/disgusted_2_med_2.wav,Sounds/disgusted_2_med_3.wav,Sounds/disgusted_2_med_4.wav,Sounds/disgusted_2_med_5.wav,Sounds/disgusted_2_med_6.wav,Sounds/disgusted_2_med_7.wav,Sounds/disgusted_2_med_8.wav,Sounds/disgusted_2_med_9.wav,
+Sounds/disgusted_2_med_10.wav,Sounds/disgusted_3_high_1.wav,Sounds/disgusted_3_high_2.wav,Sounds/disgusted_3_high_3.wav,Sounds/disgusted_3_high_4.wav,Sounds/disgusted_3_high_5.wav,Sounds/disgusted_3_high_6.wav,Sounds/disgusted_3_high_7.wav,
+Sounds/disgusted_3_high_8.wav, Sounds/disgusted_3_high_9.wav,Sounds/disgusted_3_high_10.wav,Sounds/disgusted_3_low_1.wav,Sounds/disgusted_3_low_2.wav,Sounds/disgusted_3_low_3.wav,Sounds/disgusted_3_low_4.wav,Sounds/disgusted_3_low_5.wav,
+Sounds/disgusted_3_low_6.wav, Sounds/disgusted_3_low_7.wav,Sounds/disgusted_3_low_8.wav,Sounds/disgusted_3_low_9.wav,Sounds/disgusted_3_low_10.wav,
+Sounds/disgusted_3_med_1.wav,Sounds/disgusted_3_med_2.wav,Sounds/disgusted_3_med_3.wav,Sounds/disgusted_3_med_4.wav,Sounds/disgusted_3_med_5.wav,Sounds/disgusted_3_med_6.wav,Sounds/disgusted_3_med_7.wav,Sounds/disgusted_3_med_8.wav,
+Sounds/disgusted_3_med_9.wav,Sounds/disgusted_3_med_10.wav,Sounds/disgusted_4_high_1.wav,Sounds/disgusted_4_high_2.wav,Sounds/disgusted_4_high_3.wav,Sounds/disgusted_4_high_4.wav,Sounds/disgusted_4_high_5.wav,Sounds/disgusted_4_high_6.wav,
+Sounds/disgusted_4_high_7.wav,Sounds/disgusted_4_high_8.wav,Sounds/disgusted_4_high_9.wav,Sounds/disgusted_4_high_10.wav,Sounds/disgusted_4_low_1.wav,Sounds/disgusted_4_low_2.wav,Sounds/disgusted_4_low_3.wav,Sounds/disgusted_4_low_4.wav,
+Sounds/disgusted_4_low_5.wav,Sounds/disgusted_4_low_6.wav,Sounds/disgusted_4_low_7.wav,Sounds/disgusted_4_low_8.wav,Sounds/disgusted_4_low_9.wav,Sounds/disgusted_4_low_10.wav,Sounds/disgusted_4_med_1.wav,Sounds/disgusted_4_med_2.wav,
+Sounds/disgusted_4_med_3.wav,Sounds/disgusted_4_med_4.wav,Sounds/disgusted_4_med_5.wav,Sounds/disgusted_4_med_6.wav,Sounds/disgusted_4_med_7.wav,Sounds/disgusted_4_med_8.wav,Sounds/disgusted_4_med_9.wav,Sounds/disgusted_4_med_10.wav,
+Sounds/disgusted_5_high_1.wav,Sounds/disgusted_5_high_2.wav,Sounds/disgusted_5_high_3.wav,Sounds/disgusted_5_high_4.wav,Sounds/disgusted_5_high_5.wav,Sounds/disgusted_5_high_6.wav,Sounds/disgusted_5_high_7.wav,Sounds/disgusted_5_high_8.wav,
+Sounds/disgusted_5_high_9.wav,Sounds/disgusted_5_high_10.wav,Sounds/disgusted_5_low_1.wav,Sounds/disgusted_5_low_2.wav,Sounds/disgusted_5_low_3.wav,Sounds/disgusted_5_low_4.wav,Sounds/disgusted_5_low_5.wav,Sounds/disgusted_5_low_6.wav,
+Sounds/disgusted_5_low_7.wav,Sounds/disgusted_5_low_8.wav,Sounds/disgusted_5_low_9.wav,Sounds/disgusted_5_low_10.wav,Sounds/disgusted_5_med_1.wav,Sounds/disgusted_5_med_2.wav,Sounds/disgusted_5_med_3.wav,Sounds/disgusted_5_med_4.wav,
+Sounds/disgusted_5_med_5.wav,Sounds/disgusted_5_med_6.wav,Sounds/disgusted_5_med_7.wav,Sounds/disgusted_5_med_8.wav,Sounds/disgusted_5_med_9.wav,Sounds/disgusted_5_med_10.wav,Sounds/pleased_1_high_1.wav,Sounds/pleased_1_high_2.wav,
+Sounds/pleased_1_high_3.wav,Sounds/pleased_1_high_4.wav,Sounds/pleased_1_high_5.wav,Sounds/pleased_1_high_6.wav,Sounds/pleased_1_high_7.wav,Sounds/pleased_1_high_8.wav,Sounds/pleased_1_high_9.wav,Sounds/pleased_1_high_10.wav,
+Sounds/pleased_1_low_1.wav,Sounds/pleased_1_low_2.wav,Sounds/pleased_1_low_3.wav,Sounds/pleased_1_low_4.wav,Sounds/pleased_1_low_5.wav,Sounds/pleased_1_low_6.wav,Sounds/pleased_1_low_7.wav,Sounds/pleased_1_low_8.wav,
+Sounds/pleased_1_low_9.wav,Sounds/pleased_1_low_10.wav,Sounds/pleased_1_med_1.wav,Sounds/pleased_1_med_2.wav,Sounds/pleased_1_med_3.wav,Sounds/pleased_1_med_4.wav,Sounds/pleased_1_med_5.wav,Sounds/pleased_1_med_6.wav,
+Sounds/pleased_1_med_7.wav,Sounds/pleased_1_med_8.wav,Sounds/pleased_1_med_9.wav,Sounds/pleased_1_med_10.wav,Sounds/pleased_2_high_1.wav,Sounds/pleased_2_high_2.wav,Sounds/pleased_2_high_3.wav,Sounds/pleased_2_high_4.wav,
+Sounds/pleased_2_high_5.wav,Sounds/pleased_2_high_6.wav,Sounds/pleased_2_high_7.wav,Sounds/pleased_2_high_8.wav,Sounds/pleased_2_high_9.wav,Sounds/pleased_2_high_10.wav,Sounds/pleased_2_low_1.wav,Sounds/pleased_2_low_2.wav,
+Sounds/pleased_2_low_3.wav,Sounds/pleased_2_low_4.wav,Sounds/pleased_2_low_5.wav,Sounds/pleased_2_low_6.wav,Sounds/pleased_2_low_7.wav,Sounds/pleased_2_low_8.wav,Sounds/pleased_2_low_9.wav,Sounds/pleased_2_low_10.wav,
+Sounds/pleased_2_med_1.wav,Sounds/pleased_2_med_2.wav,Sounds/pleased_2_med_3.wav,Sounds/pleased_2_med_4.wav,Sounds/pleased_2_med_5.wav,Sounds/pleased_2_med_6.wav,Sounds/pleased_2_med_7.wav,Sounds/pleased_2_med_8.wav,
+Sounds/pleased_2_med_9.wav,Sounds/pleased_2_med_10.wav,Sounds/pleased_3_high_1.wav,Sounds/pleased_3_high_2.wav,Sounds/pleased_3_high_3.wav,Sounds/pleased_3_high_4.wav,Sounds/pleased_3_high_5.wav,Sounds/pleased_3_high_6.wav,
+Sounds/pleased_3_high_7.wav,Sounds/pleased_3_high_8.wav,Sounds/pleased_3_high_9.wav,Sounds/pleased_3_high_10.wav,Sounds/pleased_3_low_1.wav,Sounds/pleased_3_low_2.wav,Sounds/pleased_3_low_3.wav,Sounds/pleased_3_low_4.wav,
+Sounds/pleased_3_low_5.wav,Sounds/pleased_3_low_6.wav,Sounds/pleased_3_low_7.wav,Sounds/pleased_3_low_8.wav,Sounds/pleased_3_low_9.wav,Sounds/pleased_3_low_10.wav,Sounds/pleased_3_med_1.wav,Sounds/pleased_3_med_2.wav,
+Sounds/pleased_3_med_3.wav,Sounds/pleased_3_med_4.wav,Sounds/pleased_3_med_5.wav,Sounds/pleased_3_med_6.wav,Sounds/pleased_3_med_7.wav,Sounds/pleased_3_med_8.wav,Sounds/pleased_3_med_9.wav,Sounds/pleased_3_med_10.wav,
+Sounds/pleased_4_high_1.wav,Sounds/pleased_4_high_2.wav,Sounds/pleased_4_high_3.wav,Sounds/pleased_4_high_4.wav,Sounds/pleased_4_high_5.wav,Sounds/pleased_4_high_6.wav,Sounds/pleased_4_high_7.wav,Sounds/pleased_4_high_8.wav,
+Sounds/pleased_4_high_9.wav,Sounds/pleased_4_high_10.wav,Sounds/pleased_4_low_1.wav,Sounds/pleased_4_low_2.wav,Sounds/pleased_4_low_3.wav,Sounds/pleased_4_low_4.wav,Sounds/pleased_4_low_5.wav,Sounds/pleased_4_low_6.wav,
+Sounds/pleased_4_low_7.wav,Sounds/pleased_4_low_8.wav,Sounds/pleased_4_low_9.wav,Sounds/pleased_4_low_10.wav,Sounds/pleased_4_med_1.wav,Sounds/pleased_4_med_2.wav,Sounds/pleased_4_med_3.wav,Sounds/pleased_4_med_4.wav,
+Sounds/pleased_4_med_5.wav,Sounds/pleased_4_med_6.wav,Sounds/pleased_4_med_7.wav,Sounds/pleased_4_med_8.wav,Sounds/pleased_4_med_9.wav,Sounds/pleased_4_med_10.wav,Sounds/pleased_5_high_1.wav,Sounds/pleased_5_high_2.wav,
+Sounds/pleased_5_high_3.wav,Sounds/pleased_5_high_4.wav,Sounds/pleased_5_high_5.wav,Sounds/pleased_5_high_6.wav,Sounds/pleased_5_high_7.wav,Sounds/pleased_5_high_8.wav,Sounds/pleased_5_high_9.wav,Sounds/pleased_5_high_10.wav,
+Sounds/pleased_5_low_1.wav,Sounds/pleased_5_low_2.wav,Sounds/pleased_5_low_3.wav,Sounds/pleased_5_low_4.wav,Sounds/pleased_5_low_5.wav,Sounds/pleased_5_low_6.wav,Sounds/pleased_5_low_7.wav,Sounds/pleased_5_low_8.wav,
+Sounds/pleased_5_low_9.wav,Sounds/pleased_5_low_10.wav,Sounds/pleased_5_med_1.wav,Sounds/pleased_5_med_2.wav,Sounds/pleased_5_med_3.wav,Sounds/pleased_5_med_4.wav,Sounds/pleased_5_med_5.wav,Sounds/pleased_5_med_6.wav,Sounds/pleased_5_med_7.wav,
+Sounds/pleased_5_med_8.wav,Sounds/pleased_5_med_9.wav,Sounds/pleased_5_med_10.wav,Sounds/confused_1_high_1.wav,Sounds/confused_1_high_2.wav,Sounds/confused_1_high_3.wav,Sounds/confused_1_high_4.wav,Sounds/confused_1_high_5.wav,Sounds/confused_1_high_6.wav,
+Sounds/confused_1_high_7.wav,Sounds/confused_1_high_8.wav,Sounds/confused_1_high_9.wav,Sounds/confused_1_high_10.wav,Sounds/confused_1_low_1.wav,Sounds/confused_1_low_2.wav,Sounds/confused_1_low_3.wav,Sounds/confused_1_low_4.wav,
+Sounds/confused_1_low_5.wav,Sounds/confused_1_low_6.wav,Sounds/confused_1_low_7.wav,Sounds/confused_1_low_8.wav,Sounds/confused_1_low_9.wav,Sounds/confused_1_low_10.wav,Sounds/confused_1_med_1.wav,Sounds/confused_1_med_2.wav,
+Sounds/confused_1_med_3.wav,Sounds/confused_1_med_4.wav,Sounds/confused_1_med_5.wav,Sounds/confused_1_med_6.wav,Sounds/confused_1_med_7.wav,Sounds/confused_1_med_8.wav,Sounds/confused_1_med_9.wav,Sounds/confused_1_med_10.wav,
+Sounds/confused_2_high_1.wav,Sounds/confused_2_high_2.wav,Sounds/confused_2_high_3.wav,Sounds/confused_2_high_4.wav,Sounds/confused_2_high_5.wav,Sounds/confused_2_high_6.wav,Sounds/confused_2_high_7.wav,Sounds/confused_2_high_8.wav,
+Sounds/confused_2_high_9.wav,Sounds/confused_2_high_10.wav,Sounds/confused_2_low_1.wav,Sounds/confused_2_low_2.wav,Sounds/confused_2_low_3.wav,Sounds/confused_2_low_4.wav,Sounds/confused_2_low_5.wav,Sounds/confused_2_low_6.wav,
+Sounds/confused_2_low_7.wav,Sounds/confused_2_low_8.wav,Sounds/confused_2_low_9.wav,Sounds/confused_2_low_10.wav,Sounds/confused_2_med_1.wav,Sounds/confused_2_med_2.wav,Sounds/confused_2_med_3.wav,Sounds/confused_2_med_4.wav,
+Sounds/confused_2_med_5.wav,Sounds/confused_2_med_6.wav,Sounds/confused_2_med_7.wav,Sounds/confused_2_med_8.wav,Sounds/confused_2_med_9.wav,Sounds/confused_2_med_10.wav,Sounds/confused_3_high_1.wav,Sounds/confused_3_high_2.wav,
+Sounds/confused_3_high_3.wav,Sounds/confused_3_high_4.wav,Sounds/confused_3_high_5.wav,Sounds/confused_3_high_6.wav,Sounds/confused_3_high_7.wav,Sounds/confused_3_high_8.wav,Sounds/confused_3_high_9.wav,Sounds/confused_3_high_10.wav,
+Sounds/confused_3_low_1.wav,Sounds/confused_3_low_2.wav,Sounds/confused_3_low_3.wav,Sounds/confused_3_low_4.wav,Sounds/confused_3_low_5.wav,Sounds/confused_3_low_6.wav,Sounds/confused_3_low_7.wav,Sounds/confused_3_low_8.wav,
+Sounds/confused_3_low_9.wav,Sounds/confused_3_low_10.wav,Sounds/confused_3_med_1.wav,Sounds/confused_3_med_2.wav,Sounds/confused_3_med_3.wav,Sounds/confused_3_med_4.wav,Sounds/confused_3_med_5.wav,Sounds/confused_3_med_6.wav,
+Sounds/confused_3_med_7.wav,Sounds/confused_3_med_8.wav,Sounds/confused_3_med_9.wav,Sounds/confused_3_med_10.wav,Sounds/confused_4_high_1.wav,Sounds/confused_4_high_2.wav,Sounds/confused_4_high_3.wav,Sounds/confused_4_high_4.wav,
+Sounds/confused_4_high_5.wav,Sounds/confused_4_high_6.wav,Sounds/confused_4_high_7.wav,Sounds/confused_4_high_8.wav,Sounds/confused_4_high_9.wav,Sounds/confused_4_high_10.wav,Sounds/confused_4_low_1.wav,Sounds/confused_4_low_2.wav,
+Sounds/confused_4_low_3.wav,Sounds/confused_4_low_4.wav,Sounds/confused_4_low_5.wav,Sounds/confused_4_low_6.wav,Sounds/confused_4_low_7.wav,Sounds/confused_4_low_8.wav,Sounds/confused_4_low_9.wav,Sounds/confused_4_low_10.wav,
+Sounds/confused_4_med_1.wav,Sounds/confused_4_med_2.wav,Sounds/confused_4_med_3.wav,Sounds/confused_4_med_4.wav,Sounds/confused_4_med_5.wav,Sounds/confused_4_med_6.wav,Sounds/confused_4_med_7.wav,Sounds/confused_4_med_8.wav,
+Sounds/confused_4_med_9.wav,Sounds/confused_4_med_10.wav,Sounds/confused_5_high_1.wav,Sounds/confused_5_high_2.wav,Sounds/confused_5_high_3.wav,Sounds/confused_5_high_4.wav,Sounds/confused_5_high_5.wav,Sounds/confused_5_high_6.wav,
+Sounds/confused_5_high_7.wav,Sounds/confused_5_high_8.wav,Sounds/confused_5_high_9.wav,Sounds/confused_5_high_10.wav,Sounds/confused_5_low_1.wav,Sounds/confused_5_low_2.wav,Sounds/confused_5_low_3.wav,Sounds/confused_5_low_4.wav,
+Sounds/confused_5_low_5.wav,Sounds/confused_5_low_6.wav,Sounds/confused_5_low_7.wav,Sounds/confused_5_low_8.wav,Sounds/confused_5_low_9.wav,Sounds/confused_5_low_10.wav,Sounds/confused_5_med_1.wav,Sounds/confused_5_med_2.wav,
+Sounds/confused_5_med_3.wav,Sounds/confused_5_med_4.wav,Sounds/confused_5_med_5.wav,Sounds/confused_5_med_6.wav,Sounds/confused_5_med_7.wav,Sounds/confused_5_med_8.wav,Sounds/confused_5_med_9.wav,Sounds/confused_5_med_10.wav,
+Sounds/bored_1_high_1.wav,Sounds/bored_1_high_2.wav,Sounds/bored_1_high_3.wav,Sounds/bored_1_high_4.wav,Sounds/bored_1_high_5.wav,
+Sounds/bored_1_high_6.wav,Sounds/bored_1_high_7.wav,Sounds/bored_1_high_8.wav,Sounds/bored_1_high_9.wav,Sounds/bored_1_high_10.wav,Sounds/bored_1_low_1.wav,Sounds/bored_1_low_2.wav,Sounds/bored_1_low_3.wav,
+Sounds/bored_1_low_4.wav,Sounds/bored_1_low_5.wav,Sounds/bored_1_low_6.wav,Sounds/bored_1_low_7.wav,Sounds/bored_1_low_8.wav,Sounds/bored_1_low_9.wav,Sounds/bored_1_low_10.wav,Sounds/bored_1_med_1.wav,
+Sounds/bored_1_med_2.wav,Sounds/bored_1_med_3.wav,Sounds/bored_1_med_4.wav,Sounds/bored_1_med_5.wav,Sounds/bored_1_med_6.wav,Sounds/bored_1_med_7.wav,Sounds/bored_1_med_8.wav,Sounds/bored_1_med_9.wav,
+Sounds/bored_1_med_10.wav,Sounds/bored_2_high_1.wav,Sounds/bored_2_high_2.wav,Sounds/bored_2_high_3.wav,Sounds/bored_2_high_4.wav,Sounds/bored_2_high_5.wav,Sounds/bored_2_high_6.wav,Sounds/bored_2_high_7.wav,
+Sounds/bored_2_high_8.wav,Sounds/bored_2_high_9.wav,Sounds/bored_2_high_10.wav,Sounds/bored_2_low_1.wav,Sounds/bored_2_low_2.wav,Sounds/bored_2_low_3.wav,Sounds/bored_2_low_4.wav,Sounds/bored_2_low_5.wav,
+Sounds/bored_2_low_6.wav,Sounds/bored_2_low_7.wav,Sounds/bored_2_low_8.wav,Sounds/bored_2_low_9.wav,Sounds/bored_2_low_10.wav,Sounds/bored_2_med_1.wav,Sounds/bored_2_med_2.wav,Sounds/bored_2_med_3.wav,
+Sounds/bored_2_med_4.wav,Sounds/bored_2_med_5.wav,Sounds/bored_2_med_6.wav,Sounds/bored_2_med_7.wav,Sounds/bored_2_med_8.wav,Sounds/bored_2_med_9.wav,Sounds/bored_2_med_10.wav,Sounds/bored_3_high_1.wav,
+Sounds/bored_3_high_2.wav,Sounds/bored_3_high_3.wav,Sounds/bored_3_high_4.wav,Sounds/bored_3_high_5.wav,Sounds/bored_3_high_6.wav,Sounds/bored_3_high_7.wav,Sounds/bored_3_high_8.wav,Sounds/bored_3_high_9.wav,
+Sounds/bored_3_high_10.wav,Sounds/bored_3_low_1.wav,Sounds/bored_3_low_2.wav,Sounds/bored_3_low_3.wav,Sounds/bored_3_low_4.wav,Sounds/bored_3_low_5.wav,Sounds/bored_3_low_6.wav,
+Sounds/bored_3_low_7.wav,Sounds/bored_3_low_8.wav,Sounds/bored_3_low_9.wav,Sounds/bored_3_low_10.wav,Sounds/bored_3_med_1.wav,Sounds/bored_3_med_2.wav,Sounds/bored_3_med_3.wav,Sounds/bored_3_med_4.wav,
+Sounds/bored_3_med_5.wav,Sounds/bored_3_med_6.wav,Sounds/bored_3_med_7.wav,Sounds/bored_3_med_8.wav,Sounds/bored_3_med_9.wav,Sounds/bored_3_med_10.wav,Sounds/bored_4_high_1.wav,Sounds/bored_4_high_2.wav,
+Sounds/bored_4_high_3.wav,Sounds/bored_4_high_4.wav,Sounds/bored_4_high_5.wav,Sounds/bored_4_high_6.wav,Sounds/bored_4_high_7.wav,Sounds/bored_4_high_8.wav,Sounds/bored_4_high_9.wav,Sounds/bored_4_high_10.wav,
+Sounds/bored_4_low_1.wav,Sounds/bored_4_low_2.wav,Sounds/bored_4_low_3.wav,Sounds/bored_4_low_4.wav,Sounds/bored_4_low_5.wav,Sounds/bored_4_low_6.wav,Sounds/bored_4_low_7.wav,Sounds/bored_4_low_8.wav,
+Sounds/bored_4_low_9.wav,Sounds/bored_4_low_10.wav,Sounds/bored_4_med_1.wav,Sounds/bored_4_med_2.wav,Sounds/bored_4_med_3.wav,Sounds/bored_4_med_4.wav,Sounds/bored_4_med_5.wav,Sounds/bored_4_med_6.wav,
+Sounds/bored_4_med_7.wav,Sounds/bored_4_med_8.wav,Sounds/bored_4_med_9.wav,Sounds/bored_4_med_10.wav,Sounds/bored_5_high_1.wav,Sounds/bored_5_high_2.wav,Sounds/bored_5_high_3.wav,Sounds/bored_5_high_4.wav,
+Sounds/bored_5_high_5.wav,Sounds/bored_5_high_6.wav,Sounds/bored_5_high_7.wav,Sounds/bored_5_high_8.wav,Sounds/bored_5_high_9.wav,Sounds/bored_5_high_10.wav,Sounds/bored_5_low_1.wav,Sounds/bored_5_low_2.wav,
+Sounds/bored_5_low_3.wav,Sounds/bored_5_low_4.wav,Sounds/bored_5_low_5.wav,Sounds/bored_5_low_6.wav,Sounds/bored_5_low_7.wav,Sounds/bored_5_low_8.wav,Sounds/bored_5_low_9.wav,Sounds/bored_5_low_10.wav,
+Sounds/bored_5_med_1.wav,Sounds/bored_5_med_2.wav,Sounds/bored_5_med_3.wav,Sounds/bored_5_med_4.wav,Sounds/bored_5_med_5.wav,Sounds/bored_5_med_6.wav,Sounds/bored_5_med_7.wav,Sounds/bored_5_med_8.wav,
+Sounds/bored_5_med_9.wav,Sounds/bored_5_med_10.wav"
     />
 
 
@@ -82,7 +194,7 @@ VisionInputRight = "InputJPEG"
         threshold = "auto"
         />
 
-            <connection  source = "CAMERA.INTENSITY"  target = "MarkerTracker.INPUT" delay="0" />
+            <connection  source = "EpiOrange.RightEye.LOW_RES_INTENSITY"  target = "MarkerTracker.INPUT" delay="0" />
             <connection  source = "MarkerTracker.OBJECT_ID"  target = "VocalReaction.OBJECT_INPUT" delay="0" />
             <connection  source = "MarkerTracker.IMAGE_POSITION"  target = "VocalReaction.POSITION_INPUT" delay="0" />
 
