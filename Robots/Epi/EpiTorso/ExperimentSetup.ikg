@@ -45,7 +45,7 @@ VisionInputRight = "InputJPEG"
             pupilOffset = "-15 -28"
         />
 
-        <_module
+        <module
             class   = "InputVideo"
             name    = "CAMERA"
             size_x  = "640"
@@ -66,7 +66,7 @@ VisionInputRight = "InputJPEG"
         <module
             class = "SoundOutput"
             name = "SoundOutput"
-            command = "afplay"
+            command = "play"
             sounds = "Sounds/agree_1_high_1.wav, Sounds/agree_1_high_2.wav, Sounds/agree_1_high_3.wav, Sounds/agree_1_high_4.wav,Sounds/agree_1_high_5.wav,Sounds/agree_1_high_6.wav,Sounds/agree_1_high_7.wav,Sounds/agree_1_high_8.wav,Sounds/agree_1_high_9.wav,Sounds/agree_1_high_10.wav,Sounds/agree_1_low_1.wav,Sounds/agree_1_low_2.wav,Sounds/agree_1_low_3.wav,Sounds/agree_1_low_4.wav, Sounds/agree_1_low_5.wav,Sounds/agree_1_low_6.wav,Sounds/agree_1_low_7.wav,Sounds/agree_1_low_8.wav, Sounds/agree_1_low_9.wav,Sounds/agree_1_low_10.wav,Sounds/agree_1_med_1.wav,Sounds/agree_1_med_2.wav, Sounds/agree_1_med_3.wav,Sounds/agree_1_med_4.wav,Sounds/agree_1_med_5.wav,Sounds/agree_1_med_6.wav, Sounds/agree_1_med_7.wav,Sounds/agree_1_med_8.wav,Sounds/agree_1_med_9.wav,Sounds/agree_1_med_10.wav, Sounds/agree_2_high_1.wav,Sounds/agree_2_high_2.wav,Sounds/agree_2_high_3.wav,Sounds/agree_2_high_4.wav,Sounds/agree_2_high_5.wav, Sounds/agree_2_high_6.wav,Sounds/agree_2_high_7.wav, Sounds/agree_2_high_8.wav,Sounds/agree_2_high_9.wav,Sounds/agree_2_high_10.wav,Sounds/agree_2_low_1.wav,Sounds/agree_2_low_2.wav,Sounds/agree_2_low_3.wav,Sounds/agree_2_low_4.wav,Sounds/agree_2_low_5.wav,Sounds/agree_2_low_6.wav,Sounds/agree_2_low_7.wav,
 Sounds/agree_2_low_8.wav,Sounds/agree_2_low_9.wav,Sounds/agree_2_low_10.wav,Sounds/agree_2_med_1.wav,Sounds/agree_2_med_2.wav,Sounds/agree_2_med_3.wav,Sounds/agree_2_med_4.wav,Sounds/agree_2_med_5.wav,
 Sounds/agree_2_med_6.wav,Sounds/agree_2_med_7.wav,Sounds/agree_2_med_8.wav,Sounds/agree_2_med_9.wav,Sounds/agree_2_med_10.wav,Sounds/agree_3_high_1.wav,Sounds/agree_3_high_2.wav,Sounds/agree_3_high_3.wav,
@@ -198,14 +198,16 @@ Sounds/bored_5_med_9.wav,Sounds/bored_5_med_10.wav"
             <connection  source = "MarkerTracker.OBJECT_ID"  target = "VocalReaction.OBJECT_INPUT" delay="0" />
             <connection  source = "MarkerTracker.IMAGE_POSITION"  target = "VocalReaction.POSITION_INPUT" delay="0" />
 
+            <_connection  source = "CAMERA.INTENSITY"  target = "MarkerTracker.INPUT" delay="0" />
 
-        <view name="Inputs">
+
+        <view name="MarkerTrackerInputs">
             <image
             title   = "CAMERA"
             format  = "rgb"
             source  = "CAMERA.RED+GREEN+BLUE"
             x="100"
-            y="500"
+            y="550"
             min = "0"
             max = "1"
             width ="400"
@@ -213,44 +215,29 @@ Sounds/bored_5_med_9.wav,Sounds/bored_5_med_10.wav"
             />
 
             <button
-                label = "Sundtrigger"
-                parameter = "Constant.data"
-                xindex = "0"
+                label = "Confused"
+                parameter = "VocalReaction.REACTION_OUTPUT"
+                xindex = "600"
                 x = "500"
-                y = "500"
+                y = "550"
                 />
             <path
-            source  = "MarkerTracker.MARKERS"
-            x="140"
-            y="20"
-            width="200"
-            height="200"
-            fill = "transparent"
-            select = "20"
-            length_source = "MARKER_COUNT"
-            line_join="round"
-            close = "yes"
-
-
-            />
-
-         <label
-                type    = "value"
-                select  = "18"
-                select_value = "16"
-                decimals = "0"
-                offset_x = "0"
-                offset_y = "0.01"
-                size = "30"
-                color = "white"
                 source  = "MarkerTracker.MARKERS"
-                x="100"
+                x="140"
                 y="20"
-                width="100"
-                height="500"
+                width="200"
+                height="200"
+                fill = "transparent"
+                select = "20"
+                length_source = "MARKER_COUNT"
+                line_join="round"
+                close = "yes"
+
             />
 
-        <table
+        
+
+            <table
                 source  = "MarkerTracker.MARKER_COUNT"
                 title = "No of markers"
                 x="100"
@@ -262,25 +249,25 @@ Sounds/bored_5_med_9.wav,Sounds/bored_5_med_10.wav"
             />
 
             <table
-                    source  = "MarkerTracker.OBJECT_ID"
-                    title = "Object ID"
-                    x="200"
-                    y="20"
-                    width="100"
-                    height="100"
-                    font_size = "48"
-                    decimals = "0"
+                source  = "MarkerTracker.OBJECT_ID"
+                title = "Object ID"
+                x="200"
+                y="20"
+                width="100"
+                height="100"
+                font_size = "48"
+                decimals = "0"
             />
 
             <table
-                    source  = "MarkerTracker.MARKERS"
-                    title = "Markers"
-                    x="400"
-                    y="20"
-                    width="100"
-                    height="100"
-                    font_size = "48"
-                    decimals = "0"
+                source  = "MarkerTracker.MARKERS"
+                title = "Markers"
+                x="400"
+                y="30"
+                width="900"
+                height="560"
+                font_size = "48"
+                decimals = "0"
             />
         />
     </view>

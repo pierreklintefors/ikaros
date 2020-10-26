@@ -28,7 +28,7 @@
 #include <iostream>
 #include <cstdlib>
 #include <ctime>
-#include <IKAROS.h>
+#include "IKAROS.h"
 
 using namespace std;
 
@@ -90,9 +90,6 @@ VocalReaction::Init()
 
     object_id_previous_tick = 0;
 
-   
-
-
 
 }
 
@@ -128,17 +125,15 @@ VocalReaction::Random(int min, int max) //range : [min, max]
 void
 VocalReaction::Tick()
 {
-  cout << "paustime: ";
-  cout << pauseTime << '\n';
-  cout << "pauseBool: : ";
-  cout << pause << '\n';
-
 
   //Sets all elements in reaction_output_array to 0
   for (int i = 0; i < reaction_output_array_size; i++)
   {
     reaction_output_array[i] = 0;
   }
+
+  bool no_output = false;
+  bool bored = false;
     
 
   //Checks if enough time has been gone by before enabling a new object to be identified   
@@ -146,11 +141,12 @@ VocalReaction::Tick()
   {
     //Search the input matrix to see if a marker has been identified
     for (int j = 0; j < input_ID_matrix_size_y; j++)
-      for (int i = 0; i < input_ID_matrix_size_x; i++)
+    {  for (int i = 0; i < input_ID_matrix_size_x; i++)
       {
         if (input_ID_matrix[j][i] > 0 && timer.GetTime() > pauseTime)
         {
-          
+
+         
           //Starts timer
           timer.Restart();
 
@@ -160,17 +156,18 @@ VocalReaction::Tick()
           int lower_bound = input_ID_matrix[j][i] * num_sounds_per_category* num_intensity_levels;
           int upper_bound = lower_bound + num_sounds_per_category*num_intensity_levels;
           
-          //If the object id is - the question is " are you ready"
+          //If the object id is 1 - the question is " are you ready?" Which can two answeres (double span size)
           if  (input_ID_matrix[j][i]==1)
           {
             lower_bound = input_ID_matrix[j][i];
-            upper_bound = upper_bound * 2;
+            upper_bound = (lower_bound + num_sounds_per_category*num_intensity_levels ) *2;
           }
 
-          
+          //Checks if the scanned object is the same as previous.
           if(object_id_previous_tick == input_ID_matrix[j][i])
           {
             input_repetition +=1;
+            no_output = true;
           }
           else 
             input_repetition = 0;   
@@ -178,36 +175,62 @@ VocalReaction::Tick()
           //Checks if same object has been repeated to the point of set boundary of valid repetitions 
           if(input_repetition > valid_repetitions)  
           {
-            int lower_bound = reaction_output_array_size - (num_sounds_per_category*num_intensity_levels);
-            int upper_bound = lower_bound + num_sounds_per_category* num_intensity_levels;
+            lower_bound = reaction_output_array_size - (num_sounds_per_category*num_intensity_levels);
+            upper_bound = reaction_output_array_size;
+
+            bored = true;
+
+            cout << '\n';
+            cout << "Input reset and play bored" << '\n';
 
             input_repetition = 0;
           }     
 
           //Generate a random number between boundaries
           int rand_num = Random(lower_bound, upper_bound);
-          reaction_output_array[rand_num] = 1;
-
+          
           object_id_previous_tick = input_ID_matrix[j][i];
 
+          //Sets the elemetn as 1 only if the object is not the same as previous or reached the limit of boredom 
+          if(!no_output || bored)
+          {
+            reaction_output_array[rand_num] = 1;
+            if(bored)
+            {
+              object_id_previous_tick = 0;
+            }
+            
+          }
+          
+          
+
+          //Prints some information about scanned object repetition
+          cout << '\n';
+          cout << "Input repetition: ";
+          cout << input_repetition << '\n';
+          
+          std::cout << '\n';
+          std::cout << "Object detected!"<< '\n';
+          cout << "Lower: ";
+          cout << lower_bound<< '\n';
+          cout << "Upper: ";
+          cout << upper_bound<< '\n';
+          cout << "Element: ";
+          cout << rand_num<< '\n';
+          std::cout << '\n';
+          
+
         }
-      }
+      }//For loop row
+    }// For loop column
 
-  }
+  }//If (timer)
   
+       
+         
+          
 
-    std::cout << "Output:" << "\n";
-    for (int i = 0; i < reaction_output_array_size; i++)
-    {
-      std::cout << reaction_output_array[i];
-    }
-
-    std::cout << '\n';
-    cout << "Input repetition: ";
-    cout << input_repetition << '\n';
-
-
-}
+}// Tick()
 
 
 
