@@ -40,6 +40,7 @@ public:
     int     Random(int,int);
 
     bool        pause;
+    bool        bored_played;
     Timer       timer;
     // pointers to inputs and outputs
     // and integers to represent their sizes

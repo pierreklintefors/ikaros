@@ -30,22 +30,34 @@ From local image:
 VisionInputLeft = "InputJPEG"
 VisionInputRight = "InputJPEG"
 -->
+<!-- Importing Epi Orange-->
+<!--
+	<module class = "EpiTorsoMinimal" name = "EpiOrange" 
+	HeadDynamixel = "Dynamixel" 
+	PupilDynamixel = "Dynamixel" 
+	HeadSerialDevice = "/dev/cu.usbserial-FT3WI2K2" 
+	PupilSerialDevice = "/dev/cu.usbserial-FT3WI2WH"
+	VisionInputLeft = "InputVideoStream"
+	VisionInputRight = "InputVideoStream"
+	pupilOffset = "-15 -28"
+	/>
+-->
+	<!-- Importing Epi Gray-->
+
 <group name="Experimental setup">
 
-        <!-- Importing Epi Orange -->
-        <module
-            class = "EpiTorsoMinimal"
-            name = "EpiOrange"
-            HeadDynamixel = "Dynamixel"
-            PupilDynamixel = "Dynamixel"
-	        HeadSerialDevice = "/dev/cu.usbserial-FT3WI2K2" 
-	        PupilSerialDevice = "/dev/cu.usbserial-FT3WI2WH"
-            VisionInputLeft = "InputVideoStream"
-            VisionInputRight = "InputVideoStream"
-            pupilOffset = "-15 -28"
-        />
+	<module class = "EpiTorsoMinimal" name = "EpiGray" 
+	HeadDynamixel = "Dynamixel" 
+	PupilDynamixel = "Dynamixel" 
+	HeadSerialDevice = "/dev/cu.usbserial-FT4TCGUT" 
+	PupilSerialDevice = "/dev/cu.usbserial-FT4TCJXI"
+	VisionInputLeft = "InputJPEG"
+	VisionInputRight = "InputVideoStream"
+	pupilOffset = "-20 -15"
+	/>
 
-        <module
+
+        <_module
             class   = "InputVideo"
             name    = "CAMERA"
             size_x  = "640"
@@ -66,7 +78,7 @@ VisionInputRight = "InputJPEG"
         <module
             class = "SoundOutput"
             name = "SoundOutput"
-            command = "play"
+            command = "afplay"
             sounds = "Sounds/agree_1_high_1.wav, Sounds/agree_1_high_2.wav, Sounds/agree_1_high_3.wav, Sounds/agree_1_high_4.wav,Sounds/agree_1_high_5.wav,Sounds/agree_1_high_6.wav,Sounds/agree_1_high_7.wav,Sounds/agree_1_high_8.wav,Sounds/agree_1_high_9.wav,Sounds/agree_1_high_10.wav,Sounds/agree_1_low_1.wav,Sounds/agree_1_low_2.wav,Sounds/agree_1_low_3.wav,Sounds/agree_1_low_4.wav, Sounds/agree_1_low_5.wav,Sounds/agree_1_low_6.wav,Sounds/agree_1_low_7.wav,Sounds/agree_1_low_8.wav, Sounds/agree_1_low_9.wav,Sounds/agree_1_low_10.wav,Sounds/agree_1_med_1.wav,Sounds/agree_1_med_2.wav, Sounds/agree_1_med_3.wav,Sounds/agree_1_med_4.wav,Sounds/agree_1_med_5.wav,Sounds/agree_1_med_6.wav, Sounds/agree_1_med_7.wav,Sounds/agree_1_med_8.wav,Sounds/agree_1_med_9.wav,Sounds/agree_1_med_10.wav, Sounds/agree_2_high_1.wav,Sounds/agree_2_high_2.wav,Sounds/agree_2_high_3.wav,Sounds/agree_2_high_4.wav,Sounds/agree_2_high_5.wav, Sounds/agree_2_high_6.wav,Sounds/agree_2_high_7.wav, Sounds/agree_2_high_8.wav,Sounds/agree_2_high_9.wav,Sounds/agree_2_high_10.wav,Sounds/agree_2_low_1.wav,Sounds/agree_2_low_2.wav,Sounds/agree_2_low_3.wav,Sounds/agree_2_low_4.wav,Sounds/agree_2_low_5.wav,Sounds/agree_2_low_6.wav,Sounds/agree_2_low_7.wav,
 Sounds/agree_2_low_8.wav,Sounds/agree_2_low_9.wav,Sounds/agree_2_low_10.wav,Sounds/agree_2_med_1.wav,Sounds/agree_2_med_2.wav,Sounds/agree_2_med_3.wav,Sounds/agree_2_med_4.wav,Sounds/agree_2_med_5.wav,
 Sounds/agree_2_med_6.wav,Sounds/agree_2_med_7.wav,Sounds/agree_2_med_8.wav,Sounds/agree_2_med_9.wav,Sounds/agree_2_med_10.wav,Sounds/agree_3_high_1.wav,Sounds/agree_3_high_2.wav,Sounds/agree_3_high_3.wav,
@@ -178,7 +190,7 @@ Sounds/bored_5_med_9.wav,Sounds/bored_5_med_10.wav"
     />
 
 
-        <connection  source = "VocalReaction.REACTION_OUTPUT"  target = "SoundOutput.INPUT" delay = "1"/>
+        <connection  source = "VocalReaction.REACTION_OUTPUT"  target = "SoundOutput.INPUT" delay = "0"/>
 
 
         <module
@@ -189,17 +201,18 @@ Sounds/bored_5_med_9.wav,Sounds/bored_5_med_10.wav"
         calibration = "640 480 317.584948 260.888465 522.573778 522.756999 0.161722 -0.285527 0.004218 0.001601  0.00000 0 10"
         max_markers ="20"
         sort    = "yes"
-        marker_size = "0 57 60; 1000 9000 25"
+        marker_size = "30"
         use_history = "yes"
         threshold = "auto"
         />
 
-            <connection  source = "EpiOrange.RightEye.LOW_RES_INTENSITY"  target = "MarkerTracker.INPUT" delay="0" />
+            <connection  source = "EpiGray.RightEye.LOW_RES_INTENSITY"  target = "MarkerTracker.INPUT" delay="0" />
             <connection  source = "MarkerTracker.OBJECT_ID"  target = "VocalReaction.OBJECT_INPUT" delay="0" />
             <connection  source = "MarkerTracker.IMAGE_POSITION"  target = "VocalReaction.POSITION_INPUT" delay="0" />
 
+            <!--> For simulating Epi with webcam
             <_connection  source = "CAMERA.INTENSITY"  target = "MarkerTracker.INPUT" delay="0" />
-
+            -->
 
         <view name="MarkerTrackerInputs">
             <image

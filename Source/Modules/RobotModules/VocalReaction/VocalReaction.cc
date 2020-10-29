@@ -79,8 +79,11 @@ VocalReaction::Init()
     // in all functions including when the matrix is created
     // See: http://www.ikaros-project.org/articles/2007/datastructures/
 
-    //Bool changed to true if object has been identified an tick sholud pause
+    //Bool changed to true if object has been identified an tick should pause
     bool pause = false;
+
+    //Bool set to true if same input is repeated over the valid limit of repetitions and a bored sound has been played
+    bool bored_played = false;
 
     //Create a timer constructor
     Timer timer;
@@ -133,6 +136,7 @@ VocalReaction::Tick()
   }
 
   bool no_output = false;
+  
   bool bored = false;
     
 
@@ -143,7 +147,7 @@ VocalReaction::Tick()
     for (int j = 0; j < input_ID_matrix_size_y; j++)
     {  for (int i = 0; i < input_ID_matrix_size_x; i++)
       {
-        if (input_ID_matrix[j][i] > 0 && timer.GetTime() > pauseTime)
+        if (input_ID_matrix[j][i] > 0)
         {
 
          
@@ -164,26 +168,31 @@ VocalReaction::Tick()
           }
 
           //Checks if the scanned object is the same as previous.
-          if(object_id_previous_tick == input_ID_matrix[j][i])
+          if(object_id_previous_tick == input_ID_matrix[j][i] && input_ID_matrix[j][i] !=1)  
           {
             input_repetition +=1;
             no_output = true;
           }
-          else 
-            input_repetition = 0;   
-          
+          //If the th eobject is not the same as prevoius one, repetition count is set to 0 and n 
+          else
+          { 
+            input_repetition = 0;
+            bored_played = false;   
+          }
           //Checks if same object has been repeated to the point of set boundary of valid repetitions 
-          if(input_repetition > valid_repetitions)  
+          if(input_repetition > valid_repetitions && !bored_played)  
           {
+            //These bounds corresponds to the bored audio files
             lower_bound = reaction_output_array_size - (num_sounds_per_category*num_intensity_levels);
             upper_bound = reaction_output_array_size;
 
             bored = true;
+            
 
             cout << '\n';
             cout << "Input reset and play bored" << '\n';
 
-            input_repetition = 0;
+          
           }     
 
           //Generate a random number between boundaries
@@ -191,15 +200,14 @@ VocalReaction::Tick()
           
           object_id_previous_tick = input_ID_matrix[j][i];
 
-          //Sets the elemetn as 1 only if the object is not the same as previous or reached the limit of boredom 
-          if(!no_output || bored)
+          //Sets the elemetn as 1 only if the object is not the same as previous or reached the limit of boredom. If prevoius played sound was bored, no output will be generated
+          if(!no_output && !bored_played || bored )
           {
             reaction_output_array[rand_num] = 1;
-            if(bored)
-            {
-              object_id_previous_tick = 0;
-            }
             
+            
+            if(bored)
+              bored_played = true;
           }
           
           
@@ -218,6 +226,9 @@ VocalReaction::Tick()
           cout << "Element: ";
           cout << rand_num<< '\n';
           std::cout << '\n';
+
+          
+          
           
 
         }
@@ -227,8 +238,16 @@ VocalReaction::Tick()
   }//If (timer)
   
        
-         
-          
+//When enough time has passed without identification of an marker, the same marker id can be presented again
+  if(timer.GetTime() > pauseTime * 2)  
+  {
+    object_id_previous_tick = 0;
+    no_output = false;
+    std::cout << '\n';
+    std::cout << "Enough time has passed for same object to be shown again "<< '\n';
+    
+  }
+  
 
 }// Tick()
 
