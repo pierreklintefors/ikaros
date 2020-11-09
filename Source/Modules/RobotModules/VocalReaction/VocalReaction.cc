@@ -164,11 +164,11 @@ VocalReaction::Tick()
           if  (input_ID_matrix[j][i]==1)
           {
             lower_bound = input_ID_matrix[j][i];
-            upper_bound = (lower_bound + num_sounds_per_category*num_intensity_levels ) *2;
+            upper_bound = (lower_bound + (num_sounds_per_category*num_intensity_levels) *2;
           }
 
           //Checks if the scanned object is the same as previous.
-          if(object_id_previous_tick == input_ID_matrix[j][i] && input_ID_matrix[j][i] !=1)  
+          if(object_id_previous_tick == input_ID_matrix[j][i])  
           {
             input_repetition +=1;
             no_output = true;
@@ -180,7 +180,7 @@ VocalReaction::Tick()
             bored_played = false;   
           }
           //Checks if same object has been repeated to the point of set boundary of valid repetitions 
-          if(input_repetition > valid_repetitions && !bored_played)  
+          if(input_repetition > valid_repetitions && !bored_played && input_ID_matrix[j][i] !=1 )  
           {
             //These bounds corresponds to the bored audio files
             lower_bound = reaction_output_array_size - (num_sounds_per_category*num_intensity_levels);
@@ -239,7 +239,7 @@ VocalReaction::Tick()
   
        
 //When enough time has passed without identification of an marker, the same marker id can be presented again
-  if(timer.GetTime() > pauseTime * 2)  
+  if(timer.GetTime() > pauseTime )  
   {
     object_id_previous_tick = 0;
     no_output = false;

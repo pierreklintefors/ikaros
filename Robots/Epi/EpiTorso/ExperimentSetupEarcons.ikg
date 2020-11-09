@@ -61,9 +61,9 @@ VisionInputRight = "InputJPEG"
             class = "VocalReaction"
             name = "VocalReaction"
             number_sound_categories = "6"
-            sounds_per_category = "1"
+            sounds_per_category = "2"
             intensity_levels = "1"
-            total_number_sounds = "6"
+            total_number_sounds = "12"
             pause_in_miliseconds = "2000"
             repetitions_before_bored = "2"
         />
@@ -72,11 +72,11 @@ VisionInputRight = "InputJPEG"
             class = "SoundOutput"
             name = "SoundOutput"
             command = "afplay"
-            sounds = "Sounds/startup.mp3, Sounds/error.mp3, 
-                        Sounds/hardware-fail.mp3, 
-                        Sounds/hardware-connect.mp3,
-                        Sounds/shutdown.mp3,
-                        Sounds/hardware-disconnect.mp3"
+            sounds = "Sounds/startup.mp3, Sounds/error.mp3,Sounds/startup.mp3, Sounds/error.mp3, 
+                        Sounds/hardware-fail.mp3,Sounds/hardware-fail.mp3,
+                        Sounds/hardware-connect.mp3,Sounds/hardware-connect.mp3,
+                        Sounds/shutdown.mp3, Sounds/shutdown.mp3, 
+                        Sounds/hardware-disconnect.mp3, Sounds/hardware-disconnect.mp3"
     />
 
 
