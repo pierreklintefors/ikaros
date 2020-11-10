@@ -52,6 +52,7 @@ VocalReaction::Init()
     Bind(num_intensity_levels, "intensity_levels");
     Bind(pauseTime, "pause_in_miliseconds");
     Bind(valid_repetitions, "repetitions_before_bored");
+    Bind(earcons, "earcons");
 
 
     io(input_Pos_matrix, input_Pos_matrix_size_x, input_Pos_matrix_size_y, "POSITION_INPUT");
@@ -93,6 +94,9 @@ VocalReaction::Init()
 
     object_id_previous_tick = 0;
 
+    //Boundaries for randomization function
+
+
 
 }
 
@@ -125,6 +129,9 @@ VocalReaction::Random(int min, int max) //range : [min, max]
    return min + rand() % (( max + 1 ) - min);
 }
 
+
+
+
 void
 VocalReaction::Tick()
 {
@@ -138,6 +145,9 @@ VocalReaction::Tick()
   bool no_output = false;
   
   bool bored = false;
+  
+  int lower_bound;
+  int upper_bound;
     
 
   //Checks if enough time has been gone by before enabling a new object to be identified   
@@ -156,17 +166,51 @@ VocalReaction::Tick()
 
           pause = true;
 
-          //Sets lower and higher boundary for randomizing a sound in the identified category
-          int lower_bound = input_ID_matrix[j][i] * num_sounds_per_category* num_intensity_levels;
-          int upper_bound = lower_bound + num_sounds_per_category*num_intensity_levels;
-          
           //If the object id is 1 - the question is " are you ready?" Which can two answeres (double span size)
-          if  (input_ID_matrix[j][i]==1)
+          if(input_ID_matrix[j][i]==1)
           {
             lower_bound = input_ID_matrix[j][i];
-            upper_bound = (lower_bound + (num_sounds_per_category*num_intensity_levels) *2;
+            upper_bound = (num_sounds_per_category*num_intensity_levels) *2;
           }
 
+          else if(input_ID_matrix[j][i]==2)
+          {
+            lower_bound = (num_sounds_per_category*num_intensity_levels)*2;
+            upper_bound = lower_bound + num_sounds_per_category*num_intensity_levels;
+          }
+          else
+          {
+            //Sets lower and higher boundary for randomizing a sound in the identified category
+            lower_bound = input_ID_matrix[j][i] * num_sounds_per_category* num_intensity_levels;
+            upper_bound = lower_bound + num_sounds_per_category*num_intensity_levels;
+          }
+          
+
+
+          if(earcons)
+          {
+            
+          
+            //If the object id is 1 - the question is " are you ready?" Which can two answeres (double span size)
+            if(input_ID_matrix[j][i]==1)
+            {
+              lower_bound = input_ID_matrix[j][i]-1;
+              upper_bound = (lower_bound + num_sounds_per_category * num_intensity_levels);
+            }
+            else if(input_ID_matrix[j][i]==2)
+            {
+              lower_bound = input_ID_matrix[j][i]+(num_sounds_per_category*num_intensity_levels)-1;
+              upper_bound = lower_bound;
+            }
+            else
+            {
+              //Sets lower and higher boundary for randomizing a sound in the identified category
+              lower_bound = input_ID_matrix[j][i] ;
+              upper_bound = input_ID_matrix[j][i] ;
+            }
+            
+
+          } 
           //Checks if the scanned object is the same as previous.
           if(object_id_previous_tick == input_ID_matrix[j][i])  
           {
@@ -194,7 +238,11 @@ VocalReaction::Tick()
 
           
           }     
-
+          if(!earcons)
+            {//Subtract 1 from bounds because index in SoundOutput input vector starts at 0
+            lower_bound --; 
+            upper_bound --;
+            }
           //Generate a random number between boundaries
           int rand_num = Random(lower_bound, upper_bound);
           
@@ -203,6 +251,7 @@ VocalReaction::Tick()
           //Sets the elemetn as 1 only if the object is not the same as previous or reached the limit of boredom. If prevoius played sound was bored, no output will be generated
           if(!no_output && !bored_played || bored )
           {
+            //The index of the array in SoundOutput starts at 0
             reaction_output_array[rand_num] = 1;
             
             
@@ -223,9 +272,10 @@ VocalReaction::Tick()
           cout << lower_bound<< '\n';
           cout << "Upper: ";
           cout << upper_bound<< '\n';
-          cout << "Element: ";
-          cout << rand_num<< '\n';
+          cout << "Element(starting from 0): ";
+          cout << rand_num << '\n';
           std::cout << '\n';
+          
 
           
           

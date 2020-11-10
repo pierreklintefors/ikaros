@@ -75,6 +75,7 @@ public:
     int         num_intensity_levels;
     float       pauseTime;
     int         valid_repetitions;
+    bool        earcons;
 
     //
     int         input_repetition;

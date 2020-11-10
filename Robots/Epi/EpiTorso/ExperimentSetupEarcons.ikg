@@ -61,23 +61,25 @@ VisionInputRight = "InputJPEG"
             class = "VocalReaction"
             name = "VocalReaction"
             number_sound_categories = "6"
-            sounds_per_category = "2"
+            sounds_per_category = "1"
             intensity_levels = "1"
-            total_number_sounds = "12"
+            total_number_sounds = "6"
             pause_in_miliseconds = "2000"
             repetitions_before_bored = "2"
+            earcons = "true"
         />
 
         <module
             class = "SoundOutput"
             name = "SoundOutput"
             command = "afplay"
-            sounds = "Sounds/startup.mp3, Sounds/error.mp3,Sounds/startup.mp3, Sounds/error.mp3, 
-                        Sounds/hardware-fail.mp3,Sounds/hardware-fail.mp3,
-                        Sounds/hardware-connect.mp3,Sounds/hardware-connect.mp3,
-                        Sounds/shutdown.mp3, Sounds/shutdown.mp3, 
-                        Sounds/hardware-disconnect.mp3, Sounds/hardware-disconnect.mp3"
-    />
+            sounds = "Sounds/startup.mp3, 
+                        Sounds/error.mp3, 
+                        Sounds/hardware-fail.mp3,
+                        Sounds/hardware-connect.mp3,
+                        Sounds/shutdown.mp3, 
+                        Sounds/hardware-disconnect.mp3"
+       />
 
 
         <connection  source = "VocalReaction.REACTION_OUTPUT"  target = "SoundOutput.INPUT" delay = "0"/>
@@ -101,7 +103,7 @@ VisionInputRight = "InputJPEG"
             <connection  source = "MarkerTracker.IMAGE_POSITION"  target = "VocalReaction.POSITION_INPUT" delay="0" />
         
         
-        <!--> For simulating Epi with webcam
+        <!--> For simulating Epi with webcam 
        
         <module
             class   = "InputVideo"
@@ -112,7 +114,7 @@ VisionInputRight = "InputJPEG"
 
             <connection  source = "CAMERA.INTENSITY"  target = "MarkerTracker.INPUT" delay="0" />
             
-        -->
+       -->
 
 
            
