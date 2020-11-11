@@ -64,8 +64,8 @@ VisionInputRight = "InputJPEG"
             sounds_per_category = "1"
             intensity_levels = "1"
             total_number_sounds = "6"
-            pause_in_miliseconds = "2000"
-            repetitions_before_bored = "2"
+            pause_in_miliseconds = "1000"
+            repetitions_before_bored = "8"
             earcons = "true"
         />
 
