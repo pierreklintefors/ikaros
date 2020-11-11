@@ -171,7 +171,7 @@ VisionInputRight = "InputJPEG"
         />
 
             <connection  source = "VocalReaction.REACTION_OUTPUT"  target = "SoundOutput.INPUT" delay = "0"/>
-            <_connection  source = "EpiGray.RightEye.LOW_RES_INTENSITY"  target = "MarkerTracker.INPUT" delay="0" />
+            <connection  source = "EpiGray.RightEye.LOW_RES_INTENSITY"  target = "MarkerTracker.INPUT" delay="0" />
             <connection  source = "MarkerTracker.OBJECT_ID"  target = "VocalReaction.OBJECT_INPUT" delay="0" />
             <connection  source = "MarkerTracker.IMAGE_POSITION"  target = "VocalReaction.POSITION_INPUT" delay="0" />
 

@@ -73,12 +73,12 @@ VisionInputRight = "InputJPEG"
             class = "SoundOutput"
             name = "SoundOutput"
             command = "afplay"
-            sounds = "Sounds/startup.mp3, 
+            sounds = "Sounds/tada.mp3, 
                         Sounds/error.mp3, 
                         Sounds/hardware-fail.mp3,
                         Sounds/hardware-connect.mp3,
-                        Sounds/shutdown.mp3, 
-                        Sounds/hardware-disconnect.mp3"
+                        Sounds/hardware-disconnect.mp3,
+                        Sounds/shutdown.mp3"
        />
 
 
