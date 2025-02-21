@@ -612,20 +612,8 @@ namespace ikaros
             return value;
     }
 
-
-
-    int 
-    Component::GetIntValue(const std::string & name, int d)
-    {
-        std::string value = GetValue(name);
-        if(value.empty())
-            return d;
-        return std::stoi(value);
-    }
-
-
-    std::string 
-    Component::GetBind(const std::string & name)
+    std::string
+    Component::GetBind(const std::string &name)
     {
         if (info_.contains(name))
             return ""; // Value set in attribute - do not bind
@@ -924,7 +912,10 @@ namespace ikaros
         for (auto output : info_["outputs"])
             AddOutput(output);
 
-    // Set parent
+        // if(!info_.contains("log_level"))
+        //     info_["log_level"] = "5";
+
+        // Set parent
 
         auto p = path_.rfind('.');
         if (p != std::string::npos)
@@ -934,8 +925,14 @@ namespace ikaros
     bool
     Component::Notify(int msg, std::string message, std::string path)
     {
-        if(msg <= GetIntValue("log_level", msg_warning))
+        int ll = msg_warning;
+        if (info_.contains("log_level"))
+            ll = info_["log_level"];
+
+        if (msg <= ll)
+        {
             return kernel().Notify(msg, message, path);
+        }
         return true;
     }
 
@@ -1877,7 +1874,6 @@ namespace ikaros
         dictionary external(path);
         external["name"] = d["name"]; // FIXME: Just in case - check for errors later
         d.merge(external);
-        d.erase("external");
     }
 
     void
@@ -2445,19 +2441,7 @@ namespace ikaros
         {
             global_terminate = true;
 
-            static std::mutex mtx;
-            std::lock_guard<std::mutex> lock(mtx); // Lock the mutex
-
-            log.push_back(Message(msg, message, path));
-
-            std::cout << "ikaros: " << message;
-            if(!path.empty())
-                std::cout  << " ("<<path << ")";
-            std::cout << std::endl;
-
-            if(msg <= msg_fatal_error)
-                global_terminate = true;
-            return true;
+            // run_mode = run_mode_quit;
         }
         return true;
     }
@@ -2731,8 +2715,7 @@ namespace ikaros
         std::string sep = "";
         bool sent = false;
 
-        //std::cout << "\nDoSendData: " << std::endl;
-        while(!data.empty())
+        while (!data.empty())
         {
             std::string source = head(data, ",");
             std::string key = source;
@@ -2748,28 +2731,26 @@ namespace ikaros
             std::string format = rtail(source, ":");
             std::string source_with_root = root +"."+source;
 
-
-
-            if(buffers.count(source_with_root))
+            if (buffers.count(source_with_root))
             {
                 if (format.empty())
                 {
-                    sent = socket->Send(sep + "\t\t\"" + key + "\": "+buffers[source_with_root].json());
+                    sent = socket->Send(sep + "\t\t\"" + source + "\": " + buffers[source_with_root].json());
                 }
-                else if(format=="rgb")
-                { 
-                        sent = socket->Send(sep + "\t\t\"" + key + ":"+format+"\": ");
-                        SendImage(buffers[source_with_root], format);
+                else if (format == "rgb")
+                {
+                    sent = socket->Send(sep + "\t\t\"" + source + ":" + format + "\": ");
+                    SendImage(buffers[source_with_root], format);
                 }
-                else if(format=="gray" || format=="red" || format=="green" || format=="blue" || format=="spectrum" || format=="fire")
-                { 
-                        sent = socket->Send(sep + "\t\t\"" + key + ":"+format+"\": ");
-                        SendImage(buffers[source_with_root], format);
+                else if (format == "gray" || format == "red" || format == "green" || format == "blue" || format == "spectrum" || format == "fire")
+                {
+                    sent = socket->Send(sep + "\t\t\"" + source + ":" + format + "\": ");
+                    SendImage(buffers[source_with_root], format);
                 }
             }
             else if (parameters.count(source_with_root))
             {
-                sent = socket->Send(sep + "\t\t\"" + key + "\": "+parameters[source_with_root].json());
+                sent = socket->Send(sep + "\t\t\"" + source + "\": " + parameters[source_with_root].json());
             }
             if (sent)
                 sep = ",\n";
@@ -3054,8 +3035,24 @@ namespace ikaros
         {
             std::cerr << e.what() << '\n';
         }
-    DoSendData(request);
+        DoSendData(request);
     }
+
+    /*
+        void
+        Kernel::AddWidget(Request & request) // FIXME: Local exception handling
+        {
+            std::cout << "AddWidget: " << std::endl;
+            auto view = GetView(request);
+            if(view["widgets"].is_null())
+                view["widgets"] = list();
+
+            list u = list(view["widgets"]);
+            u.push_back(request.parameters);
+
+
+            DoSendData(request);
+        }
 
 
     void
@@ -3063,7 +3060,16 @@ namespace ikaros
     {
         if(request.session_id != session_id)
             DoSendNetwork(request);
-        else 
+        }
+        /*
+        else if(run_mode == run_mode_play && session_id == request.session_id)
+        {
+            Pause();
+            Tick();
+            DoSendData(request);
+        }
+        */
+        else
             DoSendData(request);
     }
 
