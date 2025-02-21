@@ -1,0 +1,5 @@
+<class name="MatrixMultiply" description="multiplies two matrices">
+	<input name="INPUT1" description="The first input" />
+	<input name="INPUT2" description="The second input" />
+	<output name="OUTPUT" size="4,4" description="The output" flatten="false" />	
+</class>

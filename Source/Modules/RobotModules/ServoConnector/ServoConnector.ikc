@@ -1,0 +1,8 @@
+<class name="ServoConnector" description="organize servos">
+	<parameter name="connector" type="matrix" default="" description="input to output connector" />
+    <parameter name="pre_inverted"  type="matrix" default="" description="should the output be inverted?" />
+    <parameter name="post_inverted"  type="matrix" default="" description="should the output be inverted?" />
+	<parameter name="offset"	type="matrix" default="" description="what is the origo" />
+	<input name="INPUT" description="Input" />
+	<output name="OUTPUT" description="Output" size="INPUT.size" />
+</class>

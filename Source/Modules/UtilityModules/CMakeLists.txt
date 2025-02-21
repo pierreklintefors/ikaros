@@ -14,6 +14,11 @@ add_subdirectory(FunctionGenerator)
 add_subdirectory(Protocol)
 add_subdirectory(Print)
 add_subdirectory(OutputFile)
+add_subdirectory(RotationConverter)
+add_subdirectory(Transform)
+add_subdirectory(MatrixMultiply)
+add_subdirectory(OneHotVector)
+
 
 add_subdirectory(AmbientLight)
 
