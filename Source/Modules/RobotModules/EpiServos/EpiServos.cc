@@ -1057,15 +1057,14 @@ class EpiServos : public Module
     bool SetDefaultSettingServo() {
         
         uint32_t param_default_4Byte;
-        uint32_t profile_acceleration = 0;
-        uint32_t profile_velocity = 0;
-        
-        uint16_t p_gain_head = 100;
-        uint16_t i_gain_head = 10;
-        uint16_t d_gain_head = 1200;
-        uint16_t goal_pwm = 30;
-        
-        uint16_t p_gain_arm = 100;
+        uint32_t profile_acceleration = 50;
+        uint32_t profile_velocity = 210;
+
+        uint16_t p_gain_head = 850;
+        uint16_t i_gain_head = 0;
+        uint16_t d_gain_head = 0;
+
+        uint16_t p_gain_arm = 850;
         uint16_t i_gain_arm = 0;
         uint16_t d_gain_arm = 0;
 
