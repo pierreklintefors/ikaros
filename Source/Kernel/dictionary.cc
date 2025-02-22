@@ -9,62 +9,59 @@
 #include <fstream>
 
 using namespace ikaros;
-namespace ikaros 
+namespace ikaros
 {
 
-        static std::string escape_json_string(std::string str) // FIXME: Do this correctly later
-        {
-            std::replace(str.begin(), str.end(), '\n', ' ');
-            std::replace(str.begin(), str.end(), '\t', ' ');
-            return str;
-        }
+    static std::string escape_json_string(std::string str) // FIXME: Do this correctly later
+    {
+        std::replace(str.begin(), str.end(), '\n', ' ');
+        std::replace(str.begin(), str.end(), '\t', ' ');
+        return str;
+    }
 
-
-        static void skip_whitespace(const std::string& s, size_t& pos)
-        {
-            while (pos<s.length() && std::isspace(s[pos]))
-                ++pos;
-        }
+    static void skip_whitespace(const std::string &s, size_t &pos)
+    {
+        while (pos < s.length() && std::isspace(s[pos]))
+            ++pos;
+    }
 
     // null
 
-    null::operator std::string () const
+    null::operator std::string() const
     {
-        return "";  // FIXME: Or "null" 
+        return ""; // FIXME: Or "null"
     }
 
-    std::string 
+    std::string
     null::json() const
     {
         return "null";
     }
 
-    std::string 
-    null::xml(std::string name,exclude_set exclude, int depth)
+    std::string
+    null::xml(std::string name, exclude_set exclude, int depth)
     {
-        return tab(depth)+"<null/>\n";
+        return tab(depth) + "<null/>\n";
     }
 
-    std::ostream&
-    operator<<(std::ostream& os, const null & v)
+    std::ostream &
+    operator<<(std::ostream &os, const null &v)
     {
         os << "null";
         return os;
     }
 
-
     // list
 
-    list::list():
-        list_(std::make_shared<std::vector<value>>())
+    list::list() : list_(std::make_shared<std::vector<value>>())
     {
     }
 
-    list::operator std::string () const
+    list::operator std::string() const
     {
         std::string s = "[";
         std::string sep = "";
-        for(auto & v : *list_)
+        for (auto &v : *list_)
         {
             s += sep + std::string(v);
             sep = ", ";
@@ -73,19 +70,19 @@ namespace ikaros
         return s;
     }
 
+    list &
+    list::erase(int index)
+    {
+        list_->erase(list_->begin() + index);
+        return *this;
+    }
 
-        list & 
-        list::erase(int index)  
-        {
-                list_->erase(list_->begin()+index); return *this;
-        }
-
-    std::string 
+    std::string
     list::json() const
     {
         std::string s = "[";
         std::string sep = "";
-        for(auto & v : *list_)
+        for (auto &v : *list_)
         {
             s += sep + v.json();
             sep = ", ";
@@ -94,39 +91,38 @@ namespace ikaros
         return s;
     }
 
-
-
-       value & 
-       list::operator[] (int i)
-        {
-            if( list_->size() < i+1)
-                 list_->resize(i+1);
-            return  list_->at(i);
-        }
-
+    value &
+    list::operator[](int i)
+    {
+        if (list_->size() < i + 1)
+            list_->resize(i + 1);
+        return list_->at(i);
+    }
 
     list list::copy() const
     {
         list new_list;
-        for (const auto& v : *list_)
+        for (const auto &v : *list_)
         {
             new_list.push_back(v.copy());
         }
         return new_list;
     }
 
+    std::ostream &
+    operator<<(std::ostream &os, const list &v)
+    {
+        os << std::string(v);
+        return os;
+    }
 
-        std::ostream& 
-        operator<<(std::ostream& os, const list & v)
-        {
-            os << std::string(v);
-            return os;
-        }
-
-    int list::get_index(const std::string& str) {
+    int list::get_index(const std::string &str)
+    {
         int index = 0;
-        for (const auto& val : *list_) {
-            if (val.equals(str)) {
+        for (const auto &val : *list_)
+        {
+            if (val.equals(str))
+            {
                 return index;
             }
             index++;
@@ -134,22 +130,21 @@ namespace ikaros
         return -1; // string not found
     }
 
-// dictionary
+    // dictionary
 
-
-    value & 
+    value &
     dictionary::operator[](std::string s)
     {
         return (*dict_)[s];
     }
 
-    value & 
+    value &
     dictionary::at(std::string s)
     {
         return dict_->at(s);
     }
 
-    int 
+    int
     dictionary::get_int(std::string s)
     {
         return (*dict_)[s].as_int();
@@ -158,7 +153,7 @@ namespace ikaros
     bool
     dictionary::is_set(std::string s)
     {
-        if(!contains(s))
+        if (!contains(s))
             return false;
 
         return (*dict_)[s].is_true();
@@ -170,63 +165,64 @@ namespace ikaros
         return !is_set(s);
     }
 
-    bool 
+    bool
     dictionary::contains(std::string s)
-        {
-            return dict_->count(s);
-        }
+    {
+        return dict_->count(s);
+    }
 
-
-        size_t 
-        dictionary::count(std::string s)
-        {
-            return dict_->count(s);
-        }
-/*
-        dictionary::dictionary(const dictionary & d)
-        {
-            //std::cout << "COPY CONSTRUCTOR" << std::endl;
-            dict_ = d.dict_;
-        }
-*/
-        dictionary::dictionary():   
-            dict_(std::make_shared<std::map<std::string, value>>())
-        {};
-
-        dictionary::dictionary(const std::initializer_list<std::pair<std::string, std::string>>& init_list)
-        {
-            dict_ = std::make_shared<std::map<std::string, value>>();
-            for (const auto& [key, val] : init_list)
-                (*dict_)[key] = value(val);
-        }
-
-        void dictionary::merge(const dictionary & source, bool overwrite) // shallow merge: copy from source to this
-        {
-            for(auto p : *(source.dict_))
-                if(!dict_->count(p.first) || overwrite)
-                    (*dict_)[p.first] = p.second;
-        }
-        
-        int dictionary::get_index(std::string key) // Returns the index of the key in the dictionary
-        {
-            int index = 0;
-            for (const auto& [k, v] : *dict_)
+    size_t
+    dictionary::count(std::string s)
+    {
+        return dict_->count(s);
+    }
+    /*
+            dictionary::dictionary(const dictionary & d)
             {
-                if (k == key)
-                {
-                    return index;
-                }
-                index++;
+                //std::cout << "COPY CONSTRUCTOR" << std::endl;
+                dict_ = d.dict_;
             }
-            return -1; // Key not found
+    */
+    dictionary::dictionary() : dict_(std::make_shared<std::map<std::string, value>>()) {};
+
+    dictionary::dictionary(const std::initializer_list<std::pair<std::string, std::string>> &init_list)
+    {
+        dict_ = std::make_shared<std::map<std::string, value>>();
+        for (const auto &[key, val] : init_list)
+            (*dict_)[key] = value(val);
+    }
+
+    void dictionary::merge(const dictionary &source, bool overwrite) // shallow merge: copy from source to this
+    {
+        for (auto p : *(source.dict_))
+            if (!dict_->count(p.first) || overwrite)
+                (*dict_)[p.first] = p.second;
+    }
+
+    void dictionary::erase(std::string key)
+    {
+        dict_->erase(key);
+    }
+
+    int dictionary::get_index(std::string key) // Returns the index of the key in the dictionary
+    {
+        int index = 0;
+        for (const auto &[k, v] : *dict_)
+        {
+            if (k == key)
+            {
+                return index;
+            }
+            index++;
         }
+        return -1; // Key not found
+    }
 
-
-    dictionary::operator std::string () const
+    dictionary::operator std::string() const
     {
         std::string s = "{";
         std::string sep = "";
-        for(auto & v : *dict_)
+        for (auto &v : *dict_)
         {
             s += sep + "" + v.first + ": " + std::string(v.second);
             sep = ", ";
@@ -235,14 +231,12 @@ namespace ikaros
         return s;
     }
 
-
-
-    std::string  
+    std::string
     dictionary::json() const
     {
         std::string s = "{";
         std::string sep = "";
-        for(auto & v : *dict_)
+        for (auto &v : *dict_)
         {
             s += sep + "\"" + v.first + "\": " + v.second.json();
             sep = ", ";
@@ -268,7 +262,7 @@ namespace ikaros
     }
 
     // Add a new non-const method to load and parse JSON into the dictionary
-    void dictionary::load_json(std::string filename) 
+    void dictionary::load_json(std::string filename)
     {
         std::string json_content = read_json(filename); // Use existing read_json method
 
@@ -288,79 +282,75 @@ namespace ikaros
     }
     // XML
 
-    std::string 
+    std::string
     list::xml(std::string name, exclude_set exclude, int depth)
     {
         std::string s;
-        for(auto & v : *list_)
+        for (auto &v : *list_)
         {
-            s += v.xml(name, exclude, depth+1);
+            s += v.xml(name, exclude, depth + 1);
         }
         return s;
     }
 
     // FIXME: Use _tag for elememt name
 
-    std::string  
-    dictionary::xml(std::string name,exclude_set exclude, int depth)
+    std::string
+    dictionary::xml(std::string name, exclude_set exclude, int depth)
     {
-        std::string s = tab(depth)+"<"+name;
-        for(auto & a : *dict_)
-            if(exclude.count(name+"."+a.first))
+        std::string s = tab(depth) + "<" + name;
+        for (auto &a : *dict_)
+            if (exclude.count(name + "." + a.first))
                 continue;
-            else if(!a.second.is_list())
-                if(!a.second.is_null()) // Do not include null attributes - but include empty strings
-                    if(a.first != "_tag") // Do not include tag attributes since the are used as element name
-                        s += " "+a.first + "=\"" +std::string(a.second)+"\"";
+            else if (!a.second.is_list())
+                if (!a.second.is_null())   // Do not include null attributes - but include empty strings
+                    if (a.first != "_tag") // Do not include tag attributes since the are used as element name
+                        s += " " + a.first + "=\"" + std::string(a.second) + "\"";
 
         std::string sep = ">\n";
-        for(auto & e : *dict_)
-            if(e.second.is_list() && !exclude.count(name+"/"+e.first))
+        for (auto &e : *dict_)
+            if (e.second.is_list() && !exclude.count(name + "/" + e.first))
             {
-                std::string sub = e.second.xml(e.first.substr(0, e.first.size()-1), exclude, depth);
-                if(!sub.empty())
+                std::string sub = e.second.xml(e.first.substr(0, e.first.size() - 1), exclude, depth);
+                if (!sub.empty())
                 {
                     s += sep + sub;
                     sep = "";
                 }
             }
-        if(sep.empty())
-            s += tab(depth)+"</"+name+">\n";
+        if (sep.empty())
+            s += tab(depth) + "</" + name + ">\n";
         else
-            s +="/>\n";
+            s += "/>\n";
         return s;
     }
 
-
-    dictionary::dictionary(XMLElement * xml_node):
-        dictionary()
+    dictionary::dictionary(XMLElement *xml_node) : dictionary()
     {
         (*dict_)["_tag"] = xml_node->name;
-        for(XMLAttribute * a = xml_node->attributes; a!=nullptr; a=(XMLAttribute *)(a->next))
+        for (XMLAttribute *a = xml_node->attributes; a != nullptr; a = (XMLAttribute *)(a->next))
             (*dict_)[std::string(a->name)] = a->value;
 
-        for (XMLElement * xml_element = xml_node->GetContentElement(); xml_element != nullptr; xml_element = xml_element->GetNextElement())
-            //if(merge.empty())
-                (*dict_)[std::string(xml_element->name)+"s"].push_back(dictionary(xml_element));
-            //else
-            //    (*dict_)["elements"].push_back(dictionary(xml_element));
+        for (XMLElement *xml_element = xml_node->GetContentElement(); xml_element != nullptr; xml_element = xml_element->GetNextElement())
+            // if(merge.empty())
+            (*dict_)[std::string(xml_element->name) + "s"].push_back(dictionary(xml_element));
+        // else
+        //     (*dict_)["elements"].push_back(dictionary(xml_element));
     }
 
-    dictionary::dictionary(std::string filename):
-        dictionary(XMLDocument(filename.c_str()).xml)
+    dictionary::dictionary(std::string filename) : dictionary(XMLDocument(filename.c_str()).xml)
     {
     }
 
-
-    void 
+    void
     dictionary::parse_url(std::string s)
     {
-        if(s.empty())
+        if (s.empty())
             return;
 
-        for(auto p : split(s, "&"))
-        {   
-            std::string a = head(p,"=");
+        for (auto p : split(s, "&"))
+        {
+            std::string a = head(p, "=");
             (*this)[a] = p;
         }
     }
@@ -368,250 +358,256 @@ namespace ikaros
     dictionary dictionary::copy() const
     {
         dictionary new_dict;
-        for (const auto& [key, val] : *dict_)
+        for (const auto &[key, val] : *dict_)
         {
             new_dict[key] = val.copy();
         }
         return new_dict;
     }
 
+    std::ostream &operator<<(std::ostream &os, const dictionary &v)
+    {
+        os << std::string(v);
+        return os;
+    }
+    // value
 
+    value &
+    value::operator[](const char *s) // Captures literals as argument
+    {
+        return (*this)[std::string(s)];
+    }
 
-        std::ostream& operator<<(std::ostream& os, const dictionary & v)
-        {
-            os << std::string(v);
-            return os;
-        }
-// value
+    value &
+    value::operator[](const std::string &s)
+    {
+        if (!std::holds_alternative<dictionary>(value_))
+            value_ = dictionary();
+        return std::get<dictionary>(value_)[s];
+    }
 
-    value & 
-    value::operator[] (const char * s) // Captures literals as argument
-        {
-            return (*this)[std::string(s)];
-        }
+    value &
+    value::at(const std::string &s)
+    {
+        if (std::holds_alternative<dictionary>(value_))
+            return std::get<dictionary>(value_).at(s);
+        else
+            throw std::out_of_range("Attribute \"" + s + "\" not found.");
+    }
 
-        value & 
-        value::operator[] (const std::string & s)
-        {
-            if(!std::holds_alternative<dictionary>(value_))
-                value_ = dictionary();
-            return std::get<dictionary>(value_)[s];
-        }
+    std::ostream &operator<<(std::ostream &os, const value &v)
+    {
+        os << std::string(v);
+        return os;
+    }
 
+    value &
+    value::push_back(const value &v)
+    {
+        if (!std::holds_alternative<list>(value_))
+            value_ = list();
+        std::get<list>(value_).list_->push_back(v);
+        return *this;
+    }
 
-        value & 
-        value::at(const std::string & s)
-        {
-            if(std::holds_alternative<dictionary>(value_))
-                return std::get<dictionary>(value_).at(s);
-            else
-            throw std::out_of_range("Attribute \""+s+"\" not found.");  
-        }
+    int
+    value::size()
+    {
+        if (std::holds_alternative<list>(value_))
+            return std::get<list>(value_).list_->size();
+        else if (std::holds_alternative<dictionary>(value_))
+            return std::get<dictionary>(value_).dict_->size();
+        else if (std::holds_alternative<null>(value_))
+            return 0;
+        else
+            return 1;
+    }
 
+    std::vector<value>::iterator value::begin()
+    {
+        if (std::holds_alternative<list>(value_))
+            return std::get<list>(value_).list_->begin();
+        else
+            return empty.begin();
+    }
 
-        std::ostream& operator<<(std::ostream& os, const value & v)
-        {
-            os << std::string(v);
-            return os;
-        }
+    std::vector<value>::iterator value::end()
+    {
+        if (std::holds_alternative<list>(value_))
+            return std::get<list>(value_).list_->end();
+        else
+            return empty.end();
+    }
 
-        value &  
-        value::push_back(const value & v)
-        {
-            if(!std::holds_alternative<list>(value_))
-                value_ = list();
-                std::get<list>(value_). list_->push_back(v);
-                return *this;
-        }
+    value &
+    value::operator[](int i)
+    {
+        if (!std::holds_alternative<list>(value_))
+            value_ = list();
+        if (std::get<list>(value_).list_->size() < i + 1)
+            std::get<list>(value_).list_->resize(i + 1);
+        return std::get<list>(value_).list_->at(i);
+    }
 
-        int  
-        value::size()
-        {
-            if(std::holds_alternative<list>(value_))
-                return std::get<list>(value_). list_->size();
-            else if(std::holds_alternative<dictionary>(value_))
-                return std::get<dictionary>(value_).dict_->size();
-            else if(std::holds_alternative<null>(value_))
-                return 0;
-            else
-                return 1;
-        }
+    value::operator std::string() const
+    {
+        if (std::holds_alternative<bool>(value_))
+            return std::get<bool>(value_) ? "true" : "false";
+        // if(std::holds_alternative<int>(value_))
+        //     return std::to_string(std::get<int>(value_));
+        if (std::holds_alternative<double>(value_))
+            return formatNumber(std::get<double>(value_));
+        // return std::to_string(std::get<double>(value_));
+        if (std::holds_alternative<std::string>(value_))
+            return std::get<std::string>(value_);
+        else if (std::holds_alternative<list>(value_))
+            return std::string(std::get<list>(value_));
+        else if (std::holds_alternative<dictionary>(value_))
+            return std::string(std::get<dictionary>(value_));
+        else if (std::holds_alternative<null>(value_))
+            return "null";
 
+        throw std::runtime_error("Unknown variant");
+    }
 
-        std::vector<value>::iterator value::begin()
-        {
-            if(std::holds_alternative<list>(value_))
-                return std::get<list>(value_). list_->begin();
-            else
-                return empty.begin();
-        }
+    bool
+    value::is_true()
+    {
+        if (std::holds_alternative<bool>(value_))
+            return std::get<bool>(value_);
+        else if (std::holds_alternative<null>(value_))
+            return false;
+        else if (std::holds_alternative<double>(value_))
+            return std::get<double>(value_) != 0;
+        else if (std::holds_alternative<std::string>(value_))
+            return ::ikaros::is_true(std::get<std::string>(value_));
+        else
+            return false;
+    }
 
+    std::string
+    value::json() const
+    {
+        if (std::holds_alternative<std::string>(value_))
+            return "\"" + escape_json_string(std::get<std::string>(value_)) + "\"";
+        else if (std::holds_alternative<list>(value_))
+            return std::get<list>(value_).json();
+        else if (std::holds_alternative<dictionary>(value_))
+            return std::get<dictionary>(value_).json();
+        else if (std::holds_alternative<null>(value_))
+            return "null";
+        else
+            return std::string(*this);
+    }
 
-        std::vector<value>::iterator value::end()
-        {
-            if(std::holds_alternative<list>(value_))
-                return std::get<list>(value_). list_->end();
-            else
-                return empty.end();
-        }
+    std::string
+    value::xml(std::string name, exclude_set exclude, int depth)
+    {
+        if (std::holds_alternative<std::string>(value_))
+            return tab(depth) + "<string>" + std::get<std::string>(value_) + "</string>\n"; // FIXME: <'type' value="v" />    ???
+        else if (std::holds_alternative<list>(value_))
+            return std::get<list>(value_).xml(name, exclude, depth);
+        else if (std::holds_alternative<dictionary>(value_))
+            return std::get<dictionary>(value_).xml(name, exclude, depth);
+        else if (std::holds_alternative<null>(value_))
+            return tab(depth) + "<null/>\n";
+        else
+            return std::string(*this); // FIXME: <'type' value="v" />    ???
+    }
 
+    value::operator double()
+    {
+        if (std::holds_alternative<double>(value_))
+            return std::get<double>(value_);
+        if (std::holds_alternative<std::string>(value_))
+            return std::stod(std::get<std::string>(value_));
+        else if (std::holds_alternative<null>(value_))
+            return 0;
 
-        value &   
-        value::operator[] (int i)
-        {
-            if(!std::holds_alternative<list>(value_))
-                value_ = list();
-            if(std::get<list>(value_). list_->size() < i+1)
-                std::get<list>(value_). list_->resize(i+1);
-            return std::get<list>(value_). list_->at(i);
-        }
+        throw std::runtime_error("Cannot convert to double");
+    }
 
-        value::operator std::string () const
-        {
-            if(std::holds_alternative<bool>(value_))
-                return std::get<bool>(value_) ? "true" : "false";
-            //if(std::holds_alternative<int>(value_))
-            //    return std::to_string(std::get<int>(value_));
-            if(std::holds_alternative<double>(value_))
-                return formatNumber(std::get<double>(value_));
-                //return std::to_string(std::get<double>(value_));
-            if(std::holds_alternative<std::string>(value_))
-                return std::get<std::string>(value_);
-            else if(std::holds_alternative<list>(value_))
-                return std::string(std::get<list>(value_));
-            else if(std::holds_alternative<dictionary>(value_))
-                return std::string(std::get<dictionary>(value_));
-            else if(std::holds_alternative<null>(value_))
-                return "null";
+    value::operator list()
+    {
+        return std::get<list>(value_);
+    }
 
-           throw std::runtime_error("Unknown variant");
-        }
-
-        bool 
-        value::is_true()
-        {
-            if(std::holds_alternative<bool>(value_))
-                return std::get<bool>(value_);
-            else if(std::holds_alternative<null>(value_))
-                return false;
-            else if(std::holds_alternative<double>(value_))
-                return std::get<double>(value_) != 0;
-            else if(std::holds_alternative<std::string>(value_))
-                return ::ikaros::is_true(std::get<std::string>(value_));
-            else
-                return false;
-        }
-
-
-        std::string  
-        value::json() const
-        {
-            if(std::holds_alternative<std::string>(value_))
-                return "\""+escape_json_string(std::get<std::string>(value_))+"\"";
-            else if(std::holds_alternative<list>(value_))
-                return std::get<list>(value_).json();
-            else if(std::holds_alternative<dictionary>(value_))
-                return std::get<dictionary>(value_).json();
-            else if(std::holds_alternative<null>(value_))
-                return "null";
-            else
-                return std::string(*this);
-        }
-
-        std::string  
-        value::xml(std::string name,exclude_set exclude, int depth)
-        {
-            if(std::holds_alternative<std::string>(value_))
-                return tab(depth)+"<string>"+std::get<std::string>(value_)+"</string>\n"; // FIXME: <'type' value="v" />    ???
-            else if(std::holds_alternative<list>(value_))
-                return std::get<list>(value_).xml(name, exclude, depth);
-            else if(std::holds_alternative<dictionary>(value_))
-                return std::get<dictionary>(value_).xml(name, exclude, depth);
-            else if(std::holds_alternative<null>(value_))
-                return tab(depth)+"<null/>\n";
-            else
-                return std::string(*this);                              // FIXME: <'type' value="v" />    ???
-        }
-
-          
-        value::operator double ()
-        { 
-            if(std::holds_alternative<double>(value_))
-                return std::get<double>(value_);
-            if(std::holds_alternative<std::string>(value_))
-                return std::stod(std::get<std::string>(value_));
-            else  if(std::holds_alternative<null>(value_))
-                return 0;
-
-            throw std::runtime_error("Cannot convert to double");
-        }
-
-          
-        value::operator list ()
-        {
-            return std::get<list>(value_);
-        }
-
-  
-        value::operator dictionary ()
-        {
-            if(std::holds_alternative<null>(value_))
-                return dictionary();
-            else
-                return std::get<dictionary>(value_);
-        }
-
+    value::operator dictionary()
+    {
+        if (std::holds_alternative<null>(value_))
+            return dictionary();
+        else
+            return std::get<dictionary>(value_);
+    }
 
     value value::copy() const
-{
-        if(std::holds_alternative<null>(value_))
+    {
+        if (std::holds_alternative<null>(value_))
             return value(null());
-        if(std::holds_alternative<bool>(value_))
+        if (std::holds_alternative<bool>(value_))
             return value(std::get<bool>(value_));
-        if(std::holds_alternative<double>(value_))
+        if (std::holds_alternative<double>(value_))
             return value(static_cast<double>(std::get<double>(value_)));
-        if(std::holds_alternative<std::string>(value_))
+        if (std::holds_alternative<std::string>(value_))
             return value(std::get<std::string>(value_));
-        if(std::holds_alternative<list>(value_))
+        if (std::holds_alternative<list>(value_))
             return value(std::get<list>(value_).copy());
-        if(std::holds_alternative<dictionary>(value_))
-            return value(std::get<dictionary>(value_).copy());    
+        if (std::holds_alternative<dictionary>(value_))
+            return value(std::get<dictionary>(value_).copy());
         return value();
     }
 
-    bool value::equals(const std::string& str) const {
-    if (std::holds_alternative<std::string>(value_)) {
-        return std::get<std::string>(value_) == str;
-    }
-    return false;
+    bool value::equals(const std::string &str) const
+    {
+        if (std::holds_alternative<std::string>(value_))
+        {
+            return std::get<std::string>(value_) == str;
+        }
+        return false;
     }
 
-    std::string parse_string(const std::string& s, size_t& pos)
+    std::string parse_string(const std::string &s, size_t &pos)
     {
-        if(s[pos] != '"')
+        if (s[pos] != '"')
             throw std::runtime_error("Expected '\"' at the beginning of string");
 
         ++pos; // Skip the opening quote
         std::string result;
         while (pos < s.length() && s[pos] != '"')
         {
-            if(s[pos] == '\\')
+            if (s[pos] == '\\')
             {
                 ++pos; // Skip the escape character
-                if(pos >= s.length())
+                if (pos >= s.length())
                     throw std::runtime_error("Unexpected end of string");
                 switch (s[pos])
                 {
-                    case '"': result += '"'; break;
-                    case '\\': result += '\\'; break;
-                    case '/': result += '/'; break;
-                    case 'b': result += '\b'; break;
-                    case 'f': result += '\f'; break;
-                    case 'n': result += '\n'; break;
-                    case 'r': result += '\r'; break;
-                    case 't': result += '\t'; break;
-                    default:
-                        throw std::runtime_error("Invalid escape sequence");
+                case '"':
+                    result += '"';
+                    break;
+                case '\\':
+                    result += '\\';
+                    break;
+                case '/':
+                    result += '/';
+                    break;
+                case 'b':
+                    result += '\b';
+                    break;
+                case 'f':
+                    result += '\f';
+                    break;
+                case 'n':
+                    result += '\n';
+                    break;
+                case 'r':
+                    result += '\r';
+                    break;
+                case 't':
+                    result += '\t';
+                    break;
+                default:
+                    throw std::runtime_error("Invalid escape sequence");
                 }
             }
             else
@@ -620,24 +616,24 @@ namespace ikaros
             }
             ++pos;
         }
-        if(pos >= s.length() || s[pos] != '"')
+        if (pos >= s.length() || s[pos] != '"')
             throw std::runtime_error("Expected '\"' at the end of string");
 
         ++pos; // Skip the closing quote
         return result;
     }
 
-    value parse_value(const std::string& s, size_t& pos);
+    value parse_value(const std::string &s, size_t &pos);
 
-    list parse_array(const std::string& s, size_t& pos)
+    list parse_array(const std::string &s, size_t &pos)
     {
-        if(s[pos] != '[')
+        if (s[pos] != '[')
             throw std::runtime_error("Expected '[' at the beginning of array");
 
         ++pos; // Skip the opening bracket
         list result;
         skip_whitespace(s, pos);
-        if(s[pos] == ']')
+        if (s[pos] == ']')
         {
             ++pos; // Skip the closing bracket
             return result;
@@ -647,12 +643,12 @@ namespace ikaros
         {
             result.push_back(parse_value(s, pos));
             skip_whitespace(s, pos);
-            if(s[pos] == ']')
+            if (s[pos] == ']')
             {
                 ++pos; // Skip the closing bracket
                 return result;
             }
-            if(s[pos] != ',')
+            if (s[pos] != ',')
                 throw std::runtime_error("Expected ',' in array");
             ++pos; // Skip the comma
             skip_whitespace(s, pos);
@@ -661,15 +657,15 @@ namespace ikaros
         throw std::runtime_error("Unexpected end of array");
     }
 
-    dictionary parse_object(const std::string& s, size_t& pos)
+    dictionary parse_object(const std::string &s, size_t &pos)
     {
-        if(s[pos] != '{')
+        if (s[pos] != '{')
             throw std::runtime_error("Expected '{' at the beginning of object");
 
         ++pos; // Skip the opening brace
         dictionary result;
         skip_whitespace(s, pos);
-        if(s[pos] == '}')
+        if (s[pos] == '}')
         {
             ++pos; // Skip the closing brace
             return result;
@@ -680,18 +676,18 @@ namespace ikaros
             skip_whitespace(s, pos);
             std::string key = parse_string(s, pos);
             skip_whitespace(s, pos);
-            if(s[pos] != ':')
+            if (s[pos] != ':')
                 throw std::runtime_error("Expected ':' in object");
             ++pos; // Skip the colon
             skip_whitespace(s, pos);
             result[key] = parse_value(s, pos);
             skip_whitespace(s, pos);
-            if(s[pos] == '}')
+            if (s[pos] == '}')
             {
                 ++pos; // Skip the closing brace
                 return result;
             }
-            if(s[pos] != ',')
+            if (s[pos] != ',')
                 throw std::runtime_error("Expected ',' in object");
             ++pos; // Skip the comma
             skip_whitespace(s, pos);
@@ -700,49 +696,49 @@ namespace ikaros
         throw std::runtime_error("Unexpected end of object");
     }
 
-    value parse_value(const std::string& s, size_t& pos)
+    value parse_value(const std::string &s, size_t &pos)
     {
         skip_whitespace(s, pos);
-        if(pos >= s.length())
+        if (pos >= s.length())
             throw std::runtime_error("Unexpected end of JSON");
 
-        if(s[pos] == 'n')
+        if (s[pos] == 'n')
         {
-            if(s.compare(pos, 4, "null") == 0)
+            if (s.compare(pos, 4, "null") == 0)
             {
                 pos += 4;
                 return value(null());
             }
         }
-        else if(s[pos] == 't')
+        else if (s[pos] == 't')
         {
-            if(s.compare(pos, 4, "true") == 0)
+            if (s.compare(pos, 4, "true") == 0)
             {
                 pos += 4;
                 return value(true);
             }
         }
-        else if(s[pos] == 'f')
+        else if (s[pos] == 'f')
         {
-            if(s.compare(pos, 5, "false") == 0)
+            if (s.compare(pos, 5, "false") == 0)
             {
                 pos += 5;
                 return value(false);
             }
         }
-        else if(s[pos] == '"')
+        else if (s[pos] == '"')
         {
             return value(parse_string(s, pos));
         }
-        else if(s[pos] == '[')
+        else if (s[pos] == '[')
         {
             return value(parse_array(s, pos));
         }
-        else if(s[pos] == '{')
+        else if (s[pos] == '{')
         {
             return value(parse_object(s, pos));
         }
-        else if(std::isdigit(s[pos]) || s[pos] == '-')
+        else if (std::isdigit(s[pos]) || s[pos] == '-')
         {
             size_t end_pos = pos;
             while (end_pos < s.length() && (std::isdigit(s[end_pos]) || s[end_pos] == '.' || s[end_pos] == 'e' || s[end_pos] == 'E' || s[end_pos] == '+' || s[end_pos] == '-'))
@@ -757,13 +753,10 @@ namespace ikaros
         throw std::runtime_error("Invalid JSON value");
     }
 
-
-value parse_json(const std::string& json_str)
-{
-    size_t pos = 0;
-    return parse_value(json_str, pos);
-}
-
-
+    value parse_json(const std::string &json_str)
+    {
+        size_t pos = 0;
+        return parse_value(json_str, pos);
+    }
 
 };

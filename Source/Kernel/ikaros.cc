@@ -10,7 +10,7 @@ bool global_terminate = false;
 
 namespace ikaros
 {
-    std::string  validate_identifier(std::string s)
+    std::string validate_identifier(std::string s)
     {
         static std::string legal = "_0123456789aAbBcCdDeEfFgGhHiIjJkKlLmMnNoOpPqQrRsStTuUvVwWxXyYzZ";
         if (s.empty())
@@ -557,15 +557,15 @@ namespace ikaros
         }
     }
 
-    std::string 
-    Component::GetValue(const std::string & path) 
-    {     
-        if(path.empty())
+    std::string
+    Component::GetValue(const std::string &path)
+    {
+        if (path.empty())
             return ""; // throw exception("Name not found"); // throw not_found_exception instead
 
         if (path[0] == '@')
         {
-            if(path.find('.') == std::string::npos)
+            if (path.find('.') == std::string::npos)
                 return GetValue(path.substr(1));
             else
                 return GetValue(exchange_before_dot(path, GetValue(before_dot(path).substr(1))));
@@ -610,6 +610,15 @@ namespace ikaros
             return GetValue(value.substr(1));
         else
             return value;
+    }
+
+    int 
+    Component::GetIntValue(const std::string & name, int d)
+    {
+        std::string value = GetValue(name);
+        if(value.empty())
+            return d;
+        return std::stoi(value);
     }
 
     std::string
@@ -746,20 +755,20 @@ namespace ikaros
         if (s.empty())
             return "";
 
-    if(!expression::is_expression(s) || is_string)
-    {
-        if(s[0]=='@') // Handle indirection (unless expression)
+        if (!expression::is_expression(s) || is_string)
         {
-            if(s.find('.')==std::string::npos)
-                return GetValue(s.substr(1));
-            
-            std::string component_path = peek_rhead(s.substr(1), ".");
-            std::string variable_name = SubstituteVariables(peek_rtail(s, "."));
-            return GetComponent(component_path)->GetValue(variable_name);
+            if (s[0] == '@') // Handle indirection (unless expression)
+            {
+                if (s.find('.') == std::string::npos)
+                    return GetValue(s.substr(1));
+
+                std::string component_path = peek_rhead(s.substr(1), ".");
+                std::string variable_name = SubstituteVariables(peek_rtail(s, "."));
+                return GetComponent(component_path)->GetValue(variable_name);
+            }
+            else
+                return s;
         }
-        else
-            return s;
-    }
 
         // Handle mathematical expression
 
@@ -785,8 +794,8 @@ namespace ikaros
 
         // Check functions
 
-        if(ends_with(s, ".size_x"))
-            return std::to_string(GetBuffer(rhead(ss,".")).size_x()); // FIXME: Add nondestructive rhead with string instead of string &
+        if (ends_with(s, ".size_x"))
+            return std::to_string(GetBuffer(rhead(ss, ".")).size_x()); // FIXME: Add nondestructive rhead with string instead of string &
 
         if (ends_with(s, ".size_y"))
             return std::to_string(GetBuffer(rhead(ss, ".")).size_y());
@@ -845,8 +854,7 @@ namespace ikaros
         return shape;
     }
 
-    
-    bool 
+    bool
     Component::EvaluateBool(std::string v)
     {
         return false;
@@ -893,17 +901,17 @@ namespace ikaros
 
         // Add log_level parameter to all components
 
-            dictionary log_param;
-            log_param["_tag"] = "parameter";
-            log_param["name"] = "log_level";
-            log_param["type"] = "number";
-            log_param["control"] = "menu";
-            //log_param["options"] = "inherit,quiet,exception,end_of_file,terminate,fatal_error,warning,print,debug,trace";
-            log_param["default"] = 0;
+        dictionary log_param;
+        log_param["_tag"] = "parameter";
+        log_param["name"] = "log_level";
+        log_param["type"] = "number";
+        log_param["control"] = "menu";
+        // log_param["options"] = "inherit,quiet,exception,end_of_file,terminate,fatal_error,warning,print,debug,trace";
+        log_param["default"] = 0;
 
-            info_["parameters"].push_back(log_param); // FIXME: Do we need to copy the dict?
+        info_["parameters"].push_back(log_param); // FIXME: Do we need to copy the dict?
 
-        for(auto p: info_["parameters"])
+        for (auto p : info_["parameters"])
             AddParameter(p);
 
         for (auto input : info_["inputs"])
@@ -911,9 +919,6 @@ namespace ikaros
 
         for (auto output : info_["outputs"])
             AddOutput(output);
-
-        // if(!info_.contains("log_level"))
-        //     info_["log_level"] = "5";
 
         // Set parent
 
@@ -925,14 +930,8 @@ namespace ikaros
     bool
     Component::Notify(int msg, std::string message, std::string path)
     {
-        int ll = msg_warning;
-        if (info_.contains("log_level"))
-            ll = info_["log_level"];
-
-        if (msg <= ll)
-        {
+        if (msg <= GetIntValue("log_level", msg_warning))
             return kernel().Notify(msg, message, path);
-        }
         return true;
     }
 
@@ -1012,7 +1011,7 @@ namespace ikaros
             begin_index += s;
             flattened_input_size += s;
 
-                std::cout << flattened_input_size << std::endl;
+            std::cout << flattened_input_size << std::endl;
         }
 
         if (flattened_input_size != 0)
@@ -1222,14 +1221,13 @@ namespace ikaros
         SetInputSizes(ingoing_connections);
         SetOutputSizes(ingoing_connections);
         return 0;
-    }   
-
+    }
 
     void
     Component::CalculateCheckSum(long &check_sum, prime &prime_number) // Calculates a value that depends on all parameters and output sizes; used for integrity testing of kernel and module
     {
         // Iterate over all outputs
-        for(auto & d : info_["outputs"])
+        for (auto &d : info_["outputs"])
         {
             matrix output;
             Bind(output, d["name"]);
@@ -1322,9 +1320,9 @@ namespace ikaros
             }
         }
         int delay_size = delay_range_.trim().b_[0];
-        if(delay_size > 1)
+        if (delay_size > 1)
             target_range.push_front(0, delay_size);
-        if(delay_size*source_range.size() != target_range.size())
+        if (delay_size * source_range.size() != target_range.size())
             throw exception("Connection could not be resolved");
 
         return target_range;
@@ -1383,7 +1381,6 @@ namespace ikaros
             }
         }
     };
-
 
     void
     Connection::Print()
@@ -1445,9 +1442,9 @@ namespace ikaros
     {
         // FIXME: retain persistent components
 
-        for(auto [_,c] : components) // components contains pointers so nee need to be explcitly deleted
-            // if(NOT PERSISTENT)
-                delete c;
+        for (auto [_, c] : components) // components contains pointers so nee need to be explcitly deleted
+                                       // if(NOT PERSISTENT)
+            delete c;
         components.clear();
 
         connections.clear();
@@ -1616,7 +1613,7 @@ namespace ikaros
     void
     Kernel::CalculateSizes()
     {
-        try 
+        try
         {
             // Build input table
             std::map<std::string, std::vector<Connection *>> ingoing_connections;
@@ -1729,20 +1726,19 @@ namespace ikaros
             std::cout << "\t" << i.first << " " << i.second.buffer_.size() << " " << i.second.buffer_[0].rank() << i.second.buffer_[0].shape() << std::endl;
     }
 
-
     void
     Kernel::ListTasks()
     {
-        for(auto & task_group : tasks)
+        for (auto &task_group : tasks)
         {
             std::cout << "\nTasks:" << std::endl;
-            for(auto & task: task_group)
+            for (auto &task : task_group)
                 std::cout << "\t" << task->Info() << std::endl;
         }
     }
 
-   void 
-   Kernel::ListParameters()
+    void
+    Kernel::ListParameters()
     {
         std::cout << "\nParameters:" << std::endl;
         for (auto &p : parameters)
@@ -1874,6 +1870,7 @@ namespace ikaros
         dictionary external(path);
         external["name"] = d["name"]; // FIXME: Just in case - check for errors later
         d.merge(external);
+        d.erase("external");
     }
 
     void
@@ -1911,7 +1908,7 @@ namespace ikaros
     Kernel::InitComponents()
     {
         // Call Init for all modules (after CalcalateSizes and Allocate)
-        for(auto & c : components)
+        for (auto &c : components)
             try
             {
                 c.second->Init();
@@ -1947,8 +1944,8 @@ namespace ikaros
     {
         if (components.size() > 0)
             Clear();
-        if(!std::filesystem::exists(options_.full_path()))
-            throw load_failed(u8"File \""+options_.full_path()+"\" does not exist.");
+        if (!std::filesystem::exists(options_.full_path()))
+            throw load_failed(u8"File \"" + options_.full_path() + "\" does not exist.");
 
         try
         {
@@ -1972,7 +1969,6 @@ namespace ikaros
             throw load_failed("Load failed");
         }
     }
-
 
     void
     Kernel::CalculateCheckSum()
@@ -2034,7 +2030,6 @@ namespace ikaros
         // needs_reload = true;
     }
 
-
     void
     Kernel::LogStart()
     {
@@ -2043,8 +2038,6 @@ namespace ikaros
         socket.Get("www.ikaros-project.org", 80, "GET /start3/ HTTP/1.1\r\nHost: www.ikaros-project.org\r\nConnection: close\r\n\r\n", b, 1024);
         socket.Close();
     }
-
-
 
     void
     Kernel::LogStop()
@@ -2055,12 +2048,12 @@ namespace ikaros
         socket.Close();
     }
 
-    void 
+    void
     Kernel::Propagate()
     {
 
-         for(auto & c : connections)
-            if(c.delay_range_.is_delay_0())
+        for (auto &c : connections)
+            if (c.delay_range_.is_delay_0())
                 continue;
             else
                 c.Tick();
@@ -2261,8 +2254,8 @@ namespace ikaros
             task_map[s] = c; // Save in task map
         }
 
-        for(auto & c : connections) // Only zero-delay connections are sorted into tasks
-        if(c.delay_range_.is_delay_0())
+        for (auto &c : connections) // Only zero-delay connections are sorted into tasks
+            if (c.delay_range_.is_delay_0())
             {
                 std::string s = peek_rhead(c.source, ".");
                 std::string t = peek_rhead(c.target, ".");
@@ -2332,7 +2325,6 @@ namespace ikaros
         }
     }
 
-
     void
     Kernel::SetUp()
     {
@@ -2341,7 +2333,7 @@ namespace ikaros
             PruneConnections();
             SortTasks();
             ResolveParameters();
-            //ListParameters();
+            // ListParameters();
             CalculateDelays();
             CalculateSizes();
             // ListConnections();
@@ -2350,7 +2342,7 @@ namespace ikaros
             InitCircularBuffers();
             InitComponents();
 
-            if(info_.is_set("info"))
+            if (info_.is_set("info"))
             {
                 ListParameters();
                 ListComponents();
@@ -2363,7 +2355,7 @@ namespace ikaros
             }
 
             LogStart();
-            //PrintLog();
+            // PrintLog();
         }
         catch (exception &e)
         {
@@ -2438,11 +2430,7 @@ namespace ikaros
         std::cout << std::endl;
 
         if (msg <= msg_fatal_error)
-        {
             global_terminate = true;
-
-            // run_mode = run_mode_quit;
-        }
         return true;
     }
 
@@ -2514,8 +2502,9 @@ namespace ikaros
     void
     Kernel::Stop()
     {
-        while(tick_is_running)
-            {}
+        while (tick_is_running)
+        {
+        }
 
         run_mode = std::min(run_mode_stop, run_mode);
         tick = -1;
@@ -2524,11 +2513,7 @@ namespace ikaros
         LogStop();
         Clear(); // Delete all modules
         needs_reload = true;
-
-
     }
-
-
 
     void
     Kernel::Pause()
@@ -2692,8 +2677,8 @@ namespace ikaros
     }
 
     void
-    Kernel::DoSendData(Request & request)
-    {    
+    Kernel::DoSendData(Request &request)
+    {
         sending_ui_data = true; // must be set while main thread is still running
         while (tick_is_running)
         {
@@ -2715,42 +2700,42 @@ namespace ikaros
         std::string sep = "";
         bool sent = false;
 
+        // std::cout << "\nDoSendData: " << std::endl;
         while (!data.empty())
         {
             std::string source = head(data, ",");
             std::string key = source;
 
-
-            //std::cout << "\tsource: " << source << std::endl;
-            if(source.find("@") != std::string::npos && components.count(root) > 0)
+            // std::cout << "\tsource: " << source << std::endl;
+            if (source.find("@") != std::string::npos && components.count(root) > 0)
             {
-                Component * c = components[root]; // FIXME: Handle exceptions
+                Component *c = components[root]; // FIXME: Handle exceptions
                 source = c->GetValue(source);
             }
 
             std::string format = rtail(source, ":");
-            std::string source_with_root = root +"."+source;
+            std::string source_with_root = root + "." + source;
 
             if (buffers.count(source_with_root))
             {
                 if (format.empty())
                 {
-                    sent = socket->Send(sep + "\t\t\"" + source + "\": " + buffers[source_with_root].json());
+                    sent = socket->Send(sep + "\t\t\"" + key + "\": " + buffers[source_with_root].json());
                 }
                 else if (format == "rgb")
                 {
-                    sent = socket->Send(sep + "\t\t\"" + source + ":" + format + "\": ");
+                    sent = socket->Send(sep + "\t\t\"" + key + ":" + format + "\": ");
                     SendImage(buffers[source_with_root], format);
                 }
                 else if (format == "gray" || format == "red" || format == "green" || format == "blue" || format == "spectrum" || format == "fire")
                 {
-                    sent = socket->Send(sep + "\t\t\"" + source + ":" + format + "\": ");
+                    sent = socket->Send(sep + "\t\t\"" + key + ":" + format + "\": ");
                     SendImage(buffers[source_with_root], format);
                 }
             }
             else if (parameters.count(source_with_root))
             {
-                sent = socket->Send(sep + "\t\t\"" + source + "\": " + parameters[source_with_root].json());
+                sent = socket->Send(sep + "\t\t\"" + key + "\": " + parameters[source_with_root].json());
             }
             if (sent)
                 sep = ",\n";
@@ -2854,8 +2839,8 @@ namespace ikaros
     void
     Kernel::DoSendFile(std::string file)
     {
-        if(file[0] == '/')
-            file = file.erase(0,1); // Remove initial slash
+        if (file[0] == '/')
+            file = file.erase(0, 1); // Remove initial slash
 
         // if(socket->SendFile(file, ikc_dir))  // Check IKC-directory first to allow files to be overriden
         //    return;
@@ -2877,7 +2862,7 @@ namespace ikaros
     void
     Kernel::DoSendNetwork(Request &request)
     {
-        std::string s = json(); 
+        std::string s = json();
         Dictionary rtheader;
         rtheader.Set("Session-Id", std::to_string(session_id).c_str());
         rtheader.Set("Package-Type", "network");
@@ -3038,37 +3023,11 @@ namespace ikaros
         DoSendData(request);
     }
 
-    /*
-        void
-        Kernel::AddWidget(Request & request) // FIXME: Local exception handling
-        {
-            std::cout << "AddWidget: " << std::endl;
-            auto view = GetView(request);
-            if(view["widgets"].is_null())
-                view["widgets"] = list();
-
-            list u = list(view["widgets"]);
-            u.push_back(request.parameters);
-
-
-            DoSendData(request);
-        }
-
-
     void
-    Kernel::DoUpdate(Request & request)
+    Kernel::DoUpdate(Request &request)
     {
-        if(request.session_id != session_id)
+        if (request.session_id != session_id)
             DoSendNetwork(request);
-        }
-        /*
-        else if(run_mode == run_mode_play && session_id == request.session_id)
-        {
-            Pause();
-            Tick();
-            DoSendData(request);
-        }
-        */
         else
             DoSendData(request);
     }
