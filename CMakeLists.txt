@@ -198,3 +198,11 @@ message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
 add_compile_definitions(DEBUG)
 endif()
+
+
+find_package(Python3 REQUIRED)
+message(STATUS "Using Python3 at: ${Python3_EXECUTABLE}")
+
+# Add the dependency to ensure the virtual environment is set up
+add_dependencies(ikaros python_venv)
+
