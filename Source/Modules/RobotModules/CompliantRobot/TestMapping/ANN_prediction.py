@@ -93,8 +93,8 @@ def normalise_input(x, means_stds):
     normalized[0,5] = (x[5] - means_stds['AccelX']['mean']) / means_stds['AccelX']['std']
     normalized[0,6] = (x[6] - means_stds['AccelY']['mean']) / means_stds['AccelY']['std']
     normalized[0,7] = (x[7] - means_stds['AccelZ']['mean']) / means_stds['AccelZ']['std']
-    normalized[0,8] = (x[8] - means_stds['tilt_distance']['mean']) / means_stds['tilt_distance']['std']
-    normalized[0,9] = (x[9] - means_stds['pan_distance']['mean']) / means_stds['pan_distance']['std']
+    normalized[0,8] = (x[8] - means_stds['TiltDistToGoal']['mean']) / means_stds['TiltDistToGoal']['std']
+    normalized[0,9] = (x[9] - means_stds['PanDistToGoal']['mean']) / means_stds['PanDistToGoal']['std']
     return normalized
 
 def create_model_with_weights(weights_path, model_name):    
