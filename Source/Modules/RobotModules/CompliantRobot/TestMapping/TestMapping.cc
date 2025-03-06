@@ -86,7 +86,7 @@ class TestMapping: public Module
     matrix transition_start_time;
     matrix transition_duration;
     double time_prev_position;
-    matrix ann_output;
+    matrix model_prediction;
     
 
     std::vector<std::string> servo_names;
@@ -312,7 +312,7 @@ class TestMapping: public Module
         return coefficients_matrix;
     }
 
-    matrix SetGoalCurrent(matrix present_current, int increment, int limit, matrix position, matrix goal_position, int margin, matrix coefficients, std::string model_name, matrix ann_output)
+    matrix SetGoalCurrent(matrix present_current, int increment, int limit, matrix position, matrix goal_position, int margin, matrix coefficients, std::string model_name, matrix model_prediction)
     {
         matrix current_output(present_current.size());
         current_output.set(0);
@@ -341,7 +341,7 @@ class TestMapping: public Module
             if (model_name == "ANN")
             {
                 // Use existing ANN output for this servo
-                estimated_current = ann_output[servo_idx];
+                estimated_current = model_prediction[servo_idx];
             }
             else if (model_name == "Linear" || model_name == "Quadratic")
             {
@@ -377,6 +377,7 @@ class TestMapping: public Module
 
             // Apply current limits and set output
             current_output(servo_idx) = std::min(abs(estimated_current), static_cast<double>(limit));
+            model_prediction(servo_idx) = current_output(servo_idx);
         }
 
         return current_output;
@@ -416,7 +417,7 @@ class TestMapping: public Module
         Bind(goal_current, "GoalCurrent");
         Bind(num_transitions, "NumberTransitions");
         Bind(goal_position_out, "GoalPositionOut");
-        Bind(ann_output, "ANN_output");
+        Bind(model_prediction, "ModelPrediction");
         
         
 
@@ -507,9 +508,9 @@ class TestMapping: public Module
         prediction_error = matrix(number_transitions, current_controlled_servos.size());
         prediction_error.set(0);
 
-        ann_output.set_name("ANN_output");
-        ann_output.copy(present_current);
-        ann_output.set(0);
+        model_prediction.set_name("ModelPrediction");
+        model_prediction.copy(present_current);
+        model_prediction.set(0);
         
 
         if (std::string(prediction_model) == "ANN") {
@@ -608,7 +609,7 @@ class TestMapping: public Module
                 if (current_differences(transition, servo_idx) == 0) {
                     current_differences(transition, servo_idx) = present_current[servo_idx] - initial_currents(transition, servo_idx);
                     goal_current[servo_idx] = present_current[servo_idx];
-                    // New: Record the prediction error as (final applied current - model's predicted current)
+                    // Record the prediction error
                     prediction_error(transition, servo_idx) = abs(present_current[servo_idx] - predicted_goal_current(transition, servo_idx));
                 }
             }
@@ -627,17 +628,14 @@ class TestMapping: public Module
                 goal_position_out.copy(position_transitions[transition]);
                 goal_current.copy(present_current);
 
-                // Reset timeout-related matrices to reuse model predictions properly
-                timeout_occurred.set(0);
-         
-
                 // Compute and store the predicted goal current from the model for this new transition
+                // Only do this once per transition
                 matrix all_predicted = SetGoalCurrent(present_current, current_increment, current_limit,
                                                       present_position, goal_position_out, position_margin,
-                                                      coeffcient_matrix, std::string(prediction_model), ann_output);
-                for (int i = 0; i < current_controlled_servos.size(); i++){
+                                                      coeffcient_matrix, std::string(prediction_model), model_prediction);
+                for (int i = 0; i < current_controlled_servos.size(); i++) {
                     int servo_idx = current_controlled_servos(i);
-                    predicted_goal_current(transition, servo_idx) = all_predicted[servo_idx];
+                    predicted_goal_current(transition, i) = all_predicted(servo_idx);
                 }
             } else {
                 SaveCurrentData();
@@ -685,16 +683,16 @@ class TestMapping: public Module
                 // Read the predictions and check if they've been updated
                 std::atomic_thread_fence(std::memory_order_acquire);
                 if (shared_data->new_data) {
-                    // Read predictions and update ann_output
-                    ann_output[0] = abs(shared_data->data[FLOAT_COUNT - 2]);  // Tilt prediction
-                    ann_output[1] = abs(shared_data->data[FLOAT_COUNT - 1]);  // Pan prediction
+                    // Read predictions and update model_prediction
+                    model_prediction[0] = abs(shared_data->data[FLOAT_COUNT - 2]);  // Tilt prediction
+                    model_prediction[1] = abs(shared_data->data[FLOAT_COUNT - 1]);  // Pan prediction
                     
                     // Clear the flag after reading
                     shared_data->new_data = false;
                     got_response = true;
                     
-                    Debug("Received predictions: Tilt=" + std::to_string(ann_output[0]) + 
-                          ", Pan=" + std::to_string(ann_output[1]));
+                    Debug("Received predictions: Tilt=" + std::to_string(model_prediction[0]) + 
+                          ", Pan=" + std::to_string(model_prediction[1]));
                 }
 
                 std::this_thread::sleep_for(std::chrono::microseconds(10));
@@ -717,12 +715,12 @@ class TestMapping: public Module
                 if (!timeout) {
                     // Use ANN output directly as goal current if using ANN model
                     if (std::string(prediction_model) == "ANN") {
-                        goal_current(servo_idx) = std::min<float>(ann_output[servo_idx], (float)current_limit);
+                        goal_current(servo_idx) = std::min<float>(model_prediction[servo_idx], (float)current_limit);
                     } else {
                         // For other models, use the existing prediction method
                         goal_current.copy(SetGoalCurrent(present_current, current_increment, current_limit,
                                                    present_position, goal_position_out, position_margin,
-                                                   coeffcient_matrix, std::string(prediction_model), ann_output));
+                                                   coeffcient_matrix, std::string(prediction_model), model_prediction));
                     }
                 } else {
                     // Handle timeout case
@@ -730,6 +728,7 @@ class TestMapping: public Module
                         timeout_occurred(transition, i) = 1;
                         Warning("Timeout started for servo " + std::string(servo_names[servo_idx]) + 
                                " in transition " + std::to_string(transition));
+                 
                     }
                     if (approximating_goal(servo_idx) == 0) {
                         goal_current(servo_idx) = std::min(goal_current[servo_idx] + CURRENT_INCREMENT, (float)current_limit);
@@ -743,13 +742,15 @@ class TestMapping: public Module
             }
         }
 
-        if (GetTick() == 2 && predicted_goal_current.sum() == 0) {
+        if (GetTick() >= 2 && predicted_goal_current.sum() == 0) {
             matrix all_predicted = SetGoalCurrent(present_current, current_increment, current_limit,
                                                   present_position, goal_position_out, position_margin,
-                                                  coeffcient_matrix, std::string(prediction_model), ann_output);
+                                                  coeffcient_matrix, std::string(prediction_model), model_prediction);
             
-            predicted_goal_current[0] = all_predicted;
-            
+            for (int i = 0; i < current_controlled_servos.size(); i++) {
+                int servo_idx = current_controlled_servos(i);
+                predicted_goal_current(transition, i) = all_predicted(servo_idx);
+            }
         }
     }
 
@@ -806,6 +807,8 @@ class TestMapping: public Module
                     if (t < transition - 1) file << ", ";
                 }
                 file << "],\n";
+                
+                timeout_occurred.print();
 
             
 
