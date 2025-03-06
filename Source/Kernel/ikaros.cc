@@ -1828,8 +1828,16 @@ namespace ikaros
             throw exception("Module or group with this name already exists. \"" + std::string(info["name"]) + "\".");
 
         std::string classname = info["class"];
-        if (!classes.count(classname))
-            throw exception("Class \"" + classname + "\" does not exist.");
+
+        if(!classname.empty() && classname[0] == '@')
+        {
+            Component * c = components.at(path);
+            classname = c->GetValue(classname.substr(1));
+            info["class"] = classname;
+        }
+
+        if(!classes.count(classname))
+            throw exception("Class \""+classname+"\" does not exist.");
 
         if (classes[classname].path.empty())
             throw setup_error("Class file \"" + classname + ".ikc\" could not be found.");
@@ -2345,13 +2353,13 @@ namespace ikaros
             if (info_.is_set("info"))
             {
                 ListParameters();
-                ListComponents();
-                ListConnections();
-                // ListInputs();
-                // ListOutputs();
-                ListBuffers();
-                ListCircularBuffers();
-                ListTasks();
+                //ListComponents();
+                //ListConnections();
+                //ListInputs();
+                //ListOutputs();
+                //ListBuffers();
+                //ListCircularBuffers();
+                //ListTasks();
             }
 
             LogStart();
@@ -2706,8 +2714,8 @@ namespace ikaros
             std::string source = head(data, ",");
             std::string key = source;
 
-            // std::cout << "\tsource: " << source << std::endl;
-            if (source.find("@") != std::string::npos && components.count(root) > 0)
+
+            if(source.find("@") != std::string::npos && components.count(root) > 0)
             {
                 Component *c = components[root]; // FIXME: Handle exceptions
                 source = c->GetValue(source);
@@ -2716,7 +2724,7 @@ namespace ikaros
             std::string format = rtail(source, ":");
             std::string source_with_root = root + "." + source;
 
-            if (buffers.count(source_with_root))
+            if(buffers.count(source_with_root))
             {
                 if (format.empty())
                 {
@@ -2737,7 +2745,13 @@ namespace ikaros
             {
                 sent = socket->Send(sep + "\t\t\"" + key + "\": " + parameters[source_with_root].json());
             }
-            if (sent)
+
+            else
+            {
+                sent = socket->Send(sep + "\t\t\"" + key + "\": \""+source+"\"");
+            }
+
+            if(sent)
                 sep = ",\n";
         }
 
@@ -2845,7 +2859,9 @@ namespace ikaros
         // if(socket->SendFile(file, ikc_dir))  // Check IKC-directory first to allow files to be overriden
         //    return;
 
-        if (socket->SendFile(file, webui_dir)) // Now look in WebUI directory
+        //std::cout << "Sending file: " << file << std::endl;
+
+        if(socket->SendFile(file, webui_dir))   // Now look in WebUI directory
             return;
         /*
         if(socket->SendFile(file, std::string(webui_dir)+"Images/"))   // Now look in WebUI/Images directory

@@ -1,7 +1,7 @@
 //
 //	FadeCandy.cc		This file is a part of the IKAROS project
 //
-//    Copyright (C) 2016 Christian Balkenius
+//    Copyright (C) 2025 Birger Johansson
 //
 //    This program is free software; you can redistribute it and/or modify
 //    it under the terms of the GNU General Public License as published by
@@ -19,160 +19,107 @@
 //
 //    See http://www.ikaros-project.org/ for more information.
 //
-//  This example is intended as a starting point for writing new Ikaros modules
-//  The example includes most of the calls that you may want to use in a module.
-//  If you prefer to start with a clean example, use he module MinimalModule instead.
-//
 
-#include "FadeCandy.h"
-#include <unistd.h>
-#include <signal.h>
-#include <spawn.h>
-#include <fcntl.h>
+// Using fadecandy driver from https://github.com/iron-ox/fadecandy_ros/tree/master/fadecandy_driver
+
+#include "fadecandy_driver.h" // Include the fadecandy driver
+
+#include "ikaros.h"
 
 using namespace ikaros;
+using namespace fadecandy_driver;
 
-FadeCandy::FadeCandy(Parameter *p) : Module(p)
+class FadeCandy : public Module
 {
-    // Starting fade candy server
-    startServer = false;
-    fcserver_pid = -1;
-    const char *c = GetValue("command");
-    startServer = GetBoolValue("start_server");
-    if (c && strlen(c) != 0 && startServer)
+    matrix RightEye, LeftEye, MouthLow, MouthHigh;
+    fadecandy_driver::FadecandyDriver fd_driver;
+    parameter simulate;
+
+    // Initialize the led array colors
+    std::vector<std::vector<Color>> led_array_colors = {
+        std::vector<Color>(8, Color(0, 0, 0)),  // (Mouth high)
+        std::vector<Color>(8, Color(0, 0, 0)),  // (Mouth low)
+        std::vector<Color>(12, Color(0, 0, 0)), // (Right eye)
+        std::vector<Color>(12, Color(0, 0, 0))  // (Left eye)
+    };
+
+    void Init()
     {
-        char *cmd = create_formatted_string("%s%s", GetClassPath(), GetValue("command"));
-        Notify(msg_debug, "Starting: %s\n", cmd);
-        posix_spawn_file_actions_t action;
-        posix_spawn_file_actions_init(&action);
-        posix_spawn_file_actions_addopen(&action, STDERR_FILENO, "/dev/null", O_WRONLY | O_APPEND, 0); // Piping command to dev/null
-        char *argv[] = {cmd, NULL};
-        extern char **environ;
-        int status = posix_spawn(&fcserver_pid, cmd, &action, NULL, argv, environ);
-        posix_spawn_file_actions_destroy(&action);
-    }
 
-    no_of_channels = 0;
+        Bind(LeftEye, "LEFT_EYE");
+        Bind(RightEye, "RIGHT_EYE");
+        Bind(MouthHigh, "MOUTH_HIGH");
+        Bind(MouthLow, "MOUTH_LOW");
 
-    // Count channels *** parnent_group->appended_ekements
+        Bind(simulate, "simulate");
 
-    XMLNode *par = xml->parent;
-    for (XMLElement *c = ((XMLElement *)(par))->GetContentElement("channel"); c != NULL; c = c->GetNextElement("channel"))
-        no_of_channels++;
-
-    // Allocate memory
-
-    channel_name_red = new char *[no_of_channels];
-    channel_name_green = new char *[no_of_channels];
-    channel_name_blue = new char *[no_of_channels];
-
-    channel_size = new int[no_of_channels];
-    channel_LED_size = new int[no_of_channels];
-    channel_index = new int[no_of_channels];
-
-    for (int i = 0; i < no_of_channels; i++)
-    {
-        channel_name_red[i] = NULL;
-        channel_name_green[i] = NULL;
-        channel_name_blue[i] = NULL;
-        channel_size[i] = 0;
-        channel_index[i] = i;
-    }
-
-    // Add input for each column in the parameter list
-
-    int col = 0;
-    for (XMLElement *c = ((XMLElement *)(par))->GetContentElement("channel"); c != NULL; c = c->GetNextElement("channel"))
-    {
-        const char *name = c->GetAttribute("name");
-        if (name == NULL)
+        if (simulate)
         {
-            Notify(msg_warning, "Column name missing in module \"%s\". Ignored.\n", GetName());
-            break;
+            Notify(msg_warning, "Simulate fadecandy");
+            return;
         }
+        if ((LeftEye.size_x() <= 12 && LeftEye.size_y() != 3))
+            Notify(msg_warning, "Input LEFT_EYE size is not 3x12");
+        if ((RightEye.size() <= 12 && RightEye.size_y() != 3))
+            Notify(msg_warning, "Input RIGHT_EYE size is not 3x12");
+        if ((MouthHigh.size() <= 8 && MouthHigh.size_y() != 3))
+            Notify(msg_warning, "Input MOUTH_HIGH size is not 3x8");
+        if ((MouthLow.size() <= 8 && MouthLow.size_y() != 3))
+            Notify(msg_warning, "Input MOUTH_LOW size is not 3x8");
 
-        channel_name_red[col] = create_formatted_string("%s_RED", name);
-        channel_name_green[col] = create_formatted_string("%s_GREEN", name);
-        channel_name_blue[col] = create_formatted_string("%s_BLUE", name);
-
-        const char *s = c->GetAttribute("size");
-        if (s)
-            channel_LED_size[col] = string_to_int(s);
-
-        const char *ix = c->GetAttribute("index");
-        if (ix)
-            channel_index[col] = string_to_int(ix);
-
-        AddInput(channel_name_red[col]);
-        AddInput(channel_name_green[col]);
-        AddInput(channel_name_blue[col]);
-
-        col++;
-    }
-}
-
-void FadeCandy::Init()
-{
-    socket = new Socket();
-
-    // Check sizes of connected inputs here
-
-    // Get inputs
-
-    channel_red = new float *[no_of_channels];
-    channel_green = new float *[no_of_channels];
-    channel_blue = new float *[no_of_channels];
-
-    for (int i = 0; i < no_of_channels; i++)
-    {
-        channel_red[i] = GetInputArray(channel_name_red[i]);
-        channel_green[i] = GetInputArray(channel_name_green[i]);
-        channel_blue[i] = GetInputArray(channel_name_blue[i]);
-
-        channel_size[i] = GetInputSize(channel_name_red[i]); // Should check all have the same size
-    }
-}
-
-FadeCandy::~FadeCandy()
-{
-    if (startServer)
-    {
-        Timer t;
-        t.Sleep(1000); // Added a sleep here to make sure the fcserver started and its ready to be killed.
-        if ((kill(fcserver_pid, SIGKILL)) == 0)
+        try
         {
-            // printf("Killed fcserver (PID %i)\n", fcserver_pid);
+            auto serial_number = fd_driver.connect();
+            Notify(msg_debug, "Connected to Fadecandy board: " + serial_number);
         }
-        else
-            printf("Could not kill fcserver (PID %i).\n", fcserver_pid);
-    }
-    // delete ***
-}
-
-void FadeCandy::Tick()
-{
-    int len = 4 + no_of_channels * 64 * 3;
-    unsigned char request[len];
-    request[0] = 0;
-    request[1] = 0;
-    request[2] = (no_of_channels * 64 * 3) / 256;
-    request[3] = (no_of_channels * 64 * 3) % 256;
-
-    for (int i = 0; i < no_of_channels; i++)
-    {
-        int k = 4 + i * 64 * 3;
-        for (int j = 0; j < channel_size[i]; j++)
+        catch (const std::exception &e)
         {
-            request[k++] = int(255 * channel_red[i][j]);
-            request[k++] = int(255 * channel_green[i][j]);
-            request[k++] = int(255 * channel_blue[i][j]);
+            Notify(msg_warning, "Could not connect to Fadecandy board"); // Should this be fatal?
+            return;
         }
     }
 
-    socket->SendRequest("127.0.0.1", 7890, (char *)request, len);
-    socket->Close();
-}
+    void
+    Tick()
+    {
+        if (simulate)
+            return;
 
-// Install the module. This code is executed during start-up.
+        if (!fd_driver.isConnected())
+        {
+            try
+            {
+                Notify(msg_debug, "Reconnecting to Fadecandy board: ");
+                auto serial_number = fd_driver.connect();
+                Notify(msg_warning, "Reconnecting to Fadecandy board: " + serial_number);
+            }
+            catch (const std::exception &e)
+            {
+                Notify(msg_debug, "Could not connect to Fadecandy board");
+                return;
+            }
+        }
 
-static InitClass init("FadeCandy", &FadeCandy::Create, "Source/Modules/RobotModules/FadeCandy/");
+        // Fill color from input
+        for (size_t i = 0; i < 8; ++i) // 8 Leds in each row of the mouth
+        {
+            led_array_colors[1][i] = Color(MouthHigh[0][i] * 255, MouthHigh[1][i] * 255, MouthHigh[2][i] * 255);
+            led_array_colors[0][i] = Color(MouthLow[0][i] * 255, MouthLow[1][i] * 255, MouthLow[2][i] * 255);
+        }
+        for (size_t i = 0; i < 12; ++i) // 12 Leds in each eye
+        {
+            led_array_colors[2][i] = Color(RightEye[0][i] * 255, RightEye[1][i] * 255, RightEye[2][i] * 255);
+            led_array_colors[3][i] = Color(LeftEye[0][i] * 255, LeftEye[1][i] * 255, LeftEye[2][i] * 255);
+        }
+
+        try
+        {
+            fd_driver.setColors(led_array_colors); // Send the colors to the driver. Set color is checking that isConnected is true. However,if the device is unpluged this is not detected by the driver.
+        }
+        catch (const std::exception &e)
+        {
+            Notify(msg_debug, "Could not set colors of the eyes");
+        }
+    }
+};
+INSTALL_CLASS(FadeCandy)
