@@ -733,12 +733,32 @@ class TestMapping: public Module
                     if (approximating_goal(servo_idx) == 0) {
                         goal_current(servo_idx) = std::min(goal_current[servo_idx] + CURRENT_INCREMENT, (float)current_limit);
                     }
+
+                    // Calculate prediction error if we've reached at least 10% of the distance to goal
+                    // and we haven't already calculated it for this servo in this transition
+                    if (timeout_occurred(transition, i) == 1 && prediction_error(transition, i) == 0) {
+                        // Calculate how far we've moved toward the goal
+                        float start_pos = starting_positions(i, transition);
+                        float goal_pos = position_transitions(transition, servo_idx);
+                        float current_pos = present_position(servo_idx);
+                        float total_distance = abs(goal_pos - start_pos);
+                        float traveled_distance = abs(current_pos - start_pos);
+                        
+                        // Check if we've traveled at least 10% of the distance to goal
+                        if (total_distance > 0 && traveled_distance >= 0.1 * total_distance) {
+                            // Calculate prediction error (absolute difference between predicted and actual current)
+                            float predicted = predicted_goal_current(transition, i);
+                            float actual = present_current(servo_idx);
+                            prediction_error(transition, i) = abs(predicted - actual);
+                            
+                            Debug("Prediction error calculated for " + std::string(servo_names[servo_idx]) + 
+                                  " in transition " + std::to_string(transition) + 
+                                  ": " + std::to_string(prediction_error(transition, i)));
+                        }
+                    }
                 }
                 
-                // Store prediction error when servo reaches goal
-                if (reached_goal(servo_idx) == 1 && prediction_error(transition, i) == 0) {
-                    prediction_error(transition, i) = abs(present_current[servo_idx] - predicted_goal_current(transition, i));
-                }
+                
             }
         }
 
