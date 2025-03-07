@@ -83,48 +83,96 @@ class SharedMemory:
 
 
 def normalise_input(x, means_stds):
-    # Input x should be a numpy array with shape (1, 10)
-    normalized = np.zeros((1, 10))  # Create array with correct shape
-    normalized[0,0] = (x[0] - means_stds['TiltPosition']['mean']) / means_stds['TiltPosition']['std']
-    normalized[0,1] = (x[1] - means_stds['PanPosition']['mean']) / means_stds['PanPosition']['std']
-    normalized[0,2] = (x[2] - means_stds['GyroX']['mean']) / means_stds['GyroX']['std']
-    normalized[0,3] = (x[3] - means_stds['GyroY']['mean']) / means_stds['GyroY']['std']
-    normalized[0,4] = (x[4] - means_stds['GyroZ']['mean']) / means_stds['GyroZ']['std']
-    normalized[0,5] = (x[5] - means_stds['AccelX']['mean']) / means_stds['AccelX']['std']
-    normalized[0,6] = (x[6] - means_stds['AccelY']['mean']) / means_stds['AccelY']['std']
-    normalized[0,7] = (x[7] - means_stds['AccelZ']['mean']) / means_stds['AccelZ']['std']
-    normalized[0,8] = (x[8] - means_stds['TiltDistToGoal']['mean']) / means_stds['TiltDistToGoal']['std']
-    normalized[0,9] = (x[9] - means_stds['PanDistToGoal']['mean']) / means_stds['PanDistToGoal']['std']
-    return normalized
+    # Create array of all means and standard deviations in correct order
+    feature_names = ['TiltPosition', 'PanPosition', 'GyroX', 'GyroY', 'GyroZ', 
+                     'AccelX', 'AccelY', 'AccelZ', 'TiltDistToGoal', 'PanDistToGoal']
+    
+    means = np.array([means_stds[name]['mean'] for name in feature_names])
+    stds = np.array([means_stds[name]['std'] for name in feature_names])
+    
+    # Vectorized normalization
+    return (x.reshape(1, -1) - means) / stds
 
-def create_model_with_weights(weights_path, model_name):    
-        # Fallback to your original implementation
-        model = Sequential()
-        model.name = model_name
-        model.add(Input(shape=(10,)))
-        model.add(Dense(128, activation='relu', kernel_regularizer=l2(0.001)))
-        model.add(BatchNormalization())
-        model.add(Dropout(0.3))
-        model.add(Dense(32, activation='relu'))
-        model.add(BatchNormalization())
-        model.add(Dropout(0.3))
-        model.add(Dense(1, activation='linear'))
-        model.compile(optimizer=Adam(learning_rate=0.001), loss='mean_squared_error', metrics=['mae'])
+def create_model_with_weights(weights_path, model_name):
+    # Try to load model from config file
+    config_path = weights_path.replace('.weights.h5', '_config.json')
+    if os.path.exists(config_path):
+        try:
+            with open(config_path, 'r') as f:
+                config = json.load(f)
+            
+            model = Sequential()
+            model.name = model_name
+            
+            # First layer needs input shape
+            model.add(Input(shape=(10,)))  
+            
+            for layer in config['layers']:
+                if layer['class_name'] == 'Dense':
+                    layer_config = layer['config']
+                    regularizer = None
+                    if layer_config.get('kernel_regularizer'):
+                        reg_config = layer_config['kernel_regularizer']['config']
+                        regularizer = l2(reg_config.get('l2', 0))
+                    
+                    model.add(Dense(
+                        units=layer_config['units'],
+                        activation=layer_config['activation'],
+                        kernel_regularizer=regularizer
+                    ))
+                elif layer['class_name'] == 'BatchNormalization':
+                    model.add(BatchNormalization())
+                elif layer['class_name'] == 'Dropout':
+                    model.add(Dropout(layer['config']['rate']))
+            
+            # Compile model
+            model.compile(optimizer=Adam(learning_rate=0.001), 
+                          loss='mean_squared_error', 
+                          metrics=['mae'])
+            
+            # Load pretrained weights
+            model.load_weights(weights_path)
+            
+            print(f"Successfully loaded model from config: {config_path}", file=sys.stderr)
+            return model
+            
+        except Exception as e:
+            print(f"Error loading model from config: {e}", file=sys.stderr)
+            print("Falling back to default model architecture", file=sys.stderr)
+    
+    # Fallback to default implementation
+    print(f"Using default model architecture for {model_name}", file=sys.stderr)
+    model = Sequential()
+    model.name = model_name
+    model.add(Input(shape=(10,)))  # Changed from 11 to 10 to match actual input size
+    model.add(Dense(128, activation='relu', kernel_regularizer=l2(0.001)))
+    model.add(BatchNormalization())
+    model.add(Dropout(0.3))
+    model.add(Dense(32, activation='relu'))
+    model.add(BatchNormalization())
+    model.add(Dropout(0.3))
+    model.add(Dense(1, activation='linear'))
+    model.compile(optimizer=Adam(learning_rate=0.001), loss='mean_squared_error', metrics=['mae'])
 
-        model.load_weights(weights_path)
-        return model
+    model.load_weights(weights_path)
+    return model
 
 
 def main():
     try:
         directory = os.path.dirname(os.path.abspath(__file__))
         
+        servos = ['tilt', 'pan']
+
         # Load models and means/stds
-        tilt_model = create_model_with_weights(directory + '/weights/tilt.weights.h5', 'tilt_model')
-        pan_model = create_model_with_weights(directory + '/weights/pan.weights.h5', 'pan_model')
-        
-        with open(directory + '/weights/mean_std.json', 'r') as f:
-            means_stds = json.load(f)
+        models = {}
+        means_stds = {}
+        for servo in servos:
+            models[servo] = create_model_with_weights(directory + f'/weights/{servo}_filtered_model.weights.h5', f'{servo}_model')
+            with open(directory + f'/weights/{servo}_mean_std.json', 'r') as f:
+                means_stds[servo] = json.load(f)
+
+
         
         shm = SharedMemory()  # This will now use the correct SHM_NAME
         print("Successfully connected to shared memory", file=sys.stderr)
@@ -147,18 +195,19 @@ def main():
                 ]).reshape(1, -1)
            
                 # Normalize inputs
-                normalized = normalise_input(model_inputs[0], means_stds)
+                tilt_normalized = normalise_input(model_inputs[0], means_stds['tilt'])
+                pan_normalized = normalise_input(model_inputs[0], means_stds['pan'])
                 
                 # Make predictions
-                tilt_pred = tilt_model.predict(normalized, verbose=0)[0]
-                pan_pred = pan_model.predict(normalized, verbose=0)[0]
+                tilt_pred = models['tilt'].predict(tilt_normalized, verbose=0)
+                pan_pred = models['pan'].predict(pan_normalized, verbose=0)
                 
-                # Denormalize predictions
-                tilt_pred = tilt_pred * means_stds['TiltCurrent']['std'] + means_stds['TiltCurrent']['mean']
-                pan_pred = pan_pred * means_stds['PanCurrent']['std'] + means_stds['PanCurrent']['mean']
+                # Denormalize predictions - extract scalar values properly
+                tilt_pred_scalar = float(tilt_pred[0][0]) * means_stds['tilt']['TiltCurrent']['std'] + means_stds['tilt']['TiltCurrent']['mean'] 
+                pan_pred_scalar = float(pan_pred[0][0]) * means_stds['pan']['PanCurrent']['std'] + means_stds['pan']['PanCurrent']['mean'] 
                 
                 # Write predictions without clearing the flag
-                predictions = [float(tilt_pred[0]), float(pan_pred[0])]
+                predictions = [tilt_pred_scalar, pan_pred_scalar]
                 shm.write_prediction(predictions)
                 
          
