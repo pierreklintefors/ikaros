@@ -49,18 +49,33 @@ class SharedMemory:
     
     def read_data(self):
         self.shared_data.seek(0)
-        data = np.frombuffer(self.shared_data.read(12 * 4), dtype=np.float32)
-        # First 2 are positions (tilt, pan)
-        # Next 3 are gyro
-        # Next 3 are accel
-        # Next 2 are distances to goal
-        # Last 2 are for predictions (tilt, pan)
+        data = np.frombuffer(self.shared_data.read(FLOAT_COUNT * 4), dtype=np.float32)
+        
+        # Determine the number of servos based on the data size
+        # We know we have 3 gyro values, 3 accel values, and 2 values per servo (position + distance)
+        num_servos = (len(data) - 6 - 2) // 2  # Subtract gyro, accel, and predictions, divide by 2
+        
+        # Extract data dynamically
+        gyro = data[0:3]  # First 3 values are gyro
+        accel = data[3:6]  # Next 3 values are accel
+        
+        # Extract positions and distances for each servo
+        positions = []
+        distances = []
+        for i in range(num_servos):
+            positions.append(data[6 + i*2])      # Position
+            distances.append(data[6 + i*2 + 1])  # Distance to goal
+        
+        # Last 2 values are predictions
+        predictions = data[-2:]
+        
         return {
-            'positions': data[:2],
-            'gyro': data[2:5],
-            'accel': data[5:8],
-            'distances': data[8:10],
-            'predictions': data[10:]
+            'gyro': gyro,
+            'accel': accel,
+            'positions': positions,
+            'distances': distances,
+            'predictions': predictions,
+            'num_servos': num_servos
         }
     
     def write_prediction(self, predictions):
@@ -82,18 +97,56 @@ class SharedMemory:
         return bool(flag_byte[0])
 
 
-def normalise_input(x, means_stds):
-    # Create array of all means and standard deviations in correct order
-    feature_names = ['TiltPosition', 'PanPosition', 'GyroX', 'GyroY', 'GyroZ', 
-                     'AccelX', 'AccelY', 'AccelZ', 'TiltDistToGoal', 'PanDistToGoal']
+def normalise_input(input_data, means_stds, servo_name):
+    """
+    Normalize input data for a specific servo model
     
+    Args:
+        input_data: Dictionary containing gyro, accel, positions, distances
+        means_stds: Dictionary with normalization parameters
+        servo_name: Name of the servo (e.g., 'tilt', 'pan')
+    
+    Returns:
+        Normalized input as numpy array
+    """
+    # Get the feature order from the means_stds dictionary
+    feature_names = list(means_stds.keys())
+    # Remove the target variable (e.g., 'TiltCurrent' or 'PanCurrent')
+    feature_names = [name for name in feature_names if not name.endswith('Current')]
+    
+    # Create input array in the same order as feature_names
+    input_array = []
+    for feature in feature_names:
+        if feature.startswith('Gyro'):
+            idx = {'GyroX': 0, 'GyroY': 1, 'GyroZ': 2}.get(feature, 0)
+            input_array.append(input_data['gyro'][idx])
+        elif feature.startswith('Accel'):
+            idx = {'AccelX': 0, 'AccelY': 1, 'AccelZ': 2}.get(feature, 0)
+            input_array.append(input_data['accel'][idx])
+        elif feature.endswith('Position'):
+            if feature.startswith('Tilt'):
+                input_array.append(input_data['positions'][0])
+            elif feature.startswith('Pan'):
+                input_array.append(input_data['positions'][1])
+        elif feature.endswith('DistToGoal'):
+            if feature.startswith('Tilt'):
+                input_array.append(input_data['distances'][0])
+            elif feature.startswith('Pan'):
+                input_array.append(input_data['distances'][1])
+    
+    # Convert to numpy array
+    x = np.array(input_array)
+    
+    # Get means and stds for normalization
     means = np.array([means_stds[name]['mean'] for name in feature_names])
     stds = np.array([means_stds[name]['std'] for name in feature_names])
     
-    # Vectorized normalization
+    # Normalize
     return (x.reshape(1, -1) - means) / stds
 
-def create_model_with_weights(weights_path, model_name):
+
+
+def create_model_with_weights(weights_path, model_name, num_inputs):
     # Try to load model from config file
     config_path = weights_path.replace('.weights.h5', '_config.json')
     if os.path.exists(config_path):
@@ -144,7 +197,7 @@ def create_model_with_weights(weights_path, model_name):
     print(f"Using default model architecture for {model_name}", file=sys.stderr)
     model = Sequential()
     model.name = model_name
-    model.add(Input(shape=(10,)))  # Changed from 11 to 10 to match actual input size
+    model.add(Input(shape=(num_inputs,)))  # Changed from 11 to 10 to match actual input size
     model.add(Dense(128, activation='relu', kernel_regularizer=l2(0.001)))
     model.add(BatchNormalization())
     model.add(Dropout(0.3))
@@ -162,19 +215,21 @@ def main():
     try:
         directory = os.path.dirname(os.path.abspath(__file__))
         
-        servos = ['tilt', 'pan']
+        servos = ['tilt', 'pan']  # This could be expanded for more servos
 
         # Load models and means/stds
         models = {}
         means_stds = {}
         for servo in servos:
-            models[servo] = create_model_with_weights(directory + f'/weights/{servo}_filtered_model.weights.h5', f'{servo}_model')
+            # Load model weights
+            weights_path = directory + f'/weights/{servo}_filtered_model.weights.h5'
+            models[servo] = create_model_with_weights(weights_path, f'{servo}_model', 10)
+            
+            # Load normalization parameters
             with open(directory + f'/weights/{servo}_mean_std.json', 'r') as f:
                 means_stds[servo] = json.load(f)
-
-
         
-        shm = SharedMemory()  # This will now use the correct SHM_NAME
+        shm = SharedMemory()
         print("Successfully connected to shared memory", file=sys.stderr)
         
         while True:
@@ -186,32 +241,27 @@ def main():
                 # Read all input data
                 input_data = shm.read_data()
                 
-                # Create input array for models
-                model_inputs = np.concatenate([
-                    input_data['positions'],
-                    input_data['gyro'],
-                    input_data['accel'],
-                    input_data['distances']
-                ]).reshape(1, -1)
-           
-                # Normalize inputs
-                tilt_normalized = normalise_input(model_inputs[0], means_stds['tilt'])
-                pan_normalized = normalise_input(model_inputs[0], means_stds['pan'])
+                # Make predictions for each servo
+                predictions = []
+                for i, servo in enumerate(servos):
+                    # Normalize inputs for this specific servo
+                    normalized_input = normalise_input(input_data, means_stds[servo], servo)
+                    
+                    # Make prediction
+                    pred = models[servo].predict(normalized_input, verbose=0)
+                    
+                    # Denormalize prediction
+                    target_var = f"{servo.capitalize()}Current"
+                    pred_scalar = float(pred[0][0]) * means_stds[servo][target_var]['std'] + means_stds[servo][target_var]['mean']
+                    predictions.append(pred_scalar)
+                    
+                    print(f"Input data: {normalized_input}")
+                    print(f"{servo}_pred", pred)
+                    print(f"{servo}_pred_scalar", pred_scalar)
                 
-                # Make predictions
-                tilt_pred = models['tilt'].predict(tilt_normalized, verbose=0)
-                pan_pred = models['pan'].predict(pan_normalized, verbose=0)
-                
-                # Denormalize predictions - extract scalar values properly
-                tilt_pred_scalar = float(tilt_pred[0][0]) * means_stds['tilt']['TiltCurrent']['std'] + means_stds['tilt']['TiltCurrent']['mean'] 
-                pan_pred_scalar = float(pan_pred[0][0]) * means_stds['pan']['PanCurrent']['std'] + means_stds['pan']['PanCurrent']['mean'] 
-                
-                # Write predictions without clearing the flag
-                predictions = [tilt_pred_scalar, pan_pred_scalar]
+                # Write predictions
                 shm.write_prediction(predictions)
                 
-         
-            
     except Exception as e:
         print(f"Error in main: {e}", file=sys.stderr)
         sys.exit(1)

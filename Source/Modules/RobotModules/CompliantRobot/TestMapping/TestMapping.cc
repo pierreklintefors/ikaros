@@ -100,14 +100,14 @@ class TestMapping: public Module
 
     std::string shm_name;
     
-    // Add these parameters to class variables
+ 
     const double TIMEOUT_DURATION = 7.0;    // Timeout before incrementing current
     const int CURRENT_INCREMENT = 2;        // Amount to increment current during timeout
     
-    // Add these to track timeout statistics
+  
     matrix timeout_occurred;
 
-    // New dedicated variables for prediction tracking
+    
     matrix predicted_goal_current;
     matrix prediction_error;
 
@@ -595,9 +595,11 @@ class TestMapping: public Module
         approximating_goal = ApproximatingGoal(present_position, goal_position_out, position_margin);
 
         // Skip processing on first tick, just initialize start time
-        if (GetTick() <= 1) {
+        if (GetTick() <= 2) {
             transition_start_time[transition].set(GetNominalTime());
-            starting_positions[transition] = present_position;
+            for (int i = 0; i < current_controlled_servos.size(); i++) {
+                starting_positions(transition, i) = present_position(current_controlled_servos(i));
+            }
             return;
         }
 
@@ -619,8 +621,8 @@ class TestMapping: public Module
                 // Store the starting position for the new transition
                 for (int i = 0; i < current_controlled_servos.size(); i++) {
                     int servo_idx = current_controlled_servos(i);
-                    starting_positions(i, transition) = present_position[servo_idx];
                     transition_start_time(transition, i) = GetNominalTime();
+                    starting_positions(transition, i) = present_position(servo_idx);
                     reached_goal(servo_idx) = 0;
                     approximating_goal(servo_idx) = 0;
                 }
@@ -648,20 +650,23 @@ class TestMapping: public Module
         if (std::string(prediction_model) == "ANN" && gyro.connected() && accel.connected()) {
             // Write input data
             int idx = 0;
-            shared_data->data[idx] = present_position[0];  // Tilt
-            idx++;
-            shared_data->data[idx] = present_position[1];  // Pan
-            idx++;
+            // First write gyro data
             for (int i = 0; i < gyro.size(); i++) {
                 shared_data->data[idx++] = gyro[i];
             }
+            // Then write accel data
             for (int i = 0; i < accel.size(); i++) {
                 shared_data->data[idx++] = accel[i];
             }
-            for (int i = 0; i < current_controlled_servos.size(); i++) {
-                shared_data->data[idx++] = abs((float)goal_position_out[i] - (float)present_position[i]);
+            // Then write positions and distances to goal
+            for (int i = 0; i < current_controlled_servos.size(); i++)
+            {
+                int servo_idx = current_controlled_servos(i);
+                shared_data->data[idx++] = present_position[servo_idx]; // Position
+                // Distance to goal
+                shared_data->data[idx++] = abs((float)goal_position_out[servo_idx] - (float)present_position[servo_idx]);
             }
-            
+
             // Set new_data flag to request new predictions
             std::atomic_thread_fence(std::memory_order_release);
             shared_data->new_data = true;
@@ -738,7 +743,7 @@ class TestMapping: public Module
                     // and we haven't already calculated it for this servo in this transition
                     if (timeout_occurred(transition, i) == 1 && prediction_error(transition, i) == 0) {
                         // Calculate how far we've moved toward the goal
-                        float start_pos = starting_positions(i, transition);
+                        float start_pos = starting_positions(transition, i);
                         float goal_pos = position_transitions(transition, servo_idx);
                         float current_pos = present_position(servo_idx);
                         float total_distance = abs(goal_pos - start_pos);
@@ -794,7 +799,7 @@ class TestMapping: public Module
                 // New: Log the starting positions
                 file << "        \"starting_positions\": [";
                 for (int t = 0; t < transition; t++) {
-                    file << starting_positions(i, t);
+                    file << starting_positions(t, i);
                     if (t < transition - 1) file << ", ";
                 }
                 file << "],\n";
