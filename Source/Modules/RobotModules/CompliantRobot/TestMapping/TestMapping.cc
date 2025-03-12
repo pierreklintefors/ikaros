@@ -101,7 +101,7 @@ class TestMapping: public Module
     std::string shm_name;
     
  
-    const double TIMEOUT_DURATION = 7.0;    // Timeout before incrementing current
+    const double TIMEOUT_DURATION = 3.0;    // Timeout before incrementing current
     const int CURRENT_INCREMENT = 2;        // Amount to increment current during timeout
     
   
@@ -368,6 +368,7 @@ class TestMapping: public Module
 
                 // Unstandardize the result
                 estimated_current = estimated_current * current_std + current_mean;
+                estimated_current *= 1.5;
             }
             else
             {
@@ -608,11 +609,10 @@ class TestMapping: public Module
             // For each current controlled servo, record the final current difference and prediction error
             for (int i = 0; i < current_controlled_servos.size(); i++) {
                 int servo_idx = current_controlled_servos(i);
-                if (current_differences(transition, servo_idx) == 0) {
-                    current_differences(transition, servo_idx) = present_current[servo_idx] - initial_currents(transition, servo_idx);
+                if (current_differences(transition, i) == 0) {
+                    current_differences(transition, i) = present_current[servo_idx] - initial_currents(transition, i);
                     goal_current[servo_idx] = present_current[servo_idx];
-                    // Record the prediction error
-                    prediction_error(transition, servo_idx) = abs(present_current[servo_idx] - predicted_goal_current(transition, servo_idx));
+                    
                 }
             }
 
