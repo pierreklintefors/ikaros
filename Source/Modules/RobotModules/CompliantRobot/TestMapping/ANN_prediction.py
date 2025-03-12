@@ -253,11 +253,10 @@ def main():
                     # Denormalize prediction
                     target_var = f"{servo.capitalize()}Current"
                     pred_scalar = float(pred[0][0]) * means_stds[servo][target_var]['std'] + means_stds[servo][target_var]['mean']
+
                     predictions.append(pred_scalar)
                     
-                    print(f"Input data: {normalized_input}")
-                    print(f"{servo}_pred", pred)
-                    print(f"{servo}_pred_scalar", pred_scalar)
+                 
                 
                 # Write predictions
                 shm.write_prediction(predictions)
