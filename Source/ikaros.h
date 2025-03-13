@@ -1,7 +1,6 @@
 // Ikaros 3.0
 
-#ifndef IKAROS
-#define IKAROS
+#pragma once
 
 #include <stdexcept>
 #include <string>
@@ -33,7 +32,6 @@ using namespace std::literals;
 #include "Kernel/h_matrix.h"
 #include "Kernel/socket.h"
 #include "Kernel/timing.h"
-#include "Kernel/socket.h"
 #include "Kernel/deprecated.h"
 #include "Kernel/image_file_formats.h"
 #include "Kernel/serial.h"
@@ -142,8 +140,9 @@ namespace ikaros
         void print(std::string name = "");
         void info();
 
-        int as_int();
-        std::string as_int_string(); // as_int() converted to string
+    int as_int();
+    std::string as_int_string(); // as_int() converted to string
+    std::string as_string();
 
         const char *c_str() const noexcept;
 
@@ -177,7 +176,7 @@ namespace ikaros
 
         std::string json()
         {
-            return "[\"" + std::to_string(level_) + "\",\"" + message_ + "\",\"" + path_ + "\"]";
+            return "[\""+std::to_string(level_)+"\",\""+escape_json_string(message_)+"\",\""+escape_json_string(path_)+"\"]";
         }
     };
 
@@ -273,7 +272,8 @@ namespace ikaros
         virtual int SetOutputSize(dictionary d, input_map ingoing_connections);
         virtual int SetOutputSizes(input_map &ingoing_connections); // Uses the size attribute
 
-        virtual int SetSizes(input_map ingoing_connections); // Sets input and output if possible
+    virtual int SetSizes(input_map ingoing_connections); // Sets input and output if possible
+    void CheckRequiredInputs();
 
         void CalculateCheckSum(long &check_sum, prime &prime_number); // Calculates a value that depends on all parameters and buffer size
     };
@@ -391,8 +391,8 @@ namespace ikaros
         std::map<std::string, CircularBuffer> circular_buffers; // Circular circular_buffers for delayed buffers
         std::map<std::string, parameter> parameters;
 
-        std::vector<std::vector<Task *>> tasks; // Sorted tasks in groups
-        ThreadPool *thread_pool;
+    std::vector<std::vector<Task *>>        tasks;                  // Sorted tasks in groups
+    ThreadPool *                            thread_pool = nullptr;
 
         long session_id;
         bool needs_reload;
@@ -406,10 +406,10 @@ namespace ikaros
         dictionary current_component_info; // Implivit parameters to create Component
         std::string current_component_path;
 
-        double idle_time;
-        int cpu_cores;
-        double cpu_usage;
-        double last_cpu;
+    double                                  idle_time = 0;         
+    int                                     cpu_cores = 1;
+    double                                  cpu_usage = 0;
+    double                                  last_cpu = 0;
 
         Timer uptime_timer; // Measues kernel uptime
         Timer timer;        // Main timer
@@ -427,9 +427,9 @@ namespace ikaros
         double lag_max; // Largest positive lag
         double lag_sum; // Sum |lag|
 
-        ServerSocket *socket;
-        std::vector<Message> log;
-        std::thread *httpThread;
+    ServerSocket *                          socket = nullptr;
+    std::vector<Message>                    log;
+    std::thread *                           httpThread = nullptr;
 
         Kernel();
         ~Kernel();
@@ -490,15 +490,16 @@ namespace ikaros
         void LoadExternalGroup(dictionary d);
         void BuildGroup(dictionary d, std::string path = "");
 
-        void AllocateInputs();
-        void InitComponents();
-        void PruneConnections();
-        void SortTasks();
-        void RunTasks();
-        void SetUp();
-        void SetCommandLineParameters(dictionary &d);
-        void LoadFile();
-        void Save();
+    void AllocateInputs();
+    void InitComponents();
+    void PruneConnections();
+    void SortTasks();
+    void RunTasks();
+    void RunTasksInSingleThread();
+    void SetUp();
+    void SetCommandLineParameters(dictionary & d);
+    void LoadFile();
+    void Save();
 
         void LogStart();
         void LogStop();
@@ -583,4 +584,4 @@ namespace ikaros
     };
 
 }; // namespace ikaros
-#endif
+

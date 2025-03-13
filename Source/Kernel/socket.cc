@@ -1,54 +1,16 @@
-//
-//    IKAROS_Socket.cc		Socket utilities for the IKAROS project
-//
-//    Copyright (C) 2001-2024  Christian Balkenius
-//
-//    This program is free software; you can redistribute it and/or modify
-//    it under the terms of the GNU General Public License as published by
-//    the Free Software Foundation; either version 2 of the License, or
-//    (at your option) any later version.
-//
-//    This program is distributed in the hope that it will be useful,
-//    but WITHOUT ANY WARRANTY; without even the implied warranty of
-//    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-//    GNU General Public License for more details.
-//
-//    You should have received a copy of the GNU General Public License
-//    along with this program; if not, write to the Free Software
-//    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
-//
-//    See http://www.ikaros-project.org/ for more information.
-//
 
-//#include "IKAROS_System.h"
-
-//#ifdef USE_BSD_SOCKET
+//    socket.cc		Socket utilities for the IKAROS project
 
 #include "socket.h"
+#include "exceptions.h"
 
-#include <stdio.h>
-#include <stdlib.h>
 #include <unistd.h>
+#include <cstring>  // For bzero
 #include <errno.h>
-#include <string.h>
-#include <fcntl.h>
-#include <signal.h>
-#include <stdarg.h>
-#include <limits.h>
-#include <time.h>
+#include <algorithm> // For std::min
 
-#include <arpa/inet.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <sys/wait.h>
-#include <netdb.h>
-
-#include <string>
 
 #define BACKLOG		10 		// how many pending connections queue will hold
-#define TIMEOUT		1000	// number of attempts to read
-#define TIMEOUTDEL	1000	// number of usec to sleep before each read
 
 using namespace ikaros;
 
@@ -61,92 +23,67 @@ static char *
 	}
     
 //
-//	SocketData
-//
-
-class SocketData
-	{
-	public:
-		int		sd;
-		
-		SocketData() : sd(-1)
-		{};
-	};
-
-
-
-//
 //	Socket - functions that gets data from a HTTP server
 //
 
-Socket::Socket()
-{
-    data = new SocketData();
-}
-
-
-
 Socket::~Socket()
 {
-    if (data->sd != -1) close(data->sd);
-    delete data;
+    if(sd != -1) 
+        close(sd);
 }
+
 
 
 bool
 Socket::SendRequest(const char * hostname, int port, const char * request, const long size)
 {
-    // Freely after https://beej.us/guide/bgnet/html/multi/getaddrinfoman.html
-    
     struct addrinfo hints, *servinfo, *p;
     int rv;
 
-    data->sd = -1;
+    sd = -1;
 
     memset(&hints, 0, sizeof hints);
     hints.ai_family = AF_INET; // use AF_INET6 to force IPv6
     hints.ai_socktype = SOCK_STREAM;
 
-    if ((rv = getaddrinfo(hostname, std::to_string(port).c_str(), &hints, &servinfo)) != 0)
+    if((rv = getaddrinfo(hostname, std::to_string(port).c_str(), &hints, &servinfo)) != 0)
         return false; //  gai_strerror(rv));
 
     // loop through all the results and connect to the first we can
-    for(p = servinfo; p != NULL; p = p->ai_next) {
-        if ((data->sd = socket(p->ai_family, p->ai_socktype,
+    for(p = servinfo; p != nullptr; p = p->ai_next) {
+        if((sd = socket(p->ai_family, p->ai_socktype,
                 p->ai_protocol)) == -1) {
-            // perror("socket");
             continue;
         }
 
-        if (connect(data->sd, p->ai_addr, p->ai_addrlen) == -1) {
-            // perror("connect");
-            close(data->sd);
+        if(connect(sd, p->ai_addr, p->ai_addrlen) == -1) 
+        {
+            close(sd);
             continue;
         }
 
         break; // if we get here, we must have connected successfully
     }
 
-    if (p == NULL) {
-        // looped off the end of the list with no connection
-        // fprintf(stderr, "failed to connect\n");
+    if(p == nullptr) 
+    {
+        freeaddrinfo(servinfo);
         return false;
     }
-
     freeaddrinfo(servinfo); // all done with this structure
 
     if(size == -1) // default to use size of string
     {
-        if (write(data->sd, request, strlen(request)) <0)
+        if(write(sd, request, strlen(request)) <0)
             return false; // cannot send data
     }
     else
     {
-        if (write(data->sd, request, size) <0)
+        if(write(sd, request, size) <0)
             return false; // cannot send data
     }
 
-    return data->sd != -1;
+    return sd != -1;
 }
 
 
@@ -160,11 +97,16 @@ Socket::Poll()
     tv.tv_usec = 0;
 	
     FD_ZERO(&readfds);
-    FD_SET(data->sd, &readfds);
+    FD_SET(sd, &readfds);
 	
-    select(data->sd+1, &readfds, NULL, NULL, &tv);
+    int result = select(sd+1, &readfds, nullptr, nullptr, &tv);
+    if(result == -1)
+    {
+        //perror("select"); // FIXME: throw exception?
+        return false;
+    }
 	
-    if (FD_ISSET(data->sd, &readfds))
+    if(FD_ISSET(sd, &readfds))
         return true;
     else
         return false;
@@ -175,18 +117,29 @@ Socket::Poll()
 int
 Socket::ReadData(char * result, int maxlen, bool fill)
 {
-    if (data->sd == -1)
+    if(sd == -1)
         return 0;
 	
     const int BUFFER_SIZE = 1024;
-    static char buffer[BUFFER_SIZE];
+    char buffer[BUFFER_SIZE];
 	
     int dst=0;
     ssize_t rc = 0;
     do
     {
         ssize_t read_size = (maxlen-dst < BUFFER_SIZE ? maxlen-dst : BUFFER_SIZE);
-        rc = read(data->sd, buffer, read_size);
+        rc = read(sd, buffer, read_size);
+
+        rc = read(sd, buffer, read_size);
+        if(rc == -1)
+        {
+            //perror("read");
+            return -1;
+        }
+    
+        if(rc == 0 && fill)
+            break; // End of file
+
         for (int i=0; i<rc && dst<maxlen; i++)
             result[dst++] = buffer[i];
 		
@@ -202,7 +155,7 @@ int
 Socket::Get(const char * hostname, int port, const char * request, char * result, int maxlen)
 {
     int rc = 0;
-    if (SendRequest(hostname, port, request))
+    if(SendRequest(hostname, port, request))
         rc = ReadData(result, maxlen);
     Close();
 	
@@ -214,10 +167,10 @@ Socket::Get(const char * hostname, int port, const char * request, char * result
 void
 Socket::Close()
 {
-    if (data->sd == -1)
+    if(sd == -1)
         return;
-    close(data->sd);
-    data->sd = -1;
+    close(sd);
+    sd = -1;
 }
 
 
@@ -240,77 +193,49 @@ Socket::HTTPGet(const std::string & url) // Very temporary implementation that o
 }
 
 
-//
-//	ServerSocketData
-//
 
-class ServerSocketData
-	{
-	public:
-		int				portno;
-		int 			sockfd;						// Listen on sock_fd,
-		int				new_fd;						// New connection on new_fd
-		int				block_flags;				// Original flags for blocking I/O
-		int             request_allocated_size;
-		char *		 	request;
-//		char			argument[10][256];
-//		int				argcnt;
-		
-		char			filepath[PATH_MAX];
-		
-		struct sockaddr_in	my_addr; 					// My address information
-		struct sockaddr_in	their_addr;					// Connector's address information
-		
-		ServerSocketData() { request_allocated_size = 1024; request = (char *)malloc(sizeof(char)*request_allocated_size); }
-	};
-
-
-//
 //	ServerSocket
 //
-
-ServerSocket::ServerSocket(int port)
+ServerSocket::ServerSocket(int port) 
 {
-    data = new ServerSocketData();
-	
-    data->portno = port;
+    portno = port;
     int yes = 1;
-//    data->argcnt = 0;
 
-    //int xxx = data->sockfd;
-    if ((data->sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1)
-        throw SocketException(strerror(errno), 1);
-	
-    data->my_addr.sin_family = AF_INET;                     // host byte order
-    data->my_addr.sin_port = htons(port);					// short, network byte order
-    data->my_addr.sin_addr.s_addr = htonl(INADDR_ANY);		// automatically fill with my IP
-    memset(&(data->my_addr.sin_zero), '\0', 8);				// zero the rest of the struct
-	
-    if (setsockopt(data->sockfd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int)) == -1)	// To avoid (most) socket already in use errors
-        throw SocketException(strerror(errno), 2);
-	
-    // Call to avoid SIGPIPEs on OS X
-    // May not work on other platforms like Linux. In that case #ifdefs should be added around it
-#ifdef MAC_OS_X
-    if(setsockopt(data->sockfd, SOL_SOCKET, SO_NOSIGPIPE, &yes, sizeof(int)) == -1)  
-        throw SocketException(strerror(errno), 3);
-#endif
-    
-    if (bind(data->sockfd, (struct sockaddr *)&(data->my_addr), sizeof(struct sockaddr)) == -1)
-        throw SocketException(strerror(errno), 4);			// Socket already used
-	
-    if (listen(data->sockfd, BACKLOG) == -1)
-        throw SocketException(strerror(errno), 5);
-    
-    signal(SIGPIPE, SIG_IGN);							// ignore SIGPIPE so that the program does not exit; catch errors when send() returns -1 instead
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if(sockfd == -1)
+        throw std::system_error(errno, std::system_category(), "Failed to create socket");
+
+    // Set address properties
+    my_addr.sin_family = AF_INET;                     // host byte order
+    my_addr.sin_port = htons(port);                   // short, network byte order
+    my_addr.sin_addr.s_addr = htonl(INADDR_ANY);       // automatically fill with my IP
+    memset(&(my_addr.sin_zero), '\0', 8);             // zero the rest of the struct
+
+    // Set SO_REUSEADDR to prevent "socket already in use" errors
+    if(setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int)) == -1)
+        throw std::system_error(errno, std::system_category(), "Failed to set SO_REUSEADDR");
+
+    // Handle SIGPIPE errors on macOS
+    if(setsockopt(sockfd, SOL_SOCKET, SO_NOSIGPIPE, &yes, sizeof(int)) == -1)
+        throw std::system_error(errno, std::system_category(), "Failed to set SO_NOSIGPIPE");
+
+    // Bind the socket
+    if(bind(sockfd, (struct sockaddr *)&(my_addr), sizeof(struct sockaddr)) == -1) 
+        throw std::system_error(errno, std::system_category(), "Failed to bind socket");
+
+    // Listen for incoming connections
+    if(listen(sockfd, BACKLOG) == -1)
+        throw std::system_error(errno, std::system_category(), "Failed to listen on socket");
+
+    // Ignore SIGPIPE so the program does not exit unexpectedly
+    signal(SIGPIPE, SIG_IGN);
 }
 
 
 
 ServerSocket::~ServerSocket()
 {
-    close(data->sockfd);
-    delete data;
+    close(sockfd);
 }
 
 
@@ -320,94 +245,77 @@ ServerSocket::Poll(bool block)
 {
     int sin_size = sizeof(struct sockaddr_in);
     if(!block)
-        fcntl(data->sockfd, F_SETFL, O_NONBLOCK);				// temporariliy make the socket non-blocking
-    data->new_fd = accept(data->sockfd, (struct sockaddr *)&(data->their_addr), (socklen_t*) &sin_size);
+        fcntl(sockfd, F_SETFL, O_NONBLOCK);				// temporariliy make the socket non-blocking
+    new_fd = accept(sockfd, (struct sockaddr *)&(their_addr), (socklen_t*) &sin_size);
     if(!block)
-        fcntl(data->sockfd, F_SETFL, 0);						// make the socket blocking again
-    return (data->new_fd != -1);
+        fcntl(sockfd, F_SETFL, 0);						// make the socket blocking again
+    return (new_fd != -1);
 }
 
 
-/*
-size_t
-ServerSocket::Read(char * buffer, int maxSize, bool fill)
+
+
+size_t 
+ServerSocket::Read(char *buffer, int maxSize, bool fill) 
 {
-    if (data->new_fd == -1)
-        return 0;
-	
-    ssize_t n = 0;
-    bzero(buffer, maxSize);
-	
-    for (int t = 0; t < TIMEOUT; t++)
-    {
-        if ((n = recv(data->new_fd, buffer, maxSize-1, 0)) >= 0)
-            return n;
-		
-        usleep(TIMEOUTDEL);
-    }
-	
-    return n;
-}
-*/
-
-
-
-#include <unistd.h>
-#include <cstring>  // For bzero
-#include <errno.h>
-#include <algorithm> // For std::min
-
-size_t ServerSocket::Read(char *buffer, int maxSize, bool fill) 
-{
-    if (data->new_fd == -1) {
+    if(new_fd == -1) {
         return 0; // Invalid socket
     }
 
     size_t total_read = 0;  // Total bytes read
     ssize_t n = 0;          // Bytes read in a single recv() call
 
-    if (fill) {
+    if(fill) {
         // Fill the buffer completely if requested
         while (total_read < maxSize) {
-            n = recv(data->new_fd, buffer + total_read, maxSize - total_read, 0);
+            n = recv(new_fd, buffer + total_read, maxSize - total_read, 0);
 
-            if (n > 0) {
+            if(n > 0) 
+            {
                 total_read += n;
-                //std::cout << "Total read: " << total_read << std::endl;
-            } else if (n == 0) {
-                // Connection closed by the client
-                break;
-            } else if (n == -1) {
-                if (errno == EINTR) {
-                    // Interrupted system call, retry
-                    continue;
-                } else if (errno == EAGAIN || errno == EWOULDBLOCK) {
-                    // No data available, break out of the loop
-                    break;
-                } else {
-                    // Fatal error
-                    return -1;
-                }
+            } 
+            else if(n == 0) 
+            {
+                
+                break; // Connection closed by the client
+            } 
+            else if(n == -1) 
+            {
+                if(errno == EINTR) 
+                {
+                    
+                    continue; // Interrupted system call, retry
+                } 
+                else if(errno == EAGAIN || errno == EWOULDBLOCK) 
+                {
+                    break;  // No data available, break out of the loop
+                } 
+                else
+                     throw std::system_error(errno, std::system_category(), "recv failed");
             }
         }
-    } else {
-        // Single call to recv, do not enforce filling the buffer
-        n = recv(data->new_fd, buffer, maxSize, 0);
+    } 
+    else 
+    {
+        n = recv(new_fd, buffer, maxSize, 0);   // Single call to recv, do not enforce filling the buffer
 
-        if (n > 0) {
+        if(n > 0) 
+        {
             total_read = n;
-        } else if (n == -1) {
-            if (errno != EINTR && errno != EAGAIN && errno != EWOULDBLOCK) {
+        } 
+        else if(n == -1) 
+        {
+            if(errno != EINTR && errno != EAGAIN && errno != EWOULDBLOCK) 
+            {
                 // Fatal error
-                return -1;
+                throw std::system_error(errno, std::system_category(), "recv failed");
+                // return -1;
             }
         }
     }
 
-    return 
-    total_read;
+    return total_read;
 }
-
 
 
 
@@ -425,22 +333,6 @@ strip(char * s)
 	return s;
 }
 
-/*
-static char *
-recode(char * s)	    // Replace %20 and others with a space - no longer used - replaced with UriDecode
-{
-    int j = 0;
-    for (int i=0; s[i]; i++)
-        if (s[j] != '%')
-            s[i] = s[j++];
-        else
-        {
-            s[i] = ' ';
-            j+=3;
-        }
-    return s;
-}
-*/
 
 
 // https://www.codeguru.com/cpp/cpp/algorithms/strings/article.php/c12759/URI-Encoding-and-Decoding.htm
@@ -487,10 +379,10 @@ static std::string UriDecode(const std::string & sSrc)
  
    while (pSrc < SRC_LAST_DEC)
    {
-      if (*pSrc == '%')
+      if(*pSrc == '%')
       {
          char dec1, dec2;
-         if (-1 != (dec1 = HEX2DEC[*(pSrc + 1)])
+         if(-1 != (dec1 = HEX2DEC[*(pSrc + 1)])
             && -1 != (dec2 = HEX2DEC[*(pSrc + 2)]))
          {
             *pEnd++ = (dec1 << 4) + dec2;
@@ -516,27 +408,33 @@ static std::string UriDecode(const std::string & sSrc)
 bool
 ServerSocket::GetRequest(bool block)
 {
-    if (!Poll(block))
+    if(!Poll(block))
         return false;
 	
 	// Loop until CRLF CRLF is found which marks the end of the HTTP request
 	
-    data->request[0] = '\0';
-	int read_count = 0;
-	while(!strstr(data->request, "\r\n\r\n")) // check border condition ***
-	{
-		long rr = Read(&(data->request[read_count]), data->request_allocated_size-read_count);
+    request[0] = '\0';
+    int read_count = 0;
+    while(!strstr(request, "\r\n\r\n")) // check border condition ***
+    {
+        long rr = Read(&(request[read_count]), request_allocated_size-read_count);
         if(rr == 0)         // the connections has been closed since the beginning of the request
             return false;   // this can occur when a view is changed; return and ignore the request
         read_count += rr;
-        data->request[read_count] = '\0';
-		if(read_count >= data->request_allocated_size-1)
-			data->request = (char *)realloc(data->request, data->request_allocated_size += 1024);
-	}
-	
+        request[read_count] = '\0';
+        if(read_count >= request_allocated_size-1) {
+            char *new_request = (char *)realloc(request, request_allocated_size + 1024);
+            if(new_request == nullptr) 
+                throw std::system_error(errno, std::system_category(), "Failed to allocate memory");
+
+            request = new_request;
+            request_allocated_size += 1024;
+        }
+    }
+    	
 	// Parse request and header [TODO: handle that arguments in theory can span several lines accoding to the HTTP specification; although it never happens]
 	
-	char * p = data->request;	
+	char * p = request;	
 	if(!p)
 	{
 		printf("ERROR: Empty HTTP request.");
@@ -556,22 +454,25 @@ ServerSocket::GetRequest(bool block)
 		header.Set(k, v);
 		strsep(&p, "\n");
 	}
-
-//	if(char * x = strpbrk(header.Get("URI"), "?#")) *x = '\0';	// Remove timestamp in request // TODO: keep this later
+    if(*p=='\r')
+        p++;
+    if(*p=='\n')
+        p++;
 	
-    if (equal_strings(header.Get("Method"), "PUT"))
+    if(equal_strings(header.Get("Method"), "PUT"))
     {
-                const char* content_length_str = header.Get("Content-Length");
-        if (content_length_str)
+        const char* content_length_str = header.Get("Content-Length");
+        if(content_length_str)
         {
             size_t content_length = std::stoull(content_length_str);
-            //std::cout << "Socket: Content length " << content_length << std::endl;
-
-            if (content_length > 0)
+            if(content_length > 0)
             {   
-                char buffer[content_length+4];
-                long rr = Read(buffer, content_length, true); // +4 removed
-               // std::cout << "Socket: Data read " << rr << std::endl;
+                char buffer[content_length];
+                size_t n = strlen(p);
+                strncpy(buffer, p, sizeof(buffer) - 1);
+                buffer[sizeof(buffer) - 1] = '\0';
+
+                long rr = n+Read(buffer+n, content_length-n, true);
                 body = std::string(buffer);
             }
         }
@@ -616,10 +517,8 @@ ServerSocket::SendHTTPHeader(Dictionary * d, const char * response) // Content l
 bool
 ServerSocket::SendData(const char * buffer, long size)
 {
-    if (data->new_fd == -1)
-    {   
+    if(new_fd == -1)
         return false;	// Connection closed - ignore send
-    }
     
     long total = 0;
     long bytesleft = size;
@@ -627,8 +526,8 @@ ServerSocket::SendData(const char * buffer, long size)
 
      while (total < size)
     {
-        n = send(data->new_fd, buffer+total, bytesleft, MSG_NOSIGNAL);  // Write "handle SIGPIPE nostop print pass" in gdb to avoid break during debugging
-        if (n == -1)
+        n = send(new_fd, buffer+total, bytesleft, MSG_NOSIGNAL);
+        if(n == -1)
         {
             break;
         }
@@ -636,7 +535,7 @@ ServerSocket::SendData(const char * buffer, long size)
         bytesleft -= n;
     }
 	
-    if (n == -1 || bytesleft > 0) // We failed to send all data
+    if(n == -1 || bytesleft > 0) // We failed to send all data
     {
         Close();	// Close the socket and ignore further data
         return false;
@@ -658,14 +557,14 @@ ServerSocket::Send(std::string data)
 bool
 ServerSocket::Send(const char * format, ...)
 {
-    if (data->new_fd == -1)
+    if(new_fd == -1)
         return false;	// Connection closed - ignore send
     
     char buffer[1024];
     va_list 	args;
     va_start(args, format);
 	
-    if (vsnprintf(buffer, 1024, format, args) == -1)
+    if(vsnprintf(buffer, 1024, format, args) == -1)
     {
         va_end(args);
         return false;
@@ -675,55 +574,18 @@ ServerSocket::Send(const char * format, ...)
     return SendData(buffer, strlen(buffer));
 }
 
-/*
-void ServerSocket::fillBuffer(std::string s)
-{
-    buffer.append(s);
-}
-
-bool ServerSocket::SendBuffer()
-{
-    return SendData(buffer.c_str(),buffer.length());
-}
-
-void ServerSocket::clearBuffer() // FIXME: what is this?
-{
-    buffer.clear();
-    if (buffer.empty())
-        buffer.reserve(5000000); // 5Mb
-}
-*/
-
-bool
-ServerSocket::Send(const float * d, int sizex, int sizey)
-{
-    float sx = float(sizex);
-    float sy = float(sizey);
-	
-    if (!SendData((char *)(&sx), sizeof(float)))
-        return false;
-	
-    if (!SendData((char *)(&sy), sizeof(float)))
-        return false;
-	
-    if (!SendData((char *)d, sizex*sizey*sizeof(float)))
-        return false;
-	
-    return true;
-}
-
 
 
 bool
 ServerSocket::SendFile(const char * filename, const char * path, Dictionary * hdr)
 {
-    if (filename == NULL) return false;
+    if(filename == nullptr) return false;
 	
-    copy_string(data->filepath, path, PATH_MAX);
-    append_string(data->filepath, filename, PATH_MAX);
-    FILE * f = fopen(data->filepath, "r+b");
+    copy_string(filepath, path, PATH_MAX);
+    append_string(filepath, filename, PATH_MAX);
+    FILE * f = fopen(filepath, "r+b");
 	
-    if (f == NULL) return false;
+    if(f == nullptr) return false;
 	
     fseek(f, 0, SEEK_END);
     size_t len  = ftell(f);
@@ -732,8 +594,9 @@ ServerSocket::SendFile(const char * filename, const char * path, Dictionary * hd
     Dictionary * h = (hdr ? hdr : new Dictionary());
 	
     h->Set("Connection",  "Close"); // TODO: check if socket uses persistent connections
-    char length[256];
-    h->Set("Content-Length", int_to_string(length, (int)len, 256));
+
+    std::string length = std::to_string((size_t)len);
+    h->Set("Content-Length", length.c_str());
     h->Set("Server", "Ikaros/3.0");
 	
     if(strend(filename, ".html"))
@@ -774,7 +637,7 @@ ServerSocket::SendFile(const char * filename, const char * path, Dictionary * hd
 
 
 bool
-ServerSocket::SendFile(const std::string & filename, const std::string & path)
+ServerSocket::SendFile(const std::filesystem::path & filename, const std::string & path)
 {
     return SendFile(filename.c_str(), path.c_str());
 }
@@ -784,14 +647,14 @@ ServerSocket::SendFile(const std::string & filename, const std::string & path)
 bool
 ServerSocket::Close()
 {
-    if (data->new_fd == -1) return true;	// Connection already closed
+    if(new_fd == -1) return true;	// Connection already closed
 	
-    if (close(data->new_fd) == -1)
+    if(close(new_fd) == -1)
     {
         errcode = errno;
         return false;
     }
-    data->new_fd = -1;
+    new_fd = -1;
 	
     return true;
 }
@@ -801,7 +664,7 @@ ServerSocket::Close()
 int
 ServerSocket::Port()
 {
-    return data->portno;
+    return portno;
 }
 
 
@@ -810,10 +673,9 @@ const char *
 ServerSocket::Host()
 {
     static char hostname[256];
-    if (gethostname(hostname, 256) == 0)	// everything ok
+    if(gethostname(hostname, 256) == 0)	// everything ok
         return hostname;
     else
         return "unkown-host";
 }
 
-//#endif

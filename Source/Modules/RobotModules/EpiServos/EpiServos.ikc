@@ -62,7 +62,7 @@
 	data="237, 240, 202, 193, 281, 281, 263, 202, 342, 360, 281, 290, 264, 316, 343, 360, 343"
 	/>
 	<input name="GOAL_POSITION" description="Goal position of the joints in degrees." />
-	<input name="GOAL_CURRENT" description="Goal current in mA. This is an optinal input and only used if the servo uses current-based position control mode" />
+	<input name="GOAL_CURRENT" optional ="true" description="Goal current in mA. This is an optinal input and only used if the servo uses current-based position control mode" />
 	<input name="TORQUE_ENABLE" description="Enable servos. This is an optinal and not recomended input" />
 	<output name="PRESENT_POSITION" description="Present angle of the joints in degrees." size="19" />
 	<output name="PRESENT_CURRENT" description="Present current (if supported by the servo) in mA." size="19" />

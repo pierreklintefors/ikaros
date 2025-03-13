@@ -235,24 +235,13 @@ namespace ikaros
 
         switch (type)
         {
-        case no_type:
-            throw exception("Uninitialized or unbound parameter. Bind() may not be called in Init().");
-        case number_type:
-            if (number_value)
-                return std::to_string(*number_value);
-        case bool_type:
-            if (number_value)
-                return (*number_value > 0 ? "true" : "false");
-        case rate_type:
-            if (number_value)
-                return std::to_string(*number_value);
-        case string_type:
-            if (string_value)
-                return *string_value;
-        case matrix_type:
-            return matrix_value->json();
-        default:
-            throw exception("Type conversion error for parameter.");
+            case no_type: throw exception("Uninitialized or unbound parameter.");
+            case number_type: if(number_value) return std::to_string(*number_value);
+            case bool_type: if(number_value) return (*number_value>0 ? "true" : "false");
+            case rate_type: if(number_value) return std::to_string(*number_value);
+            case string_type: if(string_value) return *string_value;
+            case matrix_type: return matrix_value->json();
+            default:  throw exception("Type conversion error for parameter.");
         }
     }
 
@@ -321,6 +310,13 @@ namespace ikaros
             return string_value->c_str();
         else
             return NULL;
+    }
+
+
+    std::string
+    parameter::as_string()
+    {
+        return std::string(*this);
     }
 
     void
@@ -477,7 +473,7 @@ namespace ikaros
         }
         catch (exception &e)
         {
-            Notify(msg_fatal_error, e.message);
+            Notify(msg_fatal_error, e.message());
         }
         catch (std::exception &e)
         {
@@ -545,11 +541,11 @@ namespace ikaros
                 return this;
             if (path[0] == '.') // global
                 return kernel().components.at(path.substr(1));
-            if (kernel().components.count(path_ + "." + peek_head(path, "."))) // inside
-                return kernel().components[path_ + "." + peek_head(path, ".")]->GetComponent(peek_tail(path, "."));
-            if (peek_rtail(peek_rhead(path_, "."), ".") == peek_head(path, ".") && parent_) // parent
-                return parent_->GetComponent(peek_tail(path, "."));
-            throw exception("Component does not exist.");
+            if(kernel().components.count(path_+"."+peek_head(path,"."))) // inside
+                return kernel().components[path_+"."+peek_head(path,".")]->GetComponent(peek_tail(path,"."));
+            if(peek_rtail(peek_rhead(path_,"."),".") == peek_head(path,".") && parent_) // parent
+                return parent_->GetComponent(peek_tail(path,"."));
+            throw exception("Component \""+path+"\" does not exist.");
         }
         catch (const std::exception &e)
         {
@@ -671,14 +667,14 @@ namespace ikaros
                 m = k.buffers[name];
             else if (k.parameters.count(name))
                 m = (matrix &)(k.parameters[name]);
-            else if (k.parameters.count(name))
-                throw exception("Cannot bind to attribute \"" + name + "\". Define it as a parameter!");
+            else if(k.parameters.count(name))
+                throw exception("Cannot bind to attribute \""+name+"\". Define it as a parameter!", path_);
             else
-                throw exception("Input, output or parameter named \"" + name + "\" does not exist");
+                throw exception("Input, output or parameter named \""+name+"\" does not exist", path_);
         }
         catch (exception e)
         {
-            throw exception("Bind:\"" + name + "\" failed. " + e.message);
+            throw exception("Bind:\""+name+"\" failed. "+e.message(), path_);
         }
     }
 
@@ -775,14 +771,14 @@ namespace ikaros
         if (!expression::is_expression(s) || is_string)
             return s;
 
-        expression e = expression(s);
-        std::map<std::string, std::string> vars;
-        for (auto v : e.variables())
-        {
-            std::string value = Evaluate(v);
-            if (value.empty())
-                throw exception("Variable \"" + v + "\" not defined.");
-            vars[v] = value;
+         expression e = expression(s);
+            std::map<std::string, std::string> vars;
+            for(auto v : e.variables())
+            {
+                std::string value = Evaluate(v);
+                if(value.empty())
+                    throw exception("Variable \""+v+"\" not defined.", path_);
+                vars[v] = value;
         }
         return std::to_string(expression(s).evaluate(vars));
     }
@@ -930,7 +926,11 @@ namespace ikaros
     bool
     Component::Notify(int msg, std::string message, std::string path)
     {
-        if (msg <= GetIntValue("log_level", msg_warning))
+        int log_level = GetIntValue("log_level", 0);
+        if(kernel().parameters.count(path_+".log_level")==1)
+            log_level = kernel().parameters.at(path_+".log_level").as_int();
+
+        if(msg <= log_level)
             return kernel().Notify(msg, message, path);
         return true;
     }
@@ -957,17 +957,18 @@ namespace ikaros
         return *kernelInstance;
     }
 
+
     bool
-    Component::InputsReady(dictionary d, input_map ingoing_connections) // FIXME: Handle optional buffers
+    Component::InputsReady(dictionary d,  input_map ingoing_connections) // FIXME: Handle optional inputs
     {
 
         Trace("\t\t\tComponent::InputReady", path_ + "." + std::string(d["name"]));
         Kernel &k = kernel();
 
-        std::string n = d["name"]; // ["attributes"]
-        if (ingoing_connections.count(path_))
-            for (auto &c : ingoing_connections.at(path_)) // +'.'+n
-                if (k.buffers.at(c->source).rank() == 0)
+        std::string n = d["name"];   // ["attributes"]
+        if(ingoing_connections.count(path_))
+            for(auto & c : ingoing_connections.at(path_))
+                if(k.buffers.at(c->source).rank()==0)
                     return false;
         return true;
     }
@@ -979,8 +980,8 @@ namespace ikaros
         {
             if (c->source_range.empty())
                 c->source_range = kernel().buffers[c->source].get_range();
-            else if (c->source_range.rank() != kernel().buffers[c->source].rank())
-                throw exception("Explicitly set source range dimensionality does not match source.");
+            else if(c->source_range.rank() != kernel().buffers[c->source].rank())
+                throw exception("Explicitly set source range dimensionality does not match source.", path_);
         }
     }
 
@@ -1121,8 +1122,8 @@ namespace ikaros
     {
         Trace("\t\t\tComponent::SetOutputSize ", path_ + "." + std::string(d["name"]));
 
-        if (d.contains("size"))
-            throw setup_error(u8"Output \"" + std::string(d["name"]) + "\"+in group \"" + path_ + "\" can not have size attribute.");
+        if(d.contains("size"))
+            throw setup_error(u8"Output \""+std::string(d["name"])+"\"+in group \""+path_+"\" can not have size attribute.", path_);
 
         range output_size; // FIXME: rename output_range
         std::string name = d.at("name");
@@ -1167,7 +1168,19 @@ namespace ikaros
         return 0;
     }
 
-    // ****************************** MODULE Sizes ******************************
+
+    void
+    Component::CheckRequiredInputs()
+    {
+        Kernel & k = kernel();
+        for(dictionary d : info_["inputs"])
+        if(!d.is_set("optional") && k.buffers[path_+"."+d["name"].as_string()].empty())
+            throw setup_error("Component \""+info_["name"].as_string()+"\" has required input \""+d["name"].as_string()+"\" that is not connected.", path_);
+    }
+
+
+
+// ****************************** MODULE Sizes ******************************
 
     int
     Module::SetOutputSize(dictionary d, input_map ingoing_connections)
@@ -1178,14 +1191,14 @@ namespace ikaros
             if (d.contains("size"))
                 size = std::string(d.at("size"));
             else
-                throw setup_error("Output \"" + std::string(d.at("name")) + "\" must have a value for \"size\".");
+                throw setup_error("Output \""+std::string(d.at("name")) +"\" must have a value for \"size\".", path_);
 
             // FIX: special indirection
             while (!size.empty() && size[0] == '@' && size.find(',') == std::string::npos)
                 size = GetValue(size.substr(1));
-
-            if (size.empty())
-                throw setup_error("Output \"" + std::string(d.at("name")) + "\" must have a value for \"size\".");
+            
+            if(size.empty())
+                throw setup_error("Output \""+std::string(d.at("name")) +"\" must have a value for \"size\".", path_);
             std::vector<int> shape = EvaluateSizeList(size);
             matrix o;
             Bind(o, d.at("name"));
@@ -1194,12 +1207,12 @@ namespace ikaros
         }
         catch (const std::invalid_argument &e)
         {
-            // Notify(msg_fatal_error, e.what());
-            throw setup_error("Size expression for output \"" + std::string(d.at("name")) + "\" is invalid. " + e.what());
+            //Notify(msg_fatal_error, e.what());
+            throw setup_error("Size expression for output \""+std::string(d.at("name")) +"\" is invalid. "+e.what(), path_);
         }
         catch (...)
         {
-            throw setup_error("Size expression for output \"" + std::string(d.at("name")) + "\" is invalid.");
+            throw setup_error("Size expression for output \""+std::string(d.at("name")) +"\" is invalid.", path_);
         }
     }
 
@@ -1322,8 +1335,8 @@ namespace ikaros
         int delay_size = delay_range_.trim().b_[0];
         if (delay_size > 1)
             target_range.push_front(0, delay_size);
-        if (delay_size * source_range.size() != target_range.size())
-            throw exception("Connection could not be resolved");
+        if(delay_size*source_range.size() != target_range.size())
+            throw exception("Connection could not be resolved: "+source+"."+std::string(source_range)+"=>"+target+"."+std::string(target_range));
 
         return target_range;
     }
@@ -1606,9 +1619,15 @@ namespace ikaros
                 ok &= c->ResolveParameter(p->second, parameter_name);
             }
         }
-        if (!ok)
-            throw setup_error("All parameters could not be resolved");
+        if(!ok)
+        {
+            for(auto & p : parameters)
+                if(!*(p.second.resolved))
+                    throw setup_error("Parameter \""+p.first+"\" could not be resolved.", p.first);
+            throw setup_error("All parameters could not be resolved.");
+        }
     }
+
 
     void
     Kernel::CalculateSizes()
@@ -1620,21 +1639,24 @@ namespace ikaros
             for (auto &c : connections)
                 ingoing_connections[c.target].push_back(&c);
 
-            // Loop enough for all sizes to be calculated // FIXME: Restore progress calculation *******************
-            for (int i = 0; i < components.size(); i++)
-                for (auto &[n, c] : components)
-                    c->SetSizes(ingoing_connections);
+        // Loop enough for all sizes to be calculated // FIXME: Restore progress calculation *******************
+        for(int i=0; i<components.size(); i++)
+            for(auto & [n, c] : components)
+                c->SetSizes(ingoing_connections);
+
+            for(auto & [n, c] : components)
+                c->CheckRequiredInputs();
         }
         catch (fatal_error &e)
         {
-            Notify(msg_fatal_error, e.message);
-            throw setup_error("Could not calculate input and output sizes.");
+            //Notify(msg_fatal_error, e.message()); // FIXME: Remove
+            throw setup_error("Could not calculate input and output sizes. "+e.message(), e.path());
         }
 
         catch (setup_error &e)
         {
-            Notify(msg_fatal_error, e.message);
-            throw setup_error("Could not calculate input and output sizes.");
+            Notify(msg_fatal_error, e.message()); // FIXME: Remove
+            throw setup_error("Could not calculate input and output sizes. "+e.message(), e.path());
         }
 
         catch (...)
@@ -1812,8 +1834,8 @@ namespace ikaros
         current_component_info = info;
         current_component_path = path;
 
-        if (components.count(current_component_path) > 0)
-            throw exception("Module or group named \"" + current_component_path + "\" already exists.");
+        if(components.count(current_component_path)> 0)
+            throw exception("Module or group named \""+current_component_path+"\" already exists.", path);
 
         components[current_component_path] = new Group(); // Implicit argument passing as for components
     }
@@ -1824,8 +1846,8 @@ namespace ikaros
         current_component_info = info;
         current_component_path = path + "." + std::string(info["name"]);
 
-        if (components.count(current_component_path) > 0)
-            throw exception("Module or group with this name already exists. \"" + std::string(info["name"]) + "\".");
+        if(components.count(current_component_path)> 0)
+            throw exception("Module or group with this name already exists. \""+std::string(info["name"])+"\".", path);
 
         std::string classname = info["class"];
 
@@ -1837,10 +1859,10 @@ namespace ikaros
         }
 
         if(!classes.count(classname))
-            throw exception("Class \""+classname+"\" does not exist.");
+            throw exception("Class \""+classname+"\" does not exist.", path);
 
-        if (classes[classname].path.empty())
-            throw setup_error("Class file \"" + classname + ".ikc\" could not be found.");
+if(classes[classname].path.empty())
+        throw setup_error("Class file \""+classname+".ikc\" could not be found.", path);
 
         info.merge(dictionary(classes[classname].path)); // merge with class data structure
 
@@ -1884,33 +1906,43 @@ namespace ikaros
     void
     Kernel::BuildGroup(dictionary d, std::string path) // Traverse dictionary and build all items at each level, FIXME: rename AddGroup later
     {
-        if (std::string(d["_tag"]) != "group")
-            throw setup_error("Main element is <" + std::string(d["_tag"]) + "> but must be <group> for ikg-file.");
+        try
+        {
+            if(std::string(d["_tag"]) != "group")
+                throw setup_error("Main element is <"+std::string(d["_tag"])+"> but must be <group> for ikg-file.");
 
-        if (!d.contains("name"))
-            throw setup_error("Groups must have a name.");
+            if(!d.contains("name"))
+                throw setup_error("Groups must have a name.", path);
 
-        std::string name = validate_identifier(d["name"]);
-        if (!path.empty())
-            name = path + "." + name;
+            std::string name = validate_identifier(d["name"]);
+            if(!path.empty())
+                name = path+"."+name;
 
-        if (d.contains("external"))
-            LoadExternalGroup(d);
+            if(d.contains("external"))
+                LoadExternalGroup(d);
 
-        AddGroup(d, name);
+            AddGroup(d, name);
 
-        for (auto g : d["groups"])
-            BuildGroup(g, name);
-        for (auto m : d["modules"])
-            AddModule(m, name);
-        for (auto c : d["connections"])
-            AddConnection(c, name);
+            for(auto g : d["groups"])
+                BuildGroup(g, name);
+            for(auto m : d["modules"])
+                AddModule(m, name);
+            for(auto c : d["connections"])
+                AddConnection(c, name);
 
-        if (d["widgets"].is_null())
-            d["widgets"] = list();
-
-        // FIX OTHER THINGS HERE
+            if(d["widgets"].is_null())
+                d["widgets"] = list();
+        }
+        catch(const exception& e)
+        {
+            throw setup_error("Build group failed for "+path+": "+e.message());
+        }
+        catch(const std::exception& e)
+        {
+            throw setup_error("Build group failed for "+path+": "+std::string(e.what()), path);
+        }
     }
+
 
     void
     Kernel::InitComponents()
@@ -1923,13 +1955,18 @@ namespace ikaros
             }
             catch (const fatal_error &e)
             {
-                throw init_error(u8"Fatal error. Init failed for \"" + c.second->path_ + "\": " + std::string(e.what()));
+                throw init_error(u8"Fatal error. Init failed for \""+c.second->path_+"\": "+std::string(e.what()), c.second->path_);
             }
             catch (const std::exception &e)
             {
-                throw init_error(u8"Init failed for " + c.second->path_ + ": " + std::string(e.what()));
+                throw init_error(u8"Init failed for "+c.second->path_+": "+std::string(e.what()), c.second->path_);
+            }
+            catch(...)
+            {
+                throw init_error(u8"Init failed");
             }
     }
+
 
     void
     Kernel::SetCommandLineParameters(dictionary &d) // Add command line arguments - will override XML - probably not correct ******************
@@ -1950,33 +1987,47 @@ namespace ikaros
     void
     Kernel::LoadFile()
     {
-        if (components.size() > 0)
-            Clear();
-        if (!std::filesystem::exists(options_.full_path()))
-            throw load_failed(u8"File \"" + options_.full_path() + "\" does not exist.");
-
         try
         {
-            dictionary d = dictionary(options_.full_path());
-            SetCommandLineParameters(d);
-            BuildGroup(d);
-            info_ = d;
-            session_id = new_session_id();
-            SetUp();
-            Notify(msg_print, u8"Loaded "s + options_.full_path());
+            if(components.size() > 0)
+                Clear();
+            if(!std::filesystem::exists(options_.full_path()))
+                throw load_failed(u8"File \""+options_.full_path()+"\" does not exist.");
 
-            CalculateCheckSum();
-            // ListBuffers();
-            // ListConnections();
-            needs_reload = false;
+                try
+                {
+                    dictionary d = dictionary(options_.full_path());
+                    SetCommandLineParameters(d);
+                    BuildGroup(d);
+                    info_ = d;
+                    session_id = new_session_id();
+                    SetUp();
+                    Notify(msg_print, u8"Loaded "s+options_.full_path());
+
+                    CalculateCheckSum();
+                    //ListBuffers();
+                    //ListConnections();
+                    needs_reload = false;
+                }
+                catch(const exception& e)
+                {
+                    //Notify(msg_fatal_error, e.message());
+                    //Notify(msg_fatal_error, u8"Load file failed for "s+options_.full_path());
+                    throw load_failed(u8"Load file failed for "s+options_.full_path()+". "+e.message(), e.path());
+                }
+                catch(const std::exception& e)
+                {
+                    //Notify(msg_fatal_error, u8"Load file failed for "s+options_.full_path()+". "+e.what());
+                    throw load_failed(u8"Load file failed for "s+options_.full_path()+". "+e.what());
+                }
+
         }
-        catch (const exception &e)
+        catch(const exception& e)
         {
-            Notify(msg_fatal_error, e.message);
-            Notify(msg_fatal_error, u8"Load file failed for "s + options_.full_path());
-            throw load_failed("Load failed");
+            Notify(msg_warning, e.what(), e.path()); // Do not exit if not in batch mode // FIXME: Check this
         }
     }
+
 
     void
     Kernel::CalculateCheckSum()
@@ -2074,10 +2125,11 @@ namespace ikaros
         {
             socket = new ServerSocket(port);
         }
-        catch (const SocketException &e)
+        catch (const exception& e)
         {
             throw fatal_error("Ikaros is unable to start a webserver on port " + std::to_string(port) + ". Make sure no other ikaros process is running and try again.");
         }
+
         httpThread = new std::thread(Kernel::StartHTTPThread, this);
     }
 
@@ -2300,38 +2352,40 @@ namespace ikaros
     void
     Kernel::RunTasks()
     {
-        if (options_.is_set("experimental"))
+        std::vector<TaskSequence *> sequences;
+
+        for(auto & task_sequence : tasks)
         {
-            std::vector<TaskSequence *> sequences;
+            auto ts = new TaskSequence(task_sequence);
+            sequences.push_back(ts);
+            thread_pool->submit(ts);
+        }
+        // WAIT FOR COMPLETION
 
-            for (auto &task_sequence : tasks)
-            {
-                auto ts = new TaskSequence(task_sequence);
-                sequences.push_back(ts);
-                thread_pool->submit(ts);
-            }
-            // WAIT FOR COMPLETION
-
-            bool working = true;
-            while (working)
-            {
-                working = false;
-                for (auto ts : sequences)
-                    if (!ts->isCompleted())
-                        working = true;
-            }
-
-            for (auto ts : sequences)
-                delete ts;
+        bool working = true;
+        while(working)
+        {
+            working =false;
+            for(auto ts: sequences)
+                if(!ts->isCompleted())
+                    working = true;     
         }
 
-        else
-        {
-            for (auto &task_group : tasks)
-                for (auto &task : task_group)
-                    task->Tick();
-        }
+        for(auto ts: sequences)
+            delete ts;
     }
+
+
+
+    void
+    Kernel::RunTasksInSingleThread()
+    {
+        for(auto & task_group : tasks)
+            for(auto & task: task_group)
+                task->Tick();
+    }
+
+
 
     void
     Kernel::SetUp()
@@ -2344,9 +2398,10 @@ namespace ikaros
             // ListParameters();
             CalculateDelays();
             CalculateSizes();
-            // ListConnections();
-            // ListInputs();
-            // ListOutputs();
+            //ListConnections();
+            //ListInputs();
+            ListOutputs();
+
             InitCircularBuffers();
             InitComponents();
 
@@ -2367,11 +2422,16 @@ namespace ikaros
         }
         catch (exception &e)
         {
-            Notify(msg_fatal_error, e.message);
-            Notify(msg_fatal_error, "SetUp Failed");
-            throw setup_error("SetUp Failed");
+            //Notify(msg_fatal_error, e.message());
+            //Notify(msg_fatal_error, "SetUp Failed");
+            throw setup_error("SetUp Failed. "+e.message(), e.path());
+        }
+        catch(std::exception & e)
+        {
+            throw setup_error("SetUp Failed. "+std::string(+e.what()));
         }
     }
+
 
     void
     Kernel::Run() // START-UP + RUN MAIN LOOP => Two functions?? *************
@@ -2412,7 +2472,7 @@ namespace ikaros
                     {
                         // std::cout << e.what() << std::endl;
                         Notify(msg_fatal_error, (e.what()));
-                        return;
+                        return;                 // FIXME: THROW INSTEAD
                     }
                     tick_time_usage = intra_tick_timer.GetTime();
                     idle_time = tick_duration - tick_time_usage;
@@ -2708,8 +2768,7 @@ namespace ikaros
         std::string sep = "";
         bool sent = false;
 
-        // std::cout << "\nDoSendData: " << std::endl;
-        while (!data.empty())
+        while(!data.empty())
         {
             std::string source = head(data, ",");
             std::string key = source;
@@ -2730,15 +2789,16 @@ namespace ikaros
                 {
                     sent = socket->Send(sep + "\t\t\"" + key + "\": " + buffers[source_with_root].json());
                 }
-                else if (format == "rgb")
-                {
-                    sent = socket->Send(sep + "\t\t\"" + key + ":" + format + "\": ");
-                    SendImage(buffers[source_with_root], format);
+                else if(format=="rgb")
+                { 
+                        // sent = socket->Send(sep + "\t\t\"" + key + ":"+format+"\": ");
+                        sent = socket->Send(sep + "\t\t\"" + key + "\": ");
+                        SendImage(buffers[source_with_root], format);
                 }
-                else if (format == "gray" || format == "red" || format == "green" || format == "blue" || format == "spectrum" || format == "fire")
-                {
-                    sent = socket->Send(sep + "\t\t\"" + key + ":" + format + "\": ");
-                    SendImage(buffers[source_with_root], format);
+                else if(format=="gray" || format=="red" || format=="green" || format=="blue" || format=="spectrum" || format=="fire")
+                { 
+                    sent = socket->Send(sep + "\t\t\"" + key + "\": ");
+                        SendImage(buffers[source_with_root], format);
                 }
             }
             else if (parameters.count(source_with_root))
@@ -2949,6 +3009,7 @@ namespace ikaros
             socket->SendHTTPHeader(&header);
 
             socket->Send("Rank of matrix != 2. Cannot be displayed as CSV");
+            return;
         }
 
         Dictionary header;
@@ -3282,5 +3343,7 @@ Kernel::~Kernel()
         }
         Sleep(0.1);
         delete socket;
+        delete thread_pool;
+        delete httpThread;
     }
 }

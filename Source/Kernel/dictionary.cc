@@ -12,18 +12,11 @@ using namespace ikaros;
 namespace ikaros
 {
 
-    static std::string escape_json_string(std::string str) // FIXME: Do this correctly later
-    {
-        std::replace(str.begin(), str.end(), '\n', ' ');
-        std::replace(str.begin(), str.end(), '\t', ' ');
-        return str;
-    }
-
-    static void skip_whitespace(const std::string &s, size_t &pos)
-    {
-        while (pos < s.length() && std::isspace(s[pos]))
-            ++pos;
-    }
+        static void skip_whitespace(const std::string& s, size_t& pos)
+        {
+            while (pos<s.length() && std::isspace(s[pos]))
+                ++pos;
+        }
 
     // null
 
@@ -557,6 +550,7 @@ namespace ikaros
         return value();
     }
 
+    
     bool value::equals(const std::string &str) const
     {
         if (std::holds_alternative<std::string>(value_))
@@ -696,7 +690,8 @@ namespace ikaros
         throw std::runtime_error("Unexpected end of object");
     }
 
-    value parse_value(const std::string &s, size_t &pos)
+
+    value parse_value(const std::string& s, size_t& pos)
     {
         skip_whitespace(s, pos);
         if (pos >= s.length())
@@ -750,7 +745,7 @@ namespace ikaros
             return num_value;
         }
 
-        throw std::runtime_error("Invalid JSON value");
+       throw std::runtime_error("Invalid JSON value at position " + std::to_string(pos));
     }
 
     value parse_json(const std::string &json_str)
@@ -758,5 +753,8 @@ namespace ikaros
         size_t pos = 0;
         return parse_value(json_str, pos);
     }
+
+
+
 
 };
