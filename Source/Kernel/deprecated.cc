@@ -36,8 +36,6 @@
 #endif
 
 
-
-
 char *
 create_string(const char * c)
 {
@@ -281,52 +279,6 @@ join(const std::string & separator, const std::vector<std::string> & v, bool rev
     return s;
 }
 
-
-/*
-bool
-starts_with(const std::string & s, const std::string & start) // waiting for C++20
-{
-    return start.length() <= s.length() && equal(start.begin(), start.end(), s.begin()); // more efficient than find
-}
-*/
-
-/*
-bool ends_with(const std::string & s, const std::string & end) // waiting for C++20
-{
-    return  s.size() >= end.size() && s.compare(s.size() - end.size(), end.size(), end) == 0;
-}
-*/
-
-/*
-std::string 
-cut(std::string & s, const std::string & delimiter)
-{
-    int end = s.find(delimiter);
-    if(end == -1)
-        return "";
-
-    std::string tail = s.substr(end+delimiter.length(), s.length());
-    s.erase(end, s.length());
-
-    return tail;
-}
-
-
-
-std::string 
-rcut(std::string & s, const std::string & delimiter)
-{
-    int end = s.rfind(delimiter);
-    if(end == -1)
-        return "";
-
-    std::string tail = s.substr(end+delimiter.length(), s.length());
-    s.erase(end, s.length());
-
-    return tail;
-}
-*/
-
 // trim from start (in place)
 std::string ltrim(const std::string &ss)
 {
@@ -348,17 +300,6 @@ std::string rtrim(const std::string &ss)
             s.end());
     return s;
 }
-
-/*
-// trim from both ends (in place)
-std::string trim(const std::string &ss)
-{
-    std::string s = ss;
-    s = ltrim(s);
-    s = rtrim(s);
-    return s;
-}
-*/
 
 
 
@@ -1090,7 +1031,7 @@ copy_matrix(float *** r, float *** a, int sizex, int sizey, int sizez)
     return r;
 }
 
-
+/*
 char *
 base64_encode(const unsigned char * data,
               size_t size_in,
@@ -1122,6 +1063,7 @@ base64_encode(const unsigned char * data,
     
     return encoded_data;
 }
+*/
 
 // mark - TAT additions
 // void        set_submatrix(float *A, int ncols, float *S, int mrows, int mcols, int row, int col);
@@ -1231,7 +1173,7 @@ void take(float *r, float *a,int len, int *indeces)
         r[i] = a[indeces[i]];
 }
 
-
+/*
 // Options
 Options::Options(int argc, char *argv[])
 {
@@ -1412,7 +1354,7 @@ Options::Print()
     }
 }
 
-
+*/
 
 // Dictionary
 

@@ -45,9 +45,7 @@
 Icon?
 ehthumbs.db
 Thumbs.db
-/Debug/
-/Release/
-/Build/
+
 
 # Windows #
 ######################
@@ -62,3 +60,6 @@ Thumbs.db
 .venv
 .cursorrules
 .tensorflow_venv/
+/Debug/
+/Release/
+/Build/

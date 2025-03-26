@@ -1,4 +1,4 @@
-// signal.cc		Signal utilities for ikaros -(c) Christian Balkenius 2006-2024
+// signal.cc		Signal utilities for ikaros (c) Christian Balkenius 2006-2024
 
 #include <stdio.h>
 #include <signal.h>
@@ -23,8 +23,9 @@ public:
     Signal() // Install the CTRL-C handler
     {
         struct sigaction sa;
-        sa.sa_handler = &Signal::Handler;
+        sa.sa_handler = Signal::Handler;
         sigemptyset(&sa.sa_mask);
+        sa.sa_flags = 0;
         sigaction(SIGINT, &sa, NULL);
     }
 }

@@ -60,6 +60,7 @@ namespace ikaros
     class matrix;
 
     void save_matrix_states();
+    void clear_matrix_states();
 
 
     // Matrix info class
@@ -430,6 +431,11 @@ namespace ikaros
         const bool empty() const
         {
             return rank() == 0 && (info_->size_  == 0);
+        }
+
+        const bool unfilled() const
+        {
+            return std::accumulate(info_->shape_.begin(), info_->shape_.end(), 0)  == 0;
         }
 
         const bool is_scalar() const
@@ -908,7 +914,7 @@ namespace ikaros
             return info_->shape_; 
         }
 
-        int size() // Size of full data
+        int size() const // Size of full data
         {
             return info_->size_;
         }
@@ -1004,11 +1010,17 @@ namespace ikaros
         // Push & pop
 
         matrix & 
-        push(const matrix & m)
+        push(const matrix & m, bool extend=false)
         {
             #ifndef NO_MATRIX_CHECKS
             if(rank() != m.rank()+1)
             throw std::out_of_range(get_name()+"Incompatible matrix sizes");
+            if(extend)
+            {
+                info_->shape_.front()++;
+                realloc(info_->shape_);
+                info_->shape_.front()--;
+            }
             for(int i=0; i<m.info_->shape_.size(); i++)
                 if(info_->shape_[i+1] != m.info_->shape_[i])
                     throw std::out_of_range(get_name()+"Pushed matrix has wrong shape.");
@@ -1020,6 +1032,21 @@ namespace ikaros
                 return (*this)[info_->shape_.front()++].copy(m);
             else
                 return *this;
+        }
+
+        matrix &
+        push(float v) // push a scalar to the end of the matrix
+        {
+            if(rank() != 1)
+                throw std::out_of_range(get_name()+"Matrix must be one-dimensional.");
+            if(info_->shape_.front() >= info_->max_size_.front())
+                throw std::out_of_range(get_name()+"No room for additional element");
+
+                info_->shape_.front()++;
+            (*this)[info_->shape_.front()-1] = v;
+
+
+            return *this;
         }
 
         matrix &
@@ -1268,7 +1295,8 @@ namespace ikaros
 
         void save();
 
-        matrix & last();
+        matrix & last();    // Matrix value from last saved state
+        bool changed();     // Has matrix changed since last save
 
         // Math Functions
 
@@ -1309,13 +1337,58 @@ namespace ikaros
         // svd
         // pca
 
-        // operator==
-        // operator!=
+        bool operator==(float v) const
+        {
+            if(!is_scalar())
+                throw std::invalid_argument("Matrix must be scalar.");
+            return ((*data_)[info_->offset_] == v);
+        }
+
+        bool operator==(int v) const
+        {
+            if(!is_scalar())
+            throw std::invalid_argument("Matrix must be scalar.");
+            return ((*data_)[info_->offset_] == v);
+        }
+
+    bool operator==(const matrix& other) const
+    {
+        // Check if shapes are the same
+        if (this->shape() != other.shape())
+            return false;
+
+        // Check if data values are the same
+        for (int i = 0; i < this->size(); ++i) 
+            if ((*this->data_)[this->info_->offset_ + i] != (*other.data_)[other.info_->offset_ + i]) // FIXME: May not work for complex matrix shapes
+                return false;
+
+        return true;
+    }
+
+
+     bool operator!=(const matrix& other) const
+    {
+        return !(*this == other);
+    }
+
+    bool operator!=(float v) const
+    {
+        if(!is_scalar())
+            throw std::invalid_argument("Matrix must be scalar.");
+        return ((*data_)[info_->offset_] != v);
+    }
+
+    bool operator!=(int v) const
+    {
+        if(!is_scalar())
+            throw std::invalid_argument("Matrix must be scalar.");
+        return ((*data_)[info_->offset_] != v);
+    }
+
         // operator<
         // operator>
         // operator<=
-        // operator 
-
+        // operator>=
 
 
     void 

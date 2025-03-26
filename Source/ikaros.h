@@ -207,16 +207,17 @@ namespace ikaros
         bool Debug(std::string message, std::string path = "") { return Notify(msg_debug, message, path); }
         bool Trace(std::string message, std::string path = "") { return Notify(msg_trace, message, path); }
 
-        void AddInput(dictionary parameters);
-        void AddOutput(dictionary parameters);
-        void AddOutput(std::string name, int size, std::string description = ""); // Must be called from creator function and not from Init
-        void ClearOutputs();                                                      // Must be called from creator function and not from Init
-        void AddParameter(dictionary parameters);
-        void SetParameter(std::string name, std::string value);
-        bool BindParameter(parameter &p, std::string &name);
-        bool ResolveParameter(parameter &p, std::string &name);
-        void Bind(parameter &p, std::string n); // Bind to parameter in global parameter table
-        void Bind(matrix &m, std::string n);    // Bind to input or output in global parameter table, or matrix parameter
+    void AddLogLevel();
+    void AddInput(dictionary parameters);
+    void AddOutput(dictionary parameters);
+    void AddOutput(std::string name, int size, std::string description=""); // Must be called from creator function and not from Init
+    void ClearOutputs();    // Must be called from creator function and not from Init
+    void AddParameter(dictionary parameters);
+    void SetParameter(std::string name, std::string value);
+    bool BindParameter(parameter & p,  std::string & name);
+    bool ResolveParameter(parameter & p,  std::string & name);
+    void Bind(parameter & p, std::string n);   // Bind to parameter in global parameter table
+    void Bind(matrix & m, std::string n); // Bind to input or output in global parameter table, or matrix parameter
 
         virtual void SetParameters() {} // Can be overridden in modules to set parmeter values in code rather than from the ikc/ikg file; called before Init()
         virtual void Tick() {}

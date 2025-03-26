@@ -874,9 +874,32 @@ namespace ikaros
         return 0;
     }
 
-    Component::Component() : parent_(nullptr),
-                             info_(kernel().current_component_info),
-                             path_(kernel().current_component_path)
+
+
+    void
+    Component::AddLogLevel()
+    {
+        for(auto p: info_["parameters"])
+            if(p["name"].as_string()=="log_level")
+                return;
+
+        dictionary log_param;
+        log_param["_tag"] = "parameter";
+        log_param["name"] = "log_level";
+        log_param["type"] = "number";
+        log_param["control"] = "menu";
+        //log_param["options"] = "inherit,quiet,exception,end_of_file,terminate,fatal_error,warning,print,debug,trace";
+        log_param["default"] = 0;
+
+        info_["parameters"].push_back(log_param); // FIXME: Do we need to copy the dict?
+    }
+
+
+
+    Component::Component():
+        parent_(nullptr),
+        info_(kernel().current_component_info),
+        path_(kernel().current_component_path)
     {
         // FIXME: Make sure there are empty lists. None of this should be necessary when dictionary is fixed
 
@@ -897,15 +920,7 @@ namespace ikaros
 
         // Add log_level parameter to all components
 
-        dictionary log_param;
-        log_param["_tag"] = "parameter";
-        log_param["name"] = "log_level";
-        log_param["type"] = "number";
-        log_param["control"] = "menu";
-        // log_param["options"] = "inherit,quiet,exception,end_of_file,terminate,fatal_error,warning,print,debug,trace";
-        log_param["default"] = 0;
-
-        info_["parameters"].push_back(log_param); // FIXME: Do we need to copy the dict?
+        AddLogLevel();
 
         for (auto p : info_["parameters"])
             AddParameter(p);
@@ -945,6 +960,7 @@ namespace ikaros
 
     Module::Module()
     {
+
     }
 
     INSTALL_CLASS(Module)
@@ -1027,10 +1043,10 @@ namespace ikaros
             for (auto &c : ingoing_connections.at(full_name))
             {
                 int s = c->source_range.size() * c->delay_range_.trim().b_[0];
-                if (c->alias_.empty())
-                    kernel().buffers[d.at(full_name)].push_label(0, c->source, s);
+                if(c->alias_.empty())
+                    kernel().buffers[full_name].push_label(0, c->source, s); // WAS: kernel().buffers[d.at(full_name)].push_label(0, c->source, s);
                 else
-                    kernel().buffers[d.at(full_name)].push_label(0, c->alias_, s);
+                    kernel().buffers[full_name].push_label(0, c->alias_, s); // WAS: kernel().buffers[d.at(full_name)].push_label(0, c->alias_, s);
             }
         }
         return 0;
@@ -1466,6 +1482,8 @@ namespace ikaros
         circular_buffers.clear();
         parameters.clear();
         tasks.clear();
+
+        clear_matrix_states();  // if(NOT PERSISTENT)
 
         tick = -1;
         // run_mode = run_mode_pause;
@@ -2011,13 +2029,10 @@ if(classes[classname].path.empty())
                 }
                 catch(const exception& e)
                 {
-                    //Notify(msg_fatal_error, e.message());
-                    //Notify(msg_fatal_error, u8"Load file failed for "s+options_.full_path());
                     throw load_failed(u8"Load file failed for "s+options_.full_path()+". "+e.message(), e.path());
                 }
                 catch(const std::exception& e)
                 {
-                    //Notify(msg_fatal_error, u8"Load file failed for "s+options_.full_path()+". "+e.what());
                     throw load_failed(u8"Load file failed for "s+options_.full_path()+". "+e.what());
                 }
 
@@ -2346,9 +2361,35 @@ if(classes[classname].path.empty())
                 tasks.insert(tasks.begin(), task_list);
             else
                 tasks.push_back(task_list);
+
         }
     }
 
+
+
+    void Kernel::RunTasks()
+    {
+        std::vector<std::unique_ptr<TaskSequence>> sequences;
+    
+        try {
+            // Create and submit tasks
+            for (auto &task_sequence : tasks) {
+                auto ts = std::make_unique<TaskSequence>(task_sequence);
+                thread_pool->submit(ts.get());
+                sequences.push_back(std::move(ts));
+            }
+    
+            // Wait for completion using the blocking wait method
+            for (auto &ts : sequences) {
+                ts->waitForCompletion();
+            }
+        } catch (const std::exception &e) {
+            Notify(msg_fatal_error, "Error during task execution: " + std::string(e.what()));
+        }
+    }
+
+
+    /*
     void
     Kernel::RunTasks()
     {
@@ -2374,7 +2415,7 @@ if(classes[classname].path.empty())
         for(auto ts: sequences)
             delete ts;
     }
-
+*/
 
 
     void
@@ -2422,8 +2463,6 @@ if(classes[classname].path.empty())
         }
         catch (exception &e)
         {
-            //Notify(msg_fatal_error, e.message());
-            //Notify(msg_fatal_error, "SetUp Failed");
             throw setup_error("SetUp Failed. "+e.message(), e.path());
         }
         catch(std::exception & e)
