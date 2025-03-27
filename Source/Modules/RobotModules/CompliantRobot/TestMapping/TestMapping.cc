@@ -20,7 +20,7 @@ using namespace ikaros;
 
 
 #define SHM_NAME "/ikaros_ann_shm"
-#define FLOAT_COUNT 12  // 10 inputs + 2 predictions (tilt and pan)
+#define FLOAT_COUNT 21  // 17 inputs + 4 predictions
 #define MEM_SIZE ((FLOAT_COUNT * sizeof(float)) + sizeof(bool)*2)  // Add explicit size calculation including two flags
 
 // Structure for shared memory between Python and C++
@@ -28,6 +28,9 @@ struct SharedData
 {
     float data[FLOAT_COUNT]; 
     bool new_data;           // Flag for synchronization
+    bool shutdown_flag;
+    // Add padding to ensure proper alignment
+    char padding[sizeof(float) - (sizeof(bool)*2 % sizeof(float))];
 };
 
 class TestMapping: public Module
@@ -74,7 +77,7 @@ class TestMapping: public Module
     int number_transitions; //Will be used to add starting and ending position
     int position_margin = 3;
     int transition = 0;
-    int current_increment = 1;
+    int current_increment = 50;
     int starting_current = 30;
     int current_limit = 1700;
     bool find_minimum_torque_current = false;
@@ -82,12 +85,13 @@ class TestMapping: public Module
     int unique_id;
     bool second_tick = false;
     bool first_start_position = true;
+    std::string time_stamp_str_no_dots;
 
     matrix transition_start_time;
     matrix transition_duration;
     double time_prev_position;
     matrix model_prediction;
-    
+    matrix model_prediction_start;
 
     std::vector<std::string> servo_names;
 
@@ -102,7 +106,7 @@ class TestMapping: public Module
     
  
     const double TIMEOUT_DURATION = 3.0;    // Timeout before incrementing current
-    const int CURRENT_INCREMENT = 2;        // Amount to increment current during timeout
+        // Amount to increment current during timeout
     
   
     matrix timeout_occurred;
@@ -152,7 +156,24 @@ class TestMapping: public Module
     }
 
     void ReachedGoal(matrix present_position, matrix goal_positions, matrix reached_goal, int margin){
+        // Add safety check
+        if (present_position.size() != goal_positions.size() || 
+            present_position.size() <= 0 || 
+            reached_goal.size() <= 0) {
+            Error("Invalid matrix dimensions in ReachedGoal");
+            return;
+        }
+        
         for (int i = 0; i < current_controlled_servos.size(); i++){
+            int servo_idx = current_controlled_servos(i);
+            // Add bounds check
+            if (servo_idx < 0 || servo_idx >= present_position.size() || 
+                servo_idx >= goal_positions.size() || 
+                servo_idx >= reached_goal.size()) {
+                Error("Servo index out of bounds: " + std::to_string(servo_idx));
+                continue;
+            }
+            
             if (reached_goal(current_controlled_servos(i)) == 0 &&
                 abs(present_position(current_controlled_servos(i)) - goal_positions(current_controlled_servos(i))) < margin){
 
@@ -419,7 +440,7 @@ class TestMapping: public Module
         Bind(num_transitions, "NumberTransitions");
         Bind(goal_position_out, "GoalPositionOut");
         Bind(model_prediction, "ModelPrediction");
-        
+        Bind(model_prediction_start, "ModelPredictionStart");
         
 
         //parameters
@@ -513,7 +534,11 @@ class TestMapping: public Module
         model_prediction.copy(present_current);
         model_prediction.set(0);
         
-
+        // Initialize the model_prediction_start matrix to store starting currents
+        model_prediction_start.set_name("ModelPredictionStart");
+        model_prediction_start.copy(present_current);
+        model_prediction_start.set(0);
+        
         if (std::string(prediction_model) == "ANN") {
             Debug("Attempting to create shared memory at " + std::string(SHM_NAME));
             
@@ -576,6 +601,8 @@ class TestMapping: public Module
 
         starting_positions = matrix( number_transitions, current_controlled_servos.size());
         starting_positions.set(0);
+
+       
     }
 
     
@@ -617,6 +644,13 @@ class TestMapping: public Module
             }
 
             transition++;
+            
+            // Save data after every 5th transition
+            if (transition % 5 == 0) {
+                SaveCurrentData();
+                Debug("Saved data after transition " + std::to_string(transition));
+            }
+            
             if (transition < number_transitions) {
                 // Store the starting position for the new transition
                 for (int i = 0; i < current_controlled_servos.size(); i++) {
@@ -640,36 +674,64 @@ class TestMapping: public Module
                     predicted_goal_current(transition, i) = all_predicted(servo_idx);
                 }
             } else {
-                SaveCurrentData();
+                // Still save at the end if not already saved
+                if (transition % 5 != 0) {
+                    SaveCurrentData();
+                }
                 Notify(msg_terminate, "Transition finished");
                 return;
             }
         }
 
         // Process ANN predictions if using that model
-        if (std::string(prediction_model) == "ANN" && gyro.connected() && accel.connected()) {
-            // Write input data
+        if (std::string(prediction_model) == "ANN" && gyro.connected() && accel.connected() && eulerAngles.connected()) {
+            // Write input data in the new servo-grouped order
             int idx = 0;
-            // First write gyro data
+            
+            // First write all gyro data (3 values)
             for (int i = 0; i < gyro.size(); i++) {
                 shared_data->data[idx++] = gyro[i];
             }
-            // Then write accel data
+            
+            // Then write all accel data (3 values)
             for (int i = 0; i < accel.size(); i++) {
                 shared_data->data[idx++] = accel[i];
             }
-            // Then write positions and distances to goal
-            for (int i = 0; i < current_controlled_servos.size(); i++)
-            {
+            
+            // Finally write all euler angle data (3 values)
+            for (int i = 0; i < eulerAngles.size(); i++) {
+                shared_data->data[idx++] = eulerAngles[i];
+            }
+            
+            // For each servo, write all its data together
+            for (int i = 0; i < current_controlled_servos.size(); i++) {
                 int servo_idx = current_controlled_servos(i);
-                shared_data->data[idx++] = present_position[servo_idx]; // Position
+                
+                // Current position
+                shared_data->data[idx++] = present_position[servo_idx];
+                
                 // Distance to goal
                 shared_data->data[idx++] = abs((float)goal_position_out[servo_idx] - (float)present_position[servo_idx]);
+                
+                // Goal position
+                shared_data->data[idx++] = goal_position_out[servo_idx];
+                
+                // Starting position
+                shared_data->data[idx++] = starting_positions(transition, i);
             }
 
-            // Set new_data flag to request new predictions
-            std::atomic_thread_fence(std::memory_order_release);
+            // Debug, display input data
+            std::string debug_input = "Input data sent to ANN: ";
+            for (int i = 0; i < idx; i++) {
+                debug_input += std::to_string(i) + "=" + std::to_string(shared_data->data[i]) + " ";
+            }
+            Debug(debug_input);
+
+            // Set the new_data flag to true BEFORE memory fence to ensure Python sees it
             shared_data->new_data = true;
+            
+            // Memory fence to ensure all writes are visible to other processes
+            std::atomic_thread_fence(std::memory_order_release);
             
             // Wait for Python to process (with timeout)
             int timeout_ms = 5;  // 5ms timeout
@@ -685,19 +747,50 @@ class TestMapping: public Module
                     break;
                 }
 
-                // Read the predictions and check if they've been updated
+                // Memory fence to ensure we see the most recent value of the flag
                 std::atomic_thread_fence(std::memory_order_acquire);
-                if (shared_data->new_data) {
-                    // Read predictions and update model_prediction
-                    model_prediction[0] = abs(shared_data->data[FLOAT_COUNT - 2]);  // Tilt prediction
-                    model_prediction[1] = abs(shared_data->data[FLOAT_COUNT - 1]);  // Pan prediction
+                
+                // Check if the new_data flag has been reset by Python
+                if (!shared_data->new_data) {
+                    // Read predictions and update model_prediction dynamically based on number of servos
+                    std::string debug_msg = "Received predictions: ";
                     
-                    // Clear the flag after reading
-                    shared_data->new_data = false;
+                    // Debug output showing all values in shared data
+                    std::string all_data = "All shared data: ";
+                    for (int i = 0; i < FLOAT_COUNT; i++) {
+                        all_data += std::to_string(i) + "=" + std::to_string(shared_data->data[i]) + " ";
+                    }
+                    Debug(all_data);
+                    
+                    // Since we know exactly which predictions are where, use direct indexing
+                    if (current_controlled_servos.size() >= 1) {
+                        // NeckTilt (index 0) predictions
+                        int tilt_idx = current_controlled_servos(0);
+                        model_prediction[tilt_idx] = abs(shared_data->data[17]);       // Regular current at offset 17
+                        model_prediction_start[tilt_idx] = abs(shared_data->data[18]); // Start current at offset 18
+                        
+                        debug_msg += std::string(servo_names[tilt_idx]) + "=(regular=" + 
+                                    std::to_string(model_prediction[tilt_idx]) + ", start=" +
+                                    std::to_string(model_prediction_start[tilt_idx]) + ")";
+                        
+                        if (current_controlled_servos.size() >= 2) {
+                            debug_msg += ", ";
+                        }
+                    }
+                    
+                    if (current_controlled_servos.size() >= 2) {
+                        // NeckPan (index 1) predictions
+                        int pan_idx = current_controlled_servos(1);
+                        model_prediction[pan_idx] = abs(shared_data->data[19]);       // Regular current at offset 19
+                        model_prediction_start[pan_idx] = abs(shared_data->data[20]); // Start current at offset 20
+                        
+                        debug_msg += std::string(servo_names[pan_idx]) + "=(regular=" + 
+                                    std::to_string(model_prediction[pan_idx]) + ", start=" +
+                                    std::to_string(model_prediction_start[pan_idx]) + ")";
+                    }
+                    
                     got_response = true;
-                    
-                    Debug("Received predictions: Tilt=" + std::to_string(model_prediction[0]) + 
-                          ", Pan=" + std::to_string(model_prediction[1]));
+                    Debug(debug_msg);
                 }
 
                 std::this_thread::sleep_for(std::chrono::microseconds(10));
@@ -713,14 +806,28 @@ class TestMapping: public Module
             int servo_idx = current_controlled_servos(i);
             double current_time = GetNominalTime();
             bool timeout = current_time - transition_start_time(transition, servo_idx) > TIMEOUT_DURATION;
-            //std::cout << "Servo: " << servo_idx << " Timeout: " << current_time - transition_start_time(transition, servo_idx) << std::endl;
 
             // If servo hasn't reached goal yet
             if (reached_goal(servo_idx) == 0) {
                 if (!timeout) {
                     // Use ANN output directly as goal current if using ANN model
                     if (std::string(prediction_model) == "ANN") {
-                        goal_current(servo_idx) = std::min<float>(model_prediction[servo_idx], (float)current_limit);
+                        // Check if the servo is approximating the goal
+                        if (approximating_goal(servo_idx) == 1) {
+                            // Use regular current from model_prediction matrix
+                            goal_current(servo_idx) = std::min<float>(model_prediction[servo_idx], (float)current_limit);
+                            
+                            // Add debug to verify the correct current is being used
+                            Debug("Using regular current for " + std::string(servo_names[servo_idx]) + 
+                                  ": " + std::to_string(model_prediction[servo_idx]));
+                        } else {
+                            // Use starting current from model_prediction_start matrix
+                            goal_current(servo_idx) = std::min<float>(model_prediction_start[servo_idx], (float)current_limit);
+                            
+                            // Add debug to verify the correct current is being used
+                            Debug("Using starting current for " + std::string(servo_names[servo_idx]) + 
+                                  ": " + std::to_string(model_prediction_start[servo_idx]));
+                        }
                     } else {
                         // For other models, use the existing prediction method
                         goal_current.copy(SetGoalCurrent(present_current, current_increment, current_limit,
@@ -736,7 +843,7 @@ class TestMapping: public Module
                  
                     }
                     if (approximating_goal(servo_idx) == 0) {
-                        goal_current(servo_idx) = std::min(goal_current[servo_idx] + CURRENT_INCREMENT, (float)current_limit);
+                        goal_current(servo_idx) = std::min(goal_current[servo_idx] + current_increment, (float)current_limit);
                     }
 
                     // Calculate prediction error if we've reached at least 10% of the distance to goal
@@ -785,7 +892,11 @@ class TestMapping: public Module
         {
             std::string scriptPath = __FILE__;
             std::string scriptDirectory = scriptPath.substr(0, scriptPath.find_last_of("/\\"));
-            std::string filepath = scriptDirectory + "/results/" + std::string(prediction_model) + "/current_data_" + std::to_string(unique_id) + ".json";
+            
+            // Use the same filename for all saves (remove the transition number)
+            std::string filepath = scriptDirectory + "/results/" + std::string(prediction_model) + 
+                                  "/current_data" + ".json";
+            
             std::ofstream file(filepath);
             file << "{\n";
             file << "  \"transitions\": [\n";
@@ -796,7 +907,7 @@ class TestMapping: public Module
             {
                 file << "      \"" << servo_names[current_controlled_servos(i)] << "\": {\n";
 
-                // New: Log the starting positions
+                // Log the starting positions
                 file << "        \"starting_positions\": [";
                 for (int t = 0; t < transition; t++) {
                     file << starting_positions(t, i);
@@ -832,12 +943,8 @@ class TestMapping: public Module
                     if (t < transition - 1) file << ", ";
                 }
                 file << "],\n";
-                
-                timeout_occurred.print();
 
-            
-
-                // New: Log the prediction errors
+                // Log the prediction errors
                 file << "        \"prediction_errors\": [";
                 for (int t = 0; t < transition; t++) {
                     file << prediction_error(t, i);
@@ -856,6 +963,9 @@ class TestMapping: public Module
             file << "  ]\n";
             file << "}\n";
             file.close();
+            
+            Debug("Data saved to " + filepath + " (progress: " + std::to_string(transition) + "/" + 
+                  std::to_string(number_transitions) + " transitions)");
         }
         catch (const std::exception &e)
         {
@@ -878,25 +988,55 @@ class TestMapping: public Module
     ~TestMapping()
     {
         if (std::string(prediction_model) == "ANN") {
-            // Signal shutdown through shared memory, so the Python script can exit cleanly
-            SignalShutdownToANN();
-            sleep(1);  // Give the Python process time to notice the shutdown flag
-
-            // If we have a valid child process ID, terminate it
-            if (child_pid > 0) {
-                kill(child_pid, SIGTERM);
-                waitpid(child_pid, nullptr, 0);
-            }
-
+            // Set shutdown flag and wait for Python process to exit gracefully
             if (shared_data != nullptr) {
-                munmap(shared_data, sizeof(SharedData));
+                // First signal shutdown through flag
+                shared_data->new_data = false;  // Reset data flag
+                
+                // Set shutdown flag (second boolean in shared memory)
+                char* flags_ptr = (char*)shared_data + (FLOAT_COUNT * sizeof(float));
+                *(flags_ptr + 1) = 1;  // Set shutdown flag to true
+                
+                // Ensure write completes
+                std::atomic_thread_fence(std::memory_order_release);
+                
+                // Wait for Python to notice shutdown flag before cleaning up memory
+                sleep(1);
             }
+
+            // Terminate child process if it exists
+            if (child_pid > 0) {
+                // Send SIGTERM first for graceful shutdown
+                kill(child_pid, SIGTERM);
+                
+                // Wait for a short period
+                struct timespec ts;
+                ts.tv_sec = 0;
+                ts.tv_nsec = 500000000; // 500ms
+                nanosleep(&ts, NULL);
+                
+                // Check if process still exists and force kill if needed
+                if (waitpid(child_pid, nullptr, WNOHANG) == 0) {
+                    kill(child_pid, SIGKILL);
+                    waitpid(child_pid, nullptr, 0);
+                }
+            }
+
+            // Clean up shared memory resources in correct order
+            if (shared_data != nullptr) {
+                munmap(shared_data, MEM_SIZE);  // Use MEM_SIZE consistently
+                shared_data = nullptr;
+            }
+            
             if (shm_fd != -1) {
                 close(shm_fd);
+                shm_fd = -1;
             }
+            
+            // Always unlink at the end
             shm_unlink(SHM_NAME);
 
-            // Additionally, kill any lingering process using port 8000 as a fallback
+            // As a fallback, kill any lingering processes
             system("lsof -ti:8000 | xargs kill -9 2>/dev/null || true");
         }
     }

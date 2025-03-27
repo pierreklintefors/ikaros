@@ -14,6 +14,7 @@
 	<output name="GoalCurrent" description="" size="19"/>
 	<output name="GoalPositionOut" description="" size="19"/>
 	<output name="ModelPrediction" description="" size="19"/>
+	<output name="ModelPredictionStart" description="" size="19"/>
 	
 	<author>
 		<name>Pierre Klintefors</name>

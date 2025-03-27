@@ -1,4 +1,4 @@
-<group filename="" name="Untitled" real_time="True" start="true" stop="-1" tick_duration="0.025" webui_port="8000" log_level="5">
+<group filename="" log_level="8" name="Untitled" real_time="True" start="true" stop="-1" tick_duration="0.025" webui_port="8000">
    <connection delay="1" source="TestMapping.GoalPositionOut" target="EpiServos.GOAL_POSITION"/>
    <connection delay="1" source="TestMapping.GoalCurrent" target="EpiServos.GOAL_CURRENT"/>
    <connection delay="1" source="EpiServos.PRESENT_POSITION" target="TestMapping.PresentPosition"/>
@@ -6,9 +6,7 @@
    <connection delay="1" source="UM7.EulerAngles" target="TestMapping.EulerAngles"/>
    <connection delay="1" source="UM7.ProcessedGyro" target="TestMapping.GyroData"/>
    <connection delay="1" source="UM7.ProcessedAccel" target="TestMapping.AccelData"/>
-
-   
-   <module CurrentPrediction="ANN" RobotType="Torso" MaxLimits="237, 240" MinLimits="122, 142" NumberTransitions="5" _x="408" _y="48" class="TestMapping" log_level="5" name="TestMapping">
+   <module CurrentPrediction="ANN" MaxLimits="237, 240" MinLimits="122, 142" NumberTransitions="100" RobotType="Torso" _x="408" _y="48" class="TestMapping" log_level="7" name="TestMapping">
       <files>
          <file/>
          <file/>
@@ -41,10 +39,13 @@
       </files>
       <link class="UM7"/>
    </module>
+   <parameter control="menu" default="0" name="log_level" type="number" value="8.000000"/>
    <widget _index_="0" _x="24" _y="360" class="table" colorize="true" decimals="0" direction="normal" frame-style="" height="49" label_x="" label_y="" max="1" min="" name="Widget_1" scrollable="false" select="" show_frame="false" show_title="true" source="TestMapping.PresentPosition" style="" title="Position" width="817"/>
    <widget _index_="2" _x="24" _y="408" class="table" colorize="true" decimals="0" direction="normal" frame-style="" height="49" label_x="" label_y="" max="1" min="" name="Widget_2" scrollable="false" select="" show_frame="false" show_title="true" source="TestMapping.GoalPositionOut" style="" title="Goal Position" width="817"/>
    <widget _index_="4" _x="24" _y="456" class="table" colorize="true" decimals="0" direction="normal" frame-style="" height="49" label_x="" label_y="" max="1" min="" name="Widget_3" scrollable="false" select="" show_frame="false" show_title="true" source="TestMapping.PresentCurrent" style="" title="Current" width="817"/>
    <widget _index_="6" _x="24" _y="504" class="table" colorize="true" decimals="0" direction="normal" frame-style="" height="49" label_x="" label_y="" max="1" min="" name="Widget_4" scrollable="false" select="" show_frame="false" show_title="true" source="TestMapping.GoalCurrent" style="" title="Goal Current" width="817"/>
-   <widget _index_="8" _x="24" _y="552" class="table" colorize="true" decimals="0" direction="normal" frame-style="" height="49" label_x="" label_y="" max="1" min="" name="Widget_5" scrollable="false" select="" show_frame="false" show_title="true" source="TestMapping.ANN_output" style="" title="ANN Output" width="817"/>
-  
+   <widget _index_="8" _x="24" _y="552" class="table" colorize="true" decimals="0" direction="normal" frame-style="" height="49" label_x="" label_y="" max="1" min="" name="Widget_5" scrollable="false" select="" show_frame="false" show_title="true" source="TestMapping.ModelPrediction" style="" title="Model Prediction" width="817"/>
+   <widget _index_="10" _x="24" _y="600" class="table" colorize="true" decimals="0" direction="normal" frame-style="" height="49" label_x="" label_y="" max="1" min="" name="Widget_6" scrollable="false" select="" show_frame="false" show_title="true" source="TestMapping.ModelPredictionStart" style="" title="Model Prediction Start" width="817"/>
+   <widget _index_="12" _x="30" _y="700" buffer_size="100" class="plot" color="blue" direction="vertical" frame-style="" height="400" max="1000" min="0" name="Widget_7" select="0" show_frame="false" show_title="true" source="TestMapping.ModelPredictionStart" style="decimals::0" title="Widget_7" width="600"/>
+   <widget _index_="14" _x="30" _y="700" buffer_size="100" class="plot" color="green" direction="vertical" frame-style="" height="400" max="1000" min="0" name="Widget_8" select="0" show_frame="false" show_title="false" source="TestMapping.GoalPositionOut" style="" title="Widget_8" width="600"/>
 </group>
