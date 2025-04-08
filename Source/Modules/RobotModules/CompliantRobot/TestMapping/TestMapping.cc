@@ -14,14 +14,50 @@
 #include <thread>
 #include <sys/wait.h>
 #include <atomic>
+#include <limits> // Add this for numeric_limits
+#include <sstream> // Add this for stringstream
+
+// Include nanoflann
+#include "nanoflann.hpp" // Adjust path if needed, e.g., "libs/nanoflann.hpp"
 
 using namespace ikaros;
 
+// --- Nanoflann Point Cloud Adaptor ---
+// Structure to hold the NN feature data and target currents
+struct PointCloud
+{
+	// Feature points (inner vector has 13 dimensions)
+	std::vector<std::vector<float>>  pts;
+	// Corresponding target current values for each point
+	std::vector<float> target_currents;
 
+	// Must return the number of data points
+	inline size_t kdtree_get_point_count() const { return pts.size(); }
+
+	// Returns the dim'th component of the idx'th point in the class:
+	// Since pts[idx] is std::vector<float>, we can just return pts[idx][dim]
+	inline float kdtree_get_pt(const size_t idx, const size_t dim) const
+	{
+		if (idx < pts.size() && dim < pts[idx].size()) {
+			return pts[idx][dim];
+		}
+		// Return a default or handle error if index/dim is out of bounds
+		// For simplicity, returning 0. Proper error handling might be needed.
+		return 0.0f;
+	}
+
+	// Optional bounding-box computation: return false to default to a standard bbox computation loop.
+	// Return true if the BBOX was already computed by the class and returned in "bb" so it can be avoided to redo it again.
+	// Look at bb.size() to find out the expected dimensionality (e.g. 2 or 3 for point clouds)
+	template <class BBOX>
+	bool kdtree_get_bbox(BBOX& /*bb*/) const { return false; }
+};
+// --- End Nanoflann ---
 
 #define SHM_NAME "/ikaros_ann_shm"
 #define FLOAT_COUNT 21  // 17 inputs + 4 predictions
 #define MEM_SIZE ((FLOAT_COUNT * sizeof(float)) + sizeof(bool)*2)  // Add explicit size calculation including two flags
+#define NN_DIMS 13
 
 // Structure for shared memory between Python and C++
 struct SharedData
@@ -70,23 +106,23 @@ class TestMapping: public Module
     parameter max_limits;
     parameter robotType;
     parameter prediction_model;
-
+    parameter current_increment_parameter;    
     // Internal
     std::random_device rd;
     
     int number_transitions; //Will be used to add starting and ending position
     int position_margin = 3;
     int transition = 0;
-    int current_increment = 50;
     int starting_current = 30;
     int current_limit = 1700;
     bool find_minimum_torque_current = false;
+    int current_increment;
   
     int unique_id;
     bool second_tick = false;
     bool first_start_position = true;
     std::string time_stamp_str_no_dots;
-
+    int num_input_data = 0;
     matrix transition_start_time;
     matrix transition_duration;
     double time_prev_position;
@@ -105,7 +141,7 @@ class TestMapping: public Module
     std::string shm_name;
     
  
-    const double TIMEOUT_DURATION = 3.0;    // Timeout before incrementing current
+    const double TIMEOUT_DURATION = 4.0;    // Timeout before incrementing current
         // Amount to increment current during timeout
     
   
@@ -119,6 +155,32 @@ class TestMapping: public Module
 
     // Add a member variable to hold the child process ID
     pid_t child_pid = -1;
+
+    // --- Nearest Neighbor data ---
+    // Point clouds holding feature data and target currents
+    PointCloud nn_tilt_point_cloud;
+    PointCloud nn_pan_point_cloud;
+
+    // Define the k-d tree index type using the PointCloud adaptor
+    // We expect 13 features (3 Gyro + 3 Accel + 3 Angle + 4 Servo-specific)
+    
+    using my_kd_tree_t = nanoflann::KDTreeSingleIndexAdaptor<
+        nanoflann::L2_Simple_Adaptor<float, PointCloud>, // Distance metric (L2 = Euclidean)
+        PointCloud,                                    // Dataset adaptor
+        NN_DIMS                                        // Dimensionality
+        >;
+
+    // Unique pointers to hold the built k-d tree indices
+    std::unique_ptr<my_kd_tree_t> nn_tilt_index;
+    std::unique_ptr<my_kd_tree_t> nn_pan_index;
+
+    // We no longer need separate nn_tilt_data/nn_pan_data matrices or feature index vectors,
+    // as this info is managed within PointCloud and the k-d tree structure.
+    // int nn_tilt_current_col_idx = -1; // No longer needed directly
+    // int nn_pan_current_col_idx = -1;  // No longer needed directly
+    // std::vector<int> nn_tilt_feature_indices; // No longer needed
+    // std::vector<int> nn_pan_feature_indices;  // No longer needed
+     // --- End Nearest Neighbor data ---
 
     matrix RandomisePositions(int num_transitions, matrix min_limits, matrix max_limits, std::string robotType)
     {
@@ -339,11 +401,20 @@ class TestMapping: public Module
         current_output.set(0);
 
         // Early validation
-        if (present_current.size() != current_output.size())
+        if (present_current.size() != current_output.size() ||
+            position.size() != present_current.size() ||
+            goal_position.size() != present_current.size() ||
+            model_prediction.size() != present_current.size() ) // Added more checks
         {
-            Error("Present current and Goal current must be the same size");
+            Error("Input/output matrix size mismatch in SetGoalCurrent");
             return current_output;
         }
+        // Also check sensor data if needed for NN
+        if (model_name == "NearestNeighbor" && (!gyro.connected() || !accel.connected() || !eulerAngles.connected())) {
+             Error("Gyro, Accel, and EulerAngles must be connected for NearestNeighbor model.");
+            return current_output; // Or handle differently
+        }
+
 
         // Only process servos that are current-controlled
         for (int i = 0; i < current_controlled_servos.size(); i++)
@@ -353,6 +424,7 @@ class TestMapping: public Module
             // Skip processing if servo has reached its goal
             if (abs(goal_position(servo_idx) - position(servo_idx)) <= margin)
             {
+                // Maybe set current to 0 or a holding value? For now, skip.
                 continue;
             }
 
@@ -362,44 +434,137 @@ class TestMapping: public Module
             if (model_name == "ANN")
             {
                 // Use existing ANN output for this servo
-                estimated_current = model_prediction[servo_idx];
+                // NOTE: ANN output is updated elsewhere (in Tick) and stored in model_prediction/model_prediction_start
+                // This function *might* not be the right place to set ANN current directly,
+                // but we use the value already stored in model_prediction by the Tick logic.
+                 estimated_current = model_prediction[servo_idx]; // Assuming Tick already populated this
+
             }
             else if (model_name == "Linear" || model_name == "Quadratic")
             {
+
                 // Get standardization parameters
-                double current_mean = coefficients(i, 0);
-                double current_std = coefficients(i, 1);
+                 // Ensure coefficient matrix is valid
+                 if (coefficients.rows() <= i || coefficients.cols() < 7) {
+                     Error("Coefficient matrix invalid for servo index " + std::to_string(i));
+                     continue; // Skip this servo
+                 }
+                double current_mean = coefficients(i, 0); // Assuming column 0 is CurrentMean
+                double current_std = coefficients(i, 1);  // Assuming column 1 is CurrentStd
 
-                // Calculate standardized inputs
-                double distance_to_goal = goal_position(servo_idx) - position(servo_idx);
-                double std_position = (position(servo_idx) - current_mean) / current_std;
-                double std_distance = (distance_to_goal - current_mean) / current_std;
+                // Check for zero standard deviation
+                if (current_std == 0) {
+                     Warning("Current standard deviation is zero for servo index " + std::to_string(i) + ". Using mean as estimate.");
+                     estimated_current = current_mean;
+                 } else {
+                     // Calculate standardized inputs
+                    double distance_to_goal = goal_position(servo_idx) - position(servo_idx);
+                     // Note: The standardization in the original code used current_mean/std for position and distance.
+                     // This might be incorrect. Usually, you'd use position_mean/std and distance_mean/std.
+                     // Replicating original logic here, but it might need review based on how coefficients were trained.
+                    double std_position = (position(servo_idx) - current_mean) / current_std;
+                    double std_distance = (distance_to_goal - current_mean) / current_std;
 
-                // Calculate linear terms
-                estimated_current = coefficients(i, 6) + // intercept
-                                    coefficients(i, 2) * std_distance +
-                                    coefficients(i, 3) * std_position;
 
-                // Add quadratic terms if applicable
-                if (model_name == "Quadratic")
-                {
-                    estimated_current += coefficients(i, 4) * std::pow(std_distance, 2) +
-                                         coefficients(i, 5) * std::pow(std_position, 2);
+                    // Calculate linear terms (indices based on CreateCoefficientsMatrix)
+                    estimated_current = coefficients(i, 6) + // intercept (index 6)
+                                        coefficients(i, 2) * std_distance + // betas_linear[DistanceToGoal] (index 2)
+                                        coefficients(i, 3) * std_position;  // betas_linear[Position] (index 3)
+
+
+                    // Add quadratic terms if applicable
+                    if (model_name == "Quadratic")
+                    {
+                        // betas_quad[DistanceToGoal_squared] (index 4), betas_quad[Position_squared] (index 5)
+                        estimated_current += coefficients(i, 4) * std::pow(std_distance, 2) +
+                                             coefficients(i, 5) * std::pow(std_position, 2);
+                    }
+
+
+                    // Unstandardize the result
+                    estimated_current = estimated_current * current_std + current_mean;
                 }
 
-                // Unstandardize the result
-                estimated_current = estimated_current * current_std + current_mean;
-                estimated_current *= 1.5;
             }
+            // <<< EDIT 7: Add NearestNeighbor logic >>>
+            else if (model_name == "NearestNeighbor") {
+                 // Check if indices were built successfully in Init
+                 // Use servo_idx to determine which index/cloud to use
+                 bool index_ready = (servo_idx == 0 && nn_tilt_index) || (servo_idx == 1 && nn_pan_index);
+
+                 if (!index_ready) {
+                     Error("NN k-d tree index not ready for servo " + std::to_string(servo_idx));
+                     continue; // Skip NN estimation if index isn't built
+                 }
+
+                 // Select the correct index and point cloud based on servo index
+                 const std::unique_ptr<my_kd_tree_t>* current_index_ptr = nullptr;
+                 const PointCloud* current_point_cloud_ptr = nullptr;
+
+                 if (servo_idx == 0) { // NeckTilt
+                    current_index_ptr = &nn_tilt_index;
+                    current_point_cloud_ptr = &nn_tilt_point_cloud;
+                 } else if (servo_idx == 1) { // NeckPan
+                     current_index_ptr = &nn_pan_index;
+                     current_point_cloud_ptr = &nn_pan_point_cloud;
+                 } else {
+                     // This case should be caught earlier or handled, but for safety:
+                      Warning("NearestNeighbor model only implemented for NeckTilt (0) and NeckPan (1). Servo " + std::to_string(servo_idx) + " not handled.");
+                      estimated_current = 0;
+                      continue;
+                 }
+
+                // --- Construct the query vector as std::vector<float> ---
+                 std::vector<float> query_point_vec(NN_DIMS); // Expected 13 features
+                 int query_idx = 0;
+
+                 // Generic sensor data (first 9 features)
+                 if (gyro.size() < 3) { Error("Gyro data has insufficient size (<3) for NN query"); continue; }
+                 for(int g=0; g<3; ++g) query_point_vec[query_idx++] = gyro(g);
+
+                 if (accel.size() < 3) { Error("Accel data has insufficient size (<3) for NN query"); continue; }
+                 for(int a=0; a<3; ++a) query_point_vec[query_idx++] = accel(a);
+
+                 if (eulerAngles.size() < 3) { Error("EulerAngles data has insufficient size (<3) for NN query"); continue; }
+                 for(int e=0; e<3; ++e) query_point_vec[query_idx++] = eulerAngles(e);
+
+                 // Servo-specific features (next 4 features)
+                 query_point_vec[query_idx++] = position(servo_idx);
+                 query_point_vec[query_idx++] = goal_position(servo_idx) - position(servo_idx); // DistanceToGoal
+                 query_point_vec[query_idx++] = goal_position(servo_idx);
+                 if (transition < starting_positions.rows() && i < starting_positions.cols()) {
+                    query_point_vec[query_idx++] = starting_positions(transition, i);
+                 } else {
+                     Error("Starting position data out of bounds for NN query (t=" + std::to_string(transition) + ", i=" + std::to_string(i) +")");
+                     // Handle missing start position? Maybe use current position or 0? Using 0 for now.
+                     query_point_vec[query_idx++] = 0.0f;
+                 }
+                 // --- End query vector construction ---
+
+                 if (query_idx != NN_DIMS) {
+                     Error("Internal error: Mismatch building NN query vector size (" + std::to_string(query_idx) +
+                           ") vs expected features (" + std::to_string(NN_DIMS) + ") for servo " + std::to_string(servo_idx));
+                     continue;
+                 }
+
+                 // Perform the nearest neighbor search using the k-d tree
+                 estimated_current = FindNearestNeighborCurrent(query_point_vec, *current_index_ptr, *current_point_cloud_ptr);
+
+            }
+            // <<< END EDIT 7 >>>
             else
             {
-                Warning("Unsupported model type: " + model_name + " - using default current");
-                estimated_current = present_current(servo_idx);
+                Warning("Unsupported model type: " + model_name + " - using present current");
+                estimated_current = present_current(servo_idx); // Use present as fallback
             }
 
             // Apply current limits and set output
-            current_output(servo_idx) = std::min(abs(estimated_current), static_cast<double>(limit));
-            model_prediction(servo_idx) = current_output(servo_idx);
+            // Use abs() for estimated_current as current should likely be positive magnitude
+            current_output(servo_idx) = std::min(std::abs(estimated_current), static_cast<double>(limit));
+
+             // Store the *raw* model prediction before limiting for analysis later (if needed)
+             // Overwrite the value in model_prediction which might have been set by ANN logic
+             model_prediction(servo_idx) = std::abs(estimated_current);
         }
 
         return current_output;
@@ -448,7 +613,9 @@ class TestMapping: public Module
         Bind(max_limits, "MaxLimits");
         Bind(robotType, "RobotType");
         Bind(prediction_model, "CurrentPrediction");
+        Bind(current_increment_parameter, "CurrentIncrement");
 
+        current_increment = current_increment_parameter.as_int();
 
         std::string scriptPath = __FILE__;
         
@@ -458,11 +625,11 @@ class TestMapping: public Module
         coefficientsPath = coefficientsPath + "/CurrentPositionMapping/models/coefficients.json";
         current_coefficients.load_json(coefficientsPath);
 
-
+        
 
         number_transitions = num_transitions.as_int()+1; // Add one to the number of transitions to include the ending position
         position_transitions.set_name("PositionTransitions");
-        position_transitions = RandomisePositions(number_transitions, min_limits, max_limits, robotType);
+        position_transitions = RandomisePositions(number_transitions, min_limits, max_limits, robotType.as_string());
         goal_position_out.copy(position_transitions[0]);
 
         goal_current.set(starting_current);
@@ -486,19 +653,18 @@ class TestMapping: public Module
         transition_duration.set_name("TransitionDuration");
         transition_duration.copy(approximating_goal);
 
-        std::string robot = robotType;
                 
         servo_names = {"NeckTilt", "NeckPan", "LeftEye", "RightEye", "LeftPupil", "RightPupil", "LeftArmJoint1", "LeftArmJoint2", "LeftArmJoint3", "LeftArmJoint4", "LeftArmJoint5", "LeftHand", "RightArmJoint1", "RightArmJoint2", "RightArmJoint3", "RightArmJoint4", "RightArmJoint5", "RightHand", "Body"};
         
 
-        if(robot == "Torso"){
+        if(robotType.as_string() == "Torso"){
             current_controlled_servos.set_name("CurrentControlledServosTorso");
             current_controlled_servos = {0, 1};
             overshot_goal_temp = {false, false};
             reached_goal = {0, 0};
             
         }
-        else if(robot == "FullBody"){
+        else if(robotType.as_string() == "FullBody"){
             current_controlled_servos.set_name("CurrentControlledServosFullBody");
             current_controlled_servos = {0, 1, 6, 7, 8, 9, 10, 12, 13, 14, 15, 16, 18};
             overshot_goal_temp = {false, false, false, false, false, false, false, false, false, false, false, false, false};
@@ -507,7 +673,7 @@ class TestMapping: public Module
         else{
             Error("Robot type not recognized");
         }
-        coeffcient_matrix = CreateCoefficientsMatrix(current_coefficients, current_controlled_servos, prediction_model, servo_names);
+        coeffcient_matrix = CreateCoefficientsMatrix(current_coefficients, current_controlled_servos, prediction_model.as_string(), servo_names);
         reached_goal.set_name("ReachedGoal");
 
         overshot_goal.set_name("OvershotGoal");
@@ -587,6 +753,75 @@ class TestMapping: public Module
 
             // Start Python process
             StartPythonProcess();
+        }
+        else if (std::string(prediction_model) == "NearestNeighbor") {
+            Debug("NearestNeighbor model selected. Loading CSV data and building k-d trees.");
+            if (robotType.as_string() != "Torso") {
+                 Error("NearestNeighbor model currently only supports 'Torso' robotType.");
+                 return;
+            }
+
+            // Base path for data files
+            std::string dataBasePath = scriptPath.substr(0, scriptPath.find_last_of("/"));
+            dataBasePath = dataBasePath.substr(0, dataBasePath.find_last_of("/"));
+            dataBasePath = dataBasePath + "/CurrentPositionMapping/data/";
+
+            bool tilt_load_success = false;
+            bool pan_load_success = false;
+
+            // --- Load Data and Build Index for Tilt ---
+            std::string tilt_data_path = dataBasePath + "tilt_filtered_data_raw.csv";
+            Debug("Loading Tilt NN data from: " + tilt_data_path);
+            std::vector<std::string> tilt_feature_labels = {
+                 "GyroX", "GyroY", "GyroZ", "AccelX", "AccelY", "AccelZ",
+                 "AngleX", "AngleY", "AngleZ", "TiltPosition", "TiltDistToGoal",
+                 "TiltGoalPosition", "TiltStartPosition"
+            };
+            std::string tilt_target_label = "TiltCurrent";
+
+            tilt_load_success = LoadCSVData(tilt_data_path, tilt_feature_labels, tilt_target_label, nn_tilt_point_cloud);
+
+            if(tilt_load_success) {
+                 Debug("Building k-d tree index for Tilt data (" + std::to_string(nn_tilt_point_cloud.pts.size()) + " points)...");
+                 // Construct the k-d tree index
+                 nn_tilt_index = std::make_unique<my_kd_tree_t>(NN_DIMS, nn_tilt_point_cloud, nanoflann::KDTreeSingleIndexAdaptorParams(10 /* max_leaf */) );
+                 nn_tilt_index->buildIndex();
+                 Debug("Tilt k-d tree built.");
+            } else {
+                Error("Failed to load Tilt NN data. Nearest neighbor search for tilt will not work.");
+                // Decide if we should return or continue without tilt NN
+                // return; // Option: Stop initialization if tilt data fails
+            }
+
+
+             // --- Load Data and Build Index for Pan ---
+             std::string pan_data_path = dataBasePath + "pan_filtered_data_raw.csv";
+             Debug("Loading Pan NN data from: " + pan_data_path);
+              std::vector<std::string> pan_feature_labels = {
+                  "GyroX", "GyroY", "GyroZ", "AccelX", "AccelY", "AccelZ",
+                  "AngleX", "AngleY", "AngleZ", "PanPosition", "PanDistToGoal",
+                  "PanGoalPosition", "PanStartPosition"
+             };
+              std::string pan_target_label = "PanCurrent";
+
+              pan_load_success = LoadCSVData(pan_data_path, pan_feature_labels, pan_target_label, nn_pan_point_cloud);
+
+             if (pan_load_success) {
+                 Debug("Building k-d tree index for Pan data (" + std::to_string(nn_pan_point_cloud.pts.size()) + " points)...");
+                 // Construct the k-d tree index
+                 nn_pan_index = std::make_unique<my_kd_tree_t>(NN_DIMS, nn_pan_point_cloud, nanoflann::KDTreeSingleIndexAdaptorParams(10 /* max_leaf */) );
+                 nn_pan_index->buildIndex();
+                 Debug("Pan k-d tree built.");
+             } else {
+                 Error("Failed to load Pan NN data. Nearest neighbor search for pan will not work.");
+                 // return; // Option: Stop initialization if pan data fails
+             }
+             // Check if both failed?
+             if (!tilt_load_success && !pan_load_success) {
+                 Error("Failed to load data for both Tilt and Pan. NN model unusable.");
+                 return; // Definitely stop if both failed
+             }
+
         }
 
   
@@ -685,7 +920,7 @@ class TestMapping: public Module
 
         // Process ANN predictions if using that model
         if (std::string(prediction_model) == "ANN" && gyro.connected() && accel.connected() && eulerAngles.connected()) {
-            // Write input data in the new servo-grouped order
+          
             int idx = 0;
             
             // First write all gyro data (3 values)
@@ -718,8 +953,10 @@ class TestMapping: public Module
                 
                 // Starting position
                 shared_data->data[idx++] = starting_positions(transition, i);
+
             }
 
+            num_input_data = idx;
             // Debug, display input data
             std::string debug_input = "Input data sent to ANN: ";
             for (int i = 0; i < idx; i++) {
@@ -750,7 +987,7 @@ class TestMapping: public Module
                 // Memory fence to ensure we see the most recent value of the flag
                 std::atomic_thread_fence(std::memory_order_acquire);
                 
-                // Check if the new_data flag has been reset by Python
+                // New data flag is set to false by Python when it has processed the data
                 if (!shared_data->new_data) {
                     // Read predictions and update model_prediction dynamically based on number of servos
                     std::string debug_msg = "Received predictions: ";
@@ -760,33 +997,27 @@ class TestMapping: public Module
                     for (int i = 0; i < FLOAT_COUNT; i++) {
                         all_data += std::to_string(i) + "=" + std::to_string(shared_data->data[i]) + " ";
                     }
-                    Debug(all_data);
                     
-                    // Since we know exactly which predictions are where, use direct indexing
-                    if (current_controlled_servos.size() >= 1) {
-                        // NeckTilt (index 0) predictions
-                        int tilt_idx = current_controlled_servos(0);
-                        model_prediction[tilt_idx] = abs(shared_data->data[17]);       // Regular current at offset 17
-                        model_prediction_start[tilt_idx] = abs(shared_data->data[18]); // Start current at offset 18
-                        
-                        debug_msg += std::string(servo_names[tilt_idx]) + "=(regular=" + 
-                                    std::to_string(model_prediction[tilt_idx]) + ", start=" +
-                                    std::to_string(model_prediction_start[tilt_idx]) + ")";
-                        
-                        if (current_controlled_servos.size() >= 2) {
-                            debug_msg += ", ";
-                        }
-                    }
                     
-                    if (current_controlled_servos.size() >= 2) {
-                        // NeckPan (index 1) predictions
-                        int pan_idx = current_controlled_servos(1);
-                        model_prediction[pan_idx] = abs(shared_data->data[19]);       // Regular current at offset 19
-                        model_prediction_start[pan_idx] = abs(shared_data->data[20]); // Start current at offset 20
+                    // Calculate base offset for predictions (after all input data)
+                    int prediction_base_offset = num_input_data;  // This is where predictions start (after 17 input values)
+
+                    // Dynamically handle predictions for any number of servos
+                    for (int i = 0; i < current_controlled_servos.size(); i++) {
+                        int servo_idx = current_controlled_servos(i);
+                        // Each servo has 2 predictions (regular and start current)
+                        int regular_offset = prediction_base_offset + (i * 2);
+                        int start_offset = regular_offset + 1;
                         
-                        debug_msg += std::string(servo_names[pan_idx]) + "=(regular=" + 
-                                    std::to_string(model_prediction[pan_idx]) + ", start=" +
-                                    std::to_string(model_prediction_start[pan_idx]) + ")";
+                        // Update predictions
+                        model_prediction[servo_idx] = abs(shared_data->data[regular_offset]);
+                        model_prediction_start[servo_idx] = abs(shared_data->data[start_offset]);
+                        
+                        // Build debug message
+                        if (i > 0) debug_msg += ", ";
+                        debug_msg += std::string(servo_names[servo_idx]) + 
+                                    "=(regular=" + std::to_string(model_prediction[servo_idx]) + 
+                                    ", start=" + std::to_string(model_prediction_start[servo_idx]) + ")";
                     }
                     
                     got_response = true;
@@ -894,9 +1125,16 @@ class TestMapping: public Module
             std::string scriptDirectory = scriptPath.substr(0, scriptPath.find_last_of("/\\"));
             
             // Use the same filename for all saves (remove the transition number)
-            std::string filepath = scriptDirectory + "/results/" + std::string(prediction_model) + 
-                                  "/current_data" + ".json";
-            
+            std::string filepath = scriptDirectory + "/results/" + std::string(prediction_model);
+
+            //create directory if it doesn't exist
+            std::string directory = scriptDirectory + "/results/" + std::string(prediction_model);
+            if (!std::filesystem::exists(directory)) {
+                std::filesystem::create_directory(directory);
+            }
+
+            filepath = directory + "/current_data" + ".json";
+           
             std::ofstream file(filepath);
             file << "{\n";
             file << "  \"transitions\": [\n";
@@ -1040,11 +1278,213 @@ class TestMapping: public Module
             system("lsof -ti:8000 | xargs kill -9 2>/dev/null || true");
         }
     }
+
+    // <<< EDIT 2: Add helper function signatures >>>
+    bool LoadCSVData(const std::string& filepath, const std::vector<std::string>& feature_labels, const std::string& target_label, PointCloud& point_cloud_out);
+    double FindNearestNeighborCurrent(const std::vector<float>& query_point, const std::unique_ptr<my_kd_tree_t>& index_ptr, const PointCloud& point_cloud);
+    // <<< END EDIT 2 >>>
 };
 
+// <<< EDIT 3: Implement helper functions >>>
+// Helper function to load CSV data and populate the PointCloud structure
+// Returns true on success, false on failure.
+bool TestMapping::LoadCSVData(const std::string& filepath, const std::vector<std::string>& feature_labels, const std::string& target_label, PointCloud& point_cloud_out) {
+    point_cloud_out.pts.clear();
+    point_cloud_out.target_currents.clear();
+
+    std::ifstream file(filepath);
+    if (!file.is_open()) {
+        Error("Failed to open CSV file: " + filepath);
+        return false;
+    }
+
+    std::string line;
+    std::vector<std::string> headers;
+    int target_col_index = -1;
+    std::vector<int> feature_indices(feature_labels.size(), -1);
+
+    // Read header line
+    if (std::getline(file, line)) {
+        // Remove potential UTF-8 BOM if present
+        if (line.size() >= 3 && line[0] == (char)0xEF && line[1] == (char)0xBB && line[2] == (char)0xBF) {
+            line = line.substr(3);
+        }
+        // Remove trailing carriage return if present (Windows line endings)
+        if (!line.empty() && line.back() == '\r') {
+            line.pop_back();
+        }
+
+        std::stringstream ss(line);
+        std::string header;
+        int current_col = 0;
+        while (std::getline(ss, header, ',')) {
+            // Trim whitespace
+            header.erase(0, header.find_first_not_of(" \t\n\r\f\v"));
+            header.erase(header.find_last_not_of(" \t\n\r\f\v") + 1);
+            headers.push_back(header);
+
+            // Check if this header is our target
+            if (header == target_label) {
+                target_col_index = current_col;
+            }
+            // Check if this header is one of our features
+            for (size_t j = 0; j < feature_labels.size(); ++j) {
+                if (header == feature_labels[j]) {
+                    if (feature_indices[j] != -1) {
+                         Warning("Duplicate feature label '" + feature_labels[j] + "' found in CSV header: " + filepath);
+                    }
+                    feature_indices[j] = current_col;
+                }
+            }
+            current_col++;
+        }
+    } else {
+        Error("CSV file is empty or could not read header: " + filepath);
+        return false;
+    }
+
+    // Validate that all required columns were found
+    if (target_col_index == -1) {
+        Error("Target label '" + target_label + "' not found in CSV header: " + filepath);
+        return false;
+    }
+    std::string missing_features;
+    for (size_t j = 0; j < feature_labels.size(); ++j) {
+        if (feature_indices[j] == -1) {
+            if (!missing_features.empty()) missing_features += ", ";
+            missing_features += "'" + feature_labels[j] + "'";
+        }
+    }
+     if (!missing_features.empty()) {
+         Error("Feature label(s) " + missing_features + " not found in CSV header: " + filepath);
+         return false;
+     }
+     if (feature_labels.size() != NN_DIMS) {
+         Error("Number of feature labels (" + std::to_string(feature_labels.size()) + ") does not match expected NN_DIMS (" + std::to_string(NN_DIMS) + ")");
+         return false;
+     }
 
 
+    // Read data rows
+    while (std::getline(file, line)) {
+        // Remove trailing carriage return if present
+        if (!line.empty() && line.back() == '\r') {
+            line.pop_back();
+        }
+        if (line.empty()) continue; // Skip empty lines
 
+        std::stringstream ss(line);
+        std::string cell;
+        std::vector<float> all_row_values;
+        while (std::getline(ss, cell, ',')) {
+            try {
+                 // Handle potential empty cells or non-numeric gracefully? For now, error out.
+                 if (cell.empty()) {
+                      Error("Empty cell encountered in CSV file: " + filepath);
+                      return false;
+                 }
+                all_row_values.push_back(std::stof(cell));
+            } catch (const std::invalid_argument& e) {
+                Error("Invalid numeric value '" + cell + "' in CSV file: " + filepath + " - " + e.what());
+                return false;
+            } catch (const std::out_of_range& e) {
+                 Error("Numeric value out of range '" + cell + "' in CSV file: " + filepath + " - " + e.what());
+                 return false;
+            }
+        }
+
+        if (all_row_values.size() != headers.size()) {
+            Warning("Row has different number of columns (" + std::to_string(all_row_values.size()) +
+                    ") than header (" + std::to_string(headers.size()) + ") in CSV: " + filepath + ". Skipping row.");
+            continue; // Skip inconsistent rows
+        }
+
+        // Extract feature values in the specified order and the target value
+        std::vector<float> feature_values(NN_DIMS);
+        bool row_ok = true;
+        for(size_t j=0; j < NN_DIMS; ++j) {
+            int col_idx = feature_indices[j];
+             // This check should be redundant due to header validation, but good for safety
+             if (col_idx < 0 || col_idx >= all_row_values.size()) {
+                 Error("Internal error: Invalid feature index " + std::to_string(col_idx) + " while reading row.");
+                 row_ok = false;
+                 break;
+             }
+            feature_values[j] = all_row_values[col_idx];
+        }
+         // Check target index validity
+         if (target_col_index < 0 || target_col_index >= all_row_values.size()) {
+              Error("Internal error: Invalid target index " + std::to_string(target_col_index) + " while reading row.");
+              row_ok = false;
+         }
+
+        if (row_ok) {
+            point_cloud_out.pts.push_back(feature_values);
+            point_cloud_out.target_currents.push_back(all_row_values[target_col_index]);
+        }
+    }
+
+    file.close();
+
+    if (point_cloud_out.pts.empty()) {
+        Warning("No valid data rows loaded into PointCloud from CSV: " + filepath);
+        return false; // Treat as failure if no points loaded
+    }
+
+    Debug("Loaded " + std::to_string(point_cloud_out.pts.size()) + " data points into PointCloud from " + filepath);
+
+    // // Optional Debug: Print loaded feature indices
+    // std::string feature_idx_str = "Feature column indices used: ";
+    // for(int idx : feature_indices) feature_idx_str += std::to_string(idx) + " ";
+    // Debug(feature_idx_str);
+    // Debug("Target column index used: " + std::to_string(target_col_index));
+
+    return true;
+}
+
+// Helper function to find the nearest neighbor using the k-d tree index
+double TestMapping::FindNearestNeighborCurrent(
+    const std::vector<float>& query_point, // Use std::vector for query
+    const std::unique_ptr<my_kd_tree_t>& index_ptr, // Pass pointer to the index
+    const PointCloud& point_cloud) // Pass associated point cloud for target lookup
+{
+    if (!index_ptr || query_point.size() != NN_DIMS) {
+        Error("Invalid k-d tree index or query point dimension for nearest neighbor search.");
+        return 0.0; // Return a default value or handle error
+    }
+     if (point_cloud.pts.empty()) {
+          Warning("Point cloud associated with k-d tree index is empty.");
+          return 0.0;
+     }
+
+
+    // Perform k-NN search: find 1 nearest neighbor
+    size_t num_results = 1;
+    size_t ret_index; // Index of the nearest neighbor in the PointCloud
+    float out_dist_sqr; // Squared distance to the nearest neighbor
+
+    // Prepare result set
+    nanoflann::KNNResultSet<float> resultSet(num_results);
+    resultSet.init(&ret_index, &out_dist_sqr);
+
+    // Perform the search
+    // query_point.data() returns a float* needed by findNeighbors
+    // Use default search parameters by default-constructing SearchParams
+    index_ptr->findNeighbors(resultSet, query_point.data(), nanoflann::SearchParameters()); // Use default SearchParams
+
+
+    // Check if a neighbor was found and the index is valid
+    // resultSet.size() might be 0 if no neighbor is found (e.g., empty dataset - though checked earlier)
+    if (resultSet.size() > 0 && ret_index < point_cloud.target_currents.size()) {
+        // Return the target current value from the best matching point
+        return point_cloud.target_currents[ret_index];
+    } else {
+         // This case should ideally not happen if the index was built correctly and the dataset isn't empty.
+         Warning("Nearest neighbor search failed or returned invalid index. Ret Index: " + std::to_string(ret_index) + ", Target Size: " + std::to_string(point_cloud.target_currents.size()));
+        return 0.0; // Default if no neighbor found or index invalid
+    }
+}
+// <<< END EDIT 3 >>>
 
 INSTALL_CLASS(TestMapping)
 

@@ -6,7 +6,7 @@
    <connection delay="1" source="UM7.EulerAngles" target="TestMapping.EulerAngles"/>
    <connection delay="1" source="UM7.ProcessedGyro" target="TestMapping.GyroData"/>
    <connection delay="1" source="UM7.ProcessedAccel" target="TestMapping.AccelData"/>
-   <module CurrentPrediction="ANN" MaxLimits="237, 240" MinLimits="122, 142" NumberTransitions="100" RobotType="Torso" _x="408" _y="48" class="TestMapping" log_level="7" name="TestMapping">
+   <module CurrentPrediction="NearestNeighbor" CurrentIncrement="30" MaxLimits="237, 240" MinLimits="122, 142" NumberTransitions="100" RobotType="Torso" _x="408" _y="48" class="TestMapping" log_level="7" name="TestMapping">
       <files>
          <file/>
          <file/>
@@ -46,6 +46,6 @@
    <widget _index_="6" _x="24" _y="504" class="table" colorize="true" decimals="0" direction="normal" frame-style="" height="49" label_x="" label_y="" max="1" min="" name="Widget_4" scrollable="false" select="" show_frame="false" show_title="true" source="TestMapping.GoalCurrent" style="" title="Goal Current" width="817"/>
    <widget _index_="8" _x="24" _y="552" class="table" colorize="true" decimals="0" direction="normal" frame-style="" height="49" label_x="" label_y="" max="1" min="" name="Widget_5" scrollable="false" select="" show_frame="false" show_title="true" source="TestMapping.ModelPrediction" style="" title="Model Prediction" width="817"/>
    <widget _index_="10" _x="24" _y="600" class="table" colorize="true" decimals="0" direction="normal" frame-style="" height="49" label_x="" label_y="" max="1" min="" name="Widget_6" scrollable="false" select="" show_frame="false" show_title="true" source="TestMapping.ModelPredictionStart" style="" title="Model Prediction Start" width="817"/>
-   <widget _index_="12" _x="30" _y="700" buffer_size="100" class="plot" color="blue" direction="vertical" frame-style="" height="400" max="1000" min="0" name="Widget_7" select="0" show_frame="false" show_title="true" source="TestMapping.ModelPredictionStart" style="decimals::0" title="Widget_7" width="600"/>
-   <widget _index_="14" _x="30" _y="700" buffer_size="100" class="plot" color="green" direction="vertical" frame-style="" height="400" max="1000" min="0" name="Widget_8" select="0" show_frame="false" show_title="false" source="TestMapping.GoalPositionOut" style="" title="Widget_8" width="600"/>
+   <widget _index_="12" _x="30" _y="700" buffer_size="300" class="plot" color="blue" direction="vertical" frame-style="" height="400" max="1500" min="0" name="Widget_7" select="1" show_frame="false" show_title="true" source="TestMapping.ModelPredictionStart" style="--decimals:0" title="Prediction vs goal position" width="600"/>
+   <widget _index_="14" _x="30" _y="700" buffer_size="300" class="plot" color="green" direction="vertical" frame-style="" height="400" max="1500" min="0" name="Widget_8" select="1" show_frame="false" show_title="false" source="TestMapping.GoalCurrent" style="--decimals:0, --scale-offset: 0" title="Goal current" width="600"/>
 </group>
