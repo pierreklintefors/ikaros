@@ -5,6 +5,7 @@
 	<parameter name="RobotType" default="Torso" description="Type of the robot" options="Torso, FullBody" type="string" control="menu" />
 	<parameter name="CurrentPrediction" default="Quadratic" description="Function to use for calculating current" type="string" control="menu" options="Linear, Quadratic, ANN, NearestNeighbor" />
 	<parameter name="CurrentIncrement" default="10" description="Current increment" type="int" />
+	<parameter name="DevianceLogging" default="0" description="Deviance logging" type="bool" />
 
 	<input name="PresentPosition" description=""/>
 	<input name="PresentCurrent" description="" />

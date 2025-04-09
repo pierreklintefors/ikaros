@@ -16,6 +16,8 @@
 #include <atomic>
 #include <limits> // Add this for numeric_limits
 #include <sstream> // Add this for stringstream
+#include <iomanip> // Add this for std::fixed, std::setprecision
+#include <filesystem> // Add this for directory creation
 
 // Include nanoflann
 #include "nanoflann.hpp" // Adjust path if needed, e.g., "libs/nanoflann.hpp"
@@ -57,7 +59,7 @@ struct PointCloud
 #define SHM_NAME "/ikaros_ann_shm"
 #define FLOAT_COUNT 21  // 17 inputs + 4 predictions
 #define MEM_SIZE ((FLOAT_COUNT * sizeof(float)) + sizeof(bool)*2)  // Add explicit size calculation including two flags
-#define NN_DIMS 13
+#define NN_DIMS 17  // 9 base features + 4 features per servo * 2 servos (for Torso)
 
 // Structure for shared memory between Python and C++
 struct SharedData
@@ -107,6 +109,7 @@ class TestMapping: public Module
     parameter robotType;
     parameter prediction_model;
     parameter current_increment_parameter;    
+    parameter log_deviance_data;
     // Internal
     std::random_device rd;
     
@@ -162,8 +165,6 @@ class TestMapping: public Module
     PointCloud nn_pan_point_cloud;
 
     // Define the k-d tree index type using the PointCloud adaptor
-    // We expect 13 features (3 Gyro + 3 Accel + 3 Angle + 4 Servo-specific)
-    
     using my_kd_tree_t = nanoflann::KDTreeSingleIndexAdaptor<
         nanoflann::L2_Simple_Adaptor<float, PointCloud>, // Distance metric (L2 = Euclidean)
         PointCloud,                                    // Dataset adaptor
@@ -181,6 +182,15 @@ class TestMapping: public Module
     // std::vector<int> nn_tilt_feature_indices; // No longer needed
     // std::vector<int> nn_pan_feature_indices;  // No longer needed
      // --- End Nearest Neighbor data ---
+
+    // <<< EDIT 1: Add members for deviance logging >>>
+    std::ofstream deviance_log_file;       // File stream for logging
+    std::stringstream deviance_log_stream; // Stringstream buffer for JSON content
+     // Flag to enable logging logic
+    int deviance_log_tick_counter = 0;     // Counter for periodic flushing
+    const int DEVIANCE_LOG_FLUSH_INTERVAL = 100; // How often to flush (ticks)
+    bool is_first_deviance_log_entry = true; // To handle commas in JSON array
+    // <<< END EDIT 1 >>>
 
     matrix RandomisePositions(int num_transitions, matrix min_limits, matrix max_limits, std::string robotType)
     {
@@ -515,7 +525,7 @@ class TestMapping: public Module
                  }
 
                 // --- Construct the query vector as std::vector<float> ---
-                 std::vector<float> query_point_vec(NN_DIMS); // Expected 13 features
+                 std::vector<float> query_point_vec(NN_DIMS); // Expected 17 features
                  int query_idx = 0;
 
                  // Generic sensor data (first 9 features)
@@ -528,16 +538,22 @@ class TestMapping: public Module
                  if (eulerAngles.size() < 3) { Error("EulerAngles data has insufficient size (<3) for NN query"); continue; }
                  for(int e=0; e<3; ++e) query_point_vec[query_idx++] = eulerAngles(e);
 
-                 // Servo-specific features (next 4 features)
-                 query_point_vec[query_idx++] = position(servo_idx);
-                 query_point_vec[query_idx++] = goal_position(servo_idx) - position(servo_idx); // DistanceToGoal
-                 query_point_vec[query_idx++] = goal_position(servo_idx);
-                 if (transition < starting_positions.rows() && i < starting_positions.cols()) {
-                    query_point_vec[query_idx++] = starting_positions(transition, i);
-                 } else {
-                     Error("Starting position data out of bounds for NN query (t=" + std::to_string(transition) + ", i=" + std::to_string(i) +")");
-                     // Handle missing start position? Maybe use current position or 0? Using 0 for now.
-                     query_point_vec[query_idx++] = 0.0f;
+                 // For each servo in current_controlled_servos, add its features
+                 for (int i = 0; i < current_controlled_servos.size(); ++i) {
+                     int servo_idx = current_controlled_servos(i);
+                     
+                     // Add servo-specific features (4 per servo)
+                     query_point_vec[query_idx++] = position(servo_idx); // Position
+                     query_point_vec[query_idx++] = goal_position(servo_idx) - position(servo_idx); // DistToGoal
+                     query_point_vec[query_idx++] = goal_position(servo_idx); // GoalPosition
+                     
+                     // Add starting position if available
+                     if (transition < starting_positions.rows() && i < starting_positions.cols()) {
+                         query_point_vec[query_idx++] = starting_positions(transition, i); // StartPosition
+                     } else {
+                         Error("Starting position data out of bounds for NN query (t=" + std::to_string(transition) + ", i=" + std::to_string(i) + ")");
+                         query_point_vec[query_idx++] = 0.0f;
+                     }
                  }
                  // --- End query vector construction ---
 
@@ -575,7 +591,7 @@ class TestMapping: public Module
         std::string directory = __FILE__;
         // Get directory path just like you already do
         directory = directory.substr(0, directory.find_last_of("/"));
-        std::string envPath = directory + "/.tensorflow_venv/bin/python3";
+        std::string envPath = directory + "/tensorflow_venv/bin/python3";
         std::string pythonPath = directory + "/ANN_prediction.py";
 
         child_pid = fork();
@@ -614,7 +630,7 @@ class TestMapping: public Module
         Bind(robotType, "RobotType");
         Bind(prediction_model, "CurrentPrediction");
         Bind(current_increment_parameter, "CurrentIncrement");
-
+        Bind(log_deviance_data, "DevianceLogging");
         current_increment = current_increment_parameter.as_int();
 
         std::string scriptPath = __FILE__;
@@ -773,9 +789,10 @@ class TestMapping: public Module
             std::string tilt_data_path = dataBasePath + "tilt_filtered_data_raw.csv";
             Debug("Loading Tilt NN data from: " + tilt_data_path);
             std::vector<std::string> tilt_feature_labels = {
-                 "GyroX", "GyroY", "GyroZ", "AccelX", "AccelY", "AccelZ",
-                 "AngleX", "AngleY", "AngleZ", "TiltPosition", "TiltDistToGoal",
-                 "TiltGoalPosition", "TiltStartPosition"
+                "GyroX", "GyroY", "GyroZ", "AccelX", "AccelY", "AccelZ",
+                "AngleX", "AngleY", "AngleZ", 
+                "TiltPosition", "TiltDistToGoal", "TiltGoalPosition", "TiltStartPosition",
+                "PanPosition", "PanDistToGoal", "PanGoalPosition", "PanStartPosition"  // Added pan features
             };
             std::string tilt_target_label = "TiltCurrent";
 
@@ -799,8 +816,9 @@ class TestMapping: public Module
              Debug("Loading Pan NN data from: " + pan_data_path);
               std::vector<std::string> pan_feature_labels = {
                   "GyroX", "GyroY", "GyroZ", "AccelX", "AccelY", "AccelZ",
-                  "AngleX", "AngleY", "AngleZ", "PanPosition", "PanDistToGoal",
-                  "PanGoalPosition", "PanStartPosition"
+                  "AngleX", "AngleY", "AngleZ",
+                  "TiltPosition", "TiltDistToGoal", "TiltGoalPosition", "TiltStartPosition",  // Added tilt features
+                  "PanPosition", "PanDistToGoal", "PanGoalPosition", "PanStartPosition"
              };
               std::string pan_target_label = "PanCurrent";
 
@@ -837,7 +855,52 @@ class TestMapping: public Module
         starting_positions = matrix( number_transitions, current_controlled_servos.size());
         starting_positions.set(0);
 
-       
+        // <<< EDIT 2: Initialize deviance logging if enabled >>>
+
+        if (log_deviance_data) {
+            try {
+                std::string scriptPath = __FILE__;
+                std::string scriptDirectory = scriptPath.substr(0, scriptPath.find_last_of("/\\"));
+                std::string resultsDir = scriptDirectory + "/results/deviance_logs/" + std::string(prediction_model);
+
+                // Create directory if it doesn't exist
+                if (!std::filesystem::exists(resultsDir)) {
+                    if (!std::filesystem::create_directories(resultsDir)) {
+                         Error("Failed to create results directory: " + resultsDir);
+                         log_deviance_data = false; // Disable logging if directory fails
+                    }
+                }
+
+                if (log_deviance_data) {
+                    // Get current time for unique filename
+                     auto now = std::chrono::system_clock::now();
+                     auto now_c = std::chrono::system_clock::to_time_t(now);
+                     std::stringstream ss_time;
+                     ss_time << std::put_time(std::localtime(&now_c), "%Y%m%d_%H%M%S");
+                     std::string time_stamp_str = ss_time.str();
+
+                    std::string filepath = resultsDir + "/deviance_log_" + time_stamp_str + "_" + std::to_string(unique_id) + ".json";
+
+                    deviance_log_file.open(filepath, std::ios::out | std::ios::trunc);
+                    if (!deviance_log_file.is_open()) {
+                        Error("Failed to open deviance log file: " + filepath);
+                        log_deviance_data = false; // Disable logging on failure
+                    } else {
+                        Debug("Opened deviance log file: " + filepath);
+                        // Start the JSON structure
+                        deviance_log_stream << "{\n  \"deviance_data\": [\n";
+                        is_first_deviance_log_entry = true; // Reset comma flag
+                    }
+                }
+            } catch (const std::exception& e) {
+                Error("Exception during deviance log initialization: " + std::string(e.what()));
+                log_deviance_data = false;
+                 if (deviance_log_file.is_open()) {
+                    deviance_log_file.close();
+                 }
+            }
+        }
+        // <<< END EDIT 2 >>>
     }
 
     
@@ -1043,21 +1106,25 @@ class TestMapping: public Module
                 if (!timeout) {
                     // Use ANN output directly as goal current if using ANN model
                     if (std::string(prediction_model) == "ANN") {
-                        // Check if the servo is approximating the goal
-                        if (approximating_goal(servo_idx) == 1) {
-                            // Use regular current from model_prediction matrix
-                            goal_current(servo_idx) = std::min<float>(model_prediction[servo_idx], (float)current_limit);
-                            
-                            // Add debug to verify the correct current is being used
-                            Debug("Using regular current for " + std::string(servo_names[servo_idx]) + 
-                                  ": " + std::to_string(model_prediction[servo_idx]));
-                        } else {
+
+                        // Check if the servo is still close to its starting position for this transition
+                        float start_pos = starting_positions(transition, i);
+                        float current_pos = present_position(servo_idx);
+                        
+                        if (abs(current_pos - start_pos) <= position_margin) {
                             // Use starting current from model_prediction_start matrix
                             goal_current(servo_idx) = std::min<float>(model_prediction_start[servo_idx], (float)current_limit);
                             
                             // Add debug to verify the correct current is being used
-                            Debug("Using starting current for " + std::string(servo_names[servo_idx]) + 
+                            Debug("Using STARTING current (close to start pos) for " + std::string(servo_names[servo_idx]) + 
                                   ": " + std::to_string(model_prediction_start[servo_idx]));
+                        } else {
+                            // Use regular current from model_prediction matrix
+                            goal_current(servo_idx) = std::min<float>(model_prediction[servo_idx], (float)current_limit);
+                            
+                            // Add debug to verify the correct current is being used
+                            Debug("Using REGULAR current (moved from start pos) for " + std::string(servo_names[servo_idx]) + 
+                                  ": " + std::to_string(model_prediction[servo_idx]));
                         }
                     } else {
                         // For other models, use the existing prediction method
@@ -1087,8 +1154,8 @@ class TestMapping: public Module
                         float total_distance = abs(goal_pos - start_pos);
                         float traveled_distance = abs(current_pos - start_pos);
                         
-                        // Check if we've traveled at least 10% of the distance to goal
-                        if (total_distance > 0 && traveled_distance >= 0.1 * total_distance) {
+                        // Check if we've traveled at least 1% of the distance to goal
+                        if (total_distance > 0 && traveled_distance >= 0.01 * total_distance) {
                             // Calculate prediction error (absolute difference between predicted and actual current)
                             float predicted = predicted_goal_current(transition, i);
                             float actual = present_current(servo_idx);
@@ -1103,6 +1170,10 @@ class TestMapping: public Module
                 
                 
             }
+
+            model_prediction.print();
+            model_prediction_start.print();
+            goal_current.print();
         }
 
         if (GetTick() >= 2 && predicted_goal_current.sum() == 0) {
@@ -1115,6 +1186,13 @@ class TestMapping: public Module
                 predicted_goal_current(transition, i) = all_predicted(servo_idx);
             }
         }
+
+        // <<< EDIT 4: Call LogDevianceData if enabled >>>
+        // Log data *before* potentially changing state in this tick (like transition increment)
+        if (log_deviance_data && GetTick() > 2) { // Start logging after initial ticks
+             LogDevianceData();
+        }
+        // <<< END EDIT 4 >>>
     }
 
     void SaveCurrentData()
@@ -1277,12 +1355,35 @@ class TestMapping: public Module
             // As a fallback, kill any lingering processes
             system("lsof -ti:8000 | xargs kill -9 2>/dev/null || true");
         }
+
+        // <<< EDIT 5: Finalize and close deviance log file >>>
+        if (log_deviance_data && deviance_log_file.is_open()) {
+            // Write any remaining data from the buffer
+            if (deviance_log_tick_counter > 0 || !deviance_log_stream.str().empty()) {
+                 deviance_log_file << deviance_log_stream.str();
+                 deviance_log_stream.str(""); // Clear buffer after writing
+                 deviance_log_stream.clear();
+            }
+            // Close the JSON array and root object
+            deviance_log_stream << "\n  ]\n}\n";
+            deviance_log_file << deviance_log_stream.str(); // Write final closing brackets
+
+            deviance_log_file.close();
+            Debug("Closed deviance log file.");
+        }
+        // <<< END EDIT 5 >>>
     }
 
-    // <<< EDIT 2: Add helper function signatures >>>
+    // <<< EDIT 6: Add function signature >>>
+    void LogDevianceData();
+    // <<< END EDIT 6 >>>
+
+    // <<< EDIT 3: Implement helper functions >>>
+    // Helper function to load CSV data and populate the PointCloud structure
+    // Returns true on success, false on failure.
     bool LoadCSVData(const std::string& filepath, const std::vector<std::string>& feature_labels, const std::string& target_label, PointCloud& point_cloud_out);
     double FindNearestNeighborCurrent(const std::vector<float>& query_point, const std::unique_ptr<my_kd_tree_t>& index_ptr, const PointCloud& point_cloud);
-    // <<< END EDIT 2 >>>
+    // <<< END EDIT 3 >>>
 };
 
 // <<< EDIT 3: Implement helper functions >>>
@@ -1485,6 +1586,61 @@ double TestMapping::FindNearestNeighborCurrent(
     }
 }
 // <<< END EDIT 3 >>>
+
+// <<< EDIT 6: Add function implementation >>>
+void TestMapping::LogDevianceData() {
+    if (!log_deviance_data || !deviance_log_file.is_open()) {
+        return; // Logging not enabled or file not open
+    }
+
+    // Add comma before adding a new object, except for the first one
+    if (!is_first_deviance_log_entry) {
+        deviance_log_stream << ",\n";
+    } else {
+        is_first_deviance_log_entry = false;
+    }
+
+    // Use stringstream for efficient JSON object creation
+    deviance_log_stream << "    {\n";
+    deviance_log_stream << "      \"tick\": " << GetTick() << ",\n";
+    deviance_log_stream << "      \"time\": " << std::fixed << std::setprecision(4) << GetNominalTime() << ",\n"; // Use nominal time for consistency
+    deviance_log_stream << "      \"transition\": " << transition << ",\n";
+
+    // Helper lambda to serialize only the controlled servo elements of a matrix to a JSON array string
+    auto serialize_controlled_servos = [this](const matrix& m) -> std::string {
+        std::stringstream ss;
+        ss << "[";
+        bool first = true;
+        for (int i = 0; i < current_controlled_servos.size(); ++i) {
+            int servo_index = current_controlled_servos[i];
+            if (servo_index < m.size()) {
+                if (!first) ss << ", ";
+                ss << std::fixed << std::setprecision(4) << m(servo_index);
+                first = false;
+            }
+        }
+        ss << "]";
+        return ss.str();
+    };
+
+    deviance_log_stream << "      \"present_position\": " << serialize_controlled_servos(present_position) << ",\n";
+    deviance_log_stream << "      \"goal_position\": " << serialize_controlled_servos(goal_position_out) << ",\n";
+    deviance_log_stream << "      \"present_current\": " << serialize_controlled_servos(present_current) << ",\n";
+    deviance_log_stream << "      \"model_prediction\": " << serialize_controlled_servos(model_prediction) << "\n"; // Last element, no comma
+    deviance_log_stream << "    }"; // Close the JSON object
+
+    // Increment counter and check if it's time to flush
+    deviance_log_tick_counter++;
+    if (deviance_log_tick_counter >= DEVIANCE_LOG_FLUSH_INTERVAL) {
+        deviance_log_file << deviance_log_stream.str(); // Write buffer to file
+        deviance_log_stream.str(""); // Clear the stringstream buffer
+        deviance_log_stream.clear(); // Clear potential error states
+        deviance_log_tick_counter = 0; // Reset counter
+         // Optional: Flush the OS buffer to disk immediately (can impact performance)
+         // deviance_log_file.flush();
+    }
+}
+// <<< END EDIT 6 >>>
 
 INSTALL_CLASS(TestMapping)
 
