@@ -117,7 +117,7 @@ class TestMapping: public Module
     int position_margin = 3;
     int transition = 0;
     int starting_current = 30;
-    int current_limit = 1700;
+    int current_limit = 2000;
     bool find_minimum_torque_current = false;
     int current_increment;
   
@@ -175,20 +175,14 @@ class TestMapping: public Module
     std::unique_ptr<my_kd_tree_t> nn_tilt_index;
     std::unique_ptr<my_kd_tree_t> nn_pan_index;
 
-    // We no longer need separate nn_tilt_data/nn_pan_data matrices or feature index vectors,
-    // as this info is managed within PointCloud and the k-d tree structure.
-    // int nn_tilt_current_col_idx = -1; // No longer needed directly
-    // int nn_pan_current_col_idx = -1;  // No longer needed directly
-    // std::vector<int> nn_tilt_feature_indices; // No longer needed
-    // std::vector<int> nn_pan_feature_indices;  // No longer needed
-     // --- End Nearest Neighbor data ---
+ 
 
     // <<< EDIT 1: Add members for deviance logging >>>
     std::ofstream deviance_log_file;       // File stream for logging
     std::stringstream deviance_log_stream; // Stringstream buffer for JSON content
      // Flag to enable logging logic
     int deviance_log_tick_counter = 0;     // Counter for periodic flushing
-    const int DEVIANCE_LOG_FLUSH_INTERVAL = 100; // How often to flush (ticks)
+    const int DEVIANCE_LOG_FLUSH_INTERVAL = 2; // How often to flush (ticks)
     bool is_first_deviance_log_entry = true; // To handle commas in JSON array
     // <<< END EDIT 1 >>>
 
@@ -370,21 +364,67 @@ class TestMapping: public Module
     matrix CreateCoefficientsMatrix(dictionary coefficients, matrix current_controlled_servos, std::string model, std::vector<std::string> servo_names){
         // mapping that defines number of coefficients for each model
         //  Mapping that defines number of coefficients for each model
-        std::map<std::string, int> model_coefficients = {{"Linear", 5}, {"Quadratic", 7}};
-        int num_coefficients = model_coefficients[model];
+        // std::map<std::string, int> model_coefficients = {{"Linear", 5}, {"Quadratic", 7}}; // Removed hardcoded map
+        // int num_coefficients = model_coefficients[model]; // Removed hardcoded size determination
 
-        // Initialize matrix with coefficients for each servo
+        // Determine the number of coefficients dynamically from the first servo
+        if (current_controlled_servos.size() == 0) {
+            Error("current_controlled_servos is empty. Cannot determine coefficient matrix size.");
+            return matrix(); // Return empty matrix
+        }
+
+        std::string first_servo_name_base = servo_names[current_controlled_servos(0)];
+        //remove Neck from the servo name
+        if (first_servo_name_base.find("Neck") != std::string::npos)
+        {
+            first_servo_name_base = first_servo_name_base.substr(4);
+        }
+
+        dictionary first_servo_coeffs;
+        try {
+            first_servo_coeffs = coefficients[model][first_servo_name_base];
+        } catch (const std::exception& e) {
+             Error("Could not find coefficients for model '" + model + "' and base servo '" + first_servo_name_base + "': " + e.what());
+             return matrix(); // Return empty matrix
+        }
+
+
+        int num_coefficients = 0;
+        for (auto& coeff : first_servo_coeffs) {
+            if (coeff.first != "sigma") {
+                num_coefficients++;
+            }
+        }
+
+        if (num_coefficients == 0) {
+            Error("No non-sigma coefficients found for model '" + model + "' and servo '" + first_servo_name_base + "'. Cannot create matrix.");
+            return matrix(); // Return empty matrix
+        }
+
+
+        // Initialize matrix with coefficients for each servo using dynamic size
         matrix coefficients_matrix(current_controlled_servos.size(), num_coefficients);
         
         // Iterate through each servo
         for (int i = 0; i < current_controlled_servos.size(); i++)
         {
             std::string servo_name = servo_names[current_controlled_servos(i)];
-
+            //remove Neck from the servo name
+            if (servo_name.find("Neck") != std::string::npos)
+            {
+                servo_name = servo_name.substr(4);
+            }
             
 
             // Get the coefficients dictionary for this servo
-            dictionary servo_coeffs = coefficients[model][servo_name];
+            dictionary servo_coeffs;
+             try {
+                servo_coeffs = coefficients[model][servo_name];
+             } catch (const std::exception& e) {
+                 Warning("Could not find coefficients for model '" + model + "' and servo '" + servo_name + "': " + e.what() + ". Skipping this servo.");
+                 continue; // Skip to the next servo if coefficients are missing
+             }
+
 
             // Skip "sigma" if it exists and iterate over the coefficient values
             int coeff_idx = 0;
@@ -392,12 +432,21 @@ class TestMapping: public Module
             {
                 if (coeff.first != "sigma")
                 { // Skip sigma parameter
-                    coefficients_matrix(i, coeff_idx) = (coeff.second).as_float();
-                    if (i == 0)
-                        coefficients_matrix.push_label(1, coeff.first);
+                    // Ensure we don't write out of bounds if a servo has fewer coefficients than the first one
+                    if (coeff_idx < num_coefficients) {
+                        coefficients_matrix(i, coeff_idx) = (coeff.second).as_float();
+                        if (i == 0) // Add labels only based on the first servo's coefficients
+                            coefficients_matrix.push_label(1, coeff.first);
+                    } else {
+                         Warning("Servo '" + servo_name + "' has more coefficients than expected based on first servo '" + first_servo_name_base + "'. Ignoring extra coefficient: " + coeff.first);
+                    }
                     coeff_idx++;
                 }
             }
+             // Check if this servo had fewer coefficients than expected
+             if (coeff_idx < num_coefficients) {
+                 Warning("Servo '" + servo_name + "' has fewer coefficients (" + std::to_string(coeff_idx) + ") than expected (" + std::to_string(num_coefficients) + "). Remaining coefficients in row " + std::to_string(i) + " will be uninitialized (likely 0).");
+             }
         }
         coefficients_matrix.set_name("CoefficientMatrix");
        
@@ -405,7 +454,10 @@ class TestMapping: public Module
         return coefficients_matrix;
     }
 
-    matrix SetGoalCurrent(matrix present_current, int increment, int limit, matrix position, matrix goal_position, int margin, matrix coefficients, std::string model_name, matrix model_prediction)
+    matrix SetGoalCurrent(matrix present_current, int increment, int limit, 
+                         matrix position, matrix goal_position, int margin, 
+                         matrix coefficient_matrix, const dictionary& current_coefficients, // Added dictionary param
+                         std::string model_name, matrix model_prediction)
     {
         matrix current_output(present_current.size());
         current_output.set(0);
@@ -425,6 +477,31 @@ class TestMapping: public Module
             return current_output; // Or handle differently
         }
 
+        // Map to store column indices for coefficient names
+        std::map<std::string, int> coeff_indices;
+        bool indices_found = false;
+
+        // Find column indices by label if we're using Linear or Quadratic models
+        if ((model_name == "Linear" || model_name == "Quadratic") && coefficient_matrix.size_y() > 0) {
+            // Get column labels
+            auto labels = coefficient_matrix.labels(1);
+            if (labels.size() > 0) {
+                // Populate the map with label->index pairs
+                for (size_t i = 0; i < labels.size(); i++) {
+                    coeff_indices[labels[i]] = i;
+                }
+                indices_found = true;
+                
+                // Debug output to verify labels were found
+                std::string found_labels = "Found coefficient labels: ";
+                for (const auto& pair : coeff_indices) {
+                    found_labels += pair.first + "=" + std::to_string(pair.second) + " ";
+                }
+                Debug(found_labels);
+            } else {
+                Error("No column labels found in coefficient matrix. Cannot identify coefficients.");
+            }
+        }
 
         // Only process servos that are current-controlled
         for (int i = 0; i < current_controlled_servos.size(); i++)
@@ -448,53 +525,111 @@ class TestMapping: public Module
                 // This function *might* not be the right place to set ANN current directly,
                 // but we use the value already stored in model_prediction by the Tick logic.
                  estimated_current = model_prediction[servo_idx]; // Assuming Tick already populated this
-
             }
             else if (model_name == "Linear" || model_name == "Quadratic")
             {
-
-                // Get standardization parameters
-                 // Ensure coefficient matrix is valid
-                 if (coefficients.rows() <= i || coefficients.cols() < 7) {
-                     Error("Coefficient matrix invalid for servo index " + std::to_string(i));
-                     continue; // Skip this servo
-                 }
-                double current_mean = coefficients(i, 0); // Assuming column 0 is CurrentMean
-                double current_std = coefficients(i, 1);  // Assuming column 1 is CurrentStd
-
-                // Check for zero standard deviation
-                if (current_std == 0) {
-                     Warning("Current standard deviation is zero for servo index " + std::to_string(i) + ". Using mean as estimate.");
-                     estimated_current = current_mean;
-                 } else {
-                     // Calculate standardized inputs
-                    double distance_to_goal = goal_position(servo_idx) - position(servo_idx);
-                     // Note: The standardization in the original code used current_mean/std for position and distance.
-                     // This might be incorrect. Usually, you'd use position_mean/std and distance_mean/std.
-                     // Replicating original logic here, but it might need review based on how coefficients were trained.
-                    double std_position = (position(servo_idx) - current_mean) / current_std;
-                    double std_distance = (distance_to_goal - current_mean) / current_std;
-
-
-                    // Calculate linear terms (indices based on CreateCoefficientsMatrix)
-                    estimated_current = coefficients(i, 6) + // intercept (index 6)
-                                        coefficients(i, 2) * std_distance + // betas_linear[DistanceToGoal] (index 2)
-                                        coefficients(i, 3) * std_position;  // betas_linear[Position] (index 3)
-
-
-                    // Add quadratic terms if applicable
-                    if (model_name == "Quadratic")
-                    {
-                        // betas_quad[DistanceToGoal_squared] (index 4), betas_quad[Position_squared] (index 5)
-                        estimated_current += coefficients(i, 4) * std::pow(std_distance, 2) +
-                                             coefficients(i, 5) * std::pow(std_position, 2);
+                // Check if indices were successfully found earlier
+                if (!indices_found) {
+                    // Fallback to order-based access if no labels were found
+                    Warning("No coefficient labels found, using fallback order-based access method");
+                    
+                    // Ensure coefficient matrix row is valid
+                    if (coefficient_matrix.rows() <= i || coefficient_matrix.cols() < 7) {
+                        Error("Coefficient matrix invalid for servo index " + std::to_string(i));
+                        continue; // Skip this servo
                     }
+                    
+                    // Use the manually provided fixed positions (from original function)
+                    double current_mean = coefficient_matrix(i, 0); // Assuming column 0 is CurrentMean
+                    double current_std = coefficient_matrix(i, 1);  // Assuming column 1 is CurrentStd
+                    double position_mean = coefficient_matrix(i, 2); // Assuming column 2 is PositionMean
+                    double position_std = coefficient_matrix(i, 3); // Assuming column 3 is PositionStd
+                    double distance_mean = coefficient_matrix(i, 4); // Assuming column 4 is DistanceMean
+                    double distance_std = coefficient_matrix(i, 5); // Assuming column 5 is DistanceStd
+                    
+                    // Check for zero standard deviation
+                    if (current_std == 0) {
+                        Warning("Current standard deviation is zero for servo index " + std::to_string(i) + ". Using mean as estimate.");
+                        estimated_current = current_mean;
+                    } else {
+                        // Calculate standardized inputs
+                        double distance_to_goal = goal_position(servo_idx) - position(servo_idx);
+                        
+                        // Prevent division by zero
+                        double std_position = (position_std != 0) ? (position(servo_idx) - position_mean) / position_std : 0.0;
+                        double std_distance = (distance_std != 0) ? (distance_to_goal - distance_mean) / distance_std : 0.0;
+                        
+                        // Calculate linear terms
+                        estimated_current = coefficient_matrix(i, 6) + // intercept (index 6)
+                                            coefficient_matrix(i, 2) * std_distance + // betas_linear[DistanceToGoal] (index 2)
+                                            coefficient_matrix(i, 3) * std_position;  // betas_linear[Position] (index 3)
+                        
+                        // Add quadratic terms if applicable
+                        if (model_name == "Quadratic") {
+                            estimated_current += coefficient_matrix(i, 4) * std::pow(std_distance, 2) + // quad distance (index 4)
+                                                coefficient_matrix(i, 5) * std::pow(std_position, 2);  // quad position (index 5)
+                        }
+                        
+                        // Unstandardize the result
+                        estimated_current = estimated_current * current_std + current_mean;
+                    }
+                } else {
+                    // Use the dynamically found indices from coefficient labels
+                    // Check that all required indices exist
+                    if (!coeff_indices.count("CurrentMean") || !coeff_indices.count("CurrentStd") ||
+                        !coeff_indices.count("PositionMean") || !coeff_indices.count("PositionStd") ||
+                        !coeff_indices.count("DistanceMean") || !coeff_indices.count("DistanceStd") ||
+                        !coeff_indices.count("intercept") || !coeff_indices.count("betas_linear[DistanceToGoal]") ||
+                        !coeff_indices.count("betas_linear[Position]")) {
+                        
+                        Error("Missing required coefficient labels for Linear model. Check coefficient matrix.");
+                        continue; // Skip this servo
+                    }
+                    
+                    // Additional check for Quadratic model
+                    if (model_name == "Quadratic" && 
+                        (!coeff_indices.count("betas_quad[DistanceToGoal_squared]") || 
+                         !coeff_indices.count("betas_quad[Position_squared]"))) {
+                        
+                        Error("Missing required quadratic coefficient labels. Check coefficient matrix.");
+                        continue; // Skip this servo
+                    }
+                    
+                    // Access coefficients using the map
+                    double current_mean = coefficient_matrix(i, coeff_indices["CurrentMean"]);
+                    double current_std = coefficient_matrix(i, coeff_indices["CurrentStd"]);
+                    double position_mean = coefficient_matrix(i, coeff_indices["PositionMean"]);
+                    double position_std = coefficient_matrix(i, coeff_indices["PositionStd"]);
+                    double distance_mean = coefficient_matrix(i, coeff_indices["DistanceMean"]);
+                    double distance_std = coefficient_matrix(i, coeff_indices["DistanceStd"]);
 
+                    // Check for zero standard deviation for current (critical)
+                    if (current_std == 0) {
+                        Warning("Current standard deviation is zero for servo index " + std::to_string(i) + ". Using mean as estimate.");
+                        estimated_current = current_mean;
+                    } else {
+                        // Calculate standardized inputs
+                        double distance_to_goal = goal_position(servo_idx) - position(servo_idx);
 
-                    // Unstandardize the result
-                    estimated_current = estimated_current * current_std + current_mean;
+                        // Handle potential division by zero if std devs are zero
+                        double std_position = (position_std != 0) ? (position(servo_idx) - position_mean) / position_std : 0.0;
+                        double std_distance = (distance_std != 0) ? (distance_to_goal - distance_mean) / distance_std : 0.0;
+
+                        // Calculate linear terms using dynamically found indices
+                        estimated_current = coefficient_matrix(i, coeff_indices["intercept"]) +
+                                            coefficient_matrix(i, coeff_indices["betas_linear[DistanceToGoal]"]) * std_distance +
+                                            coefficient_matrix(i, coeff_indices["betas_linear[Position]"]) * std_position;
+
+                        // Add quadratic terms if applicable, using dynamically found indices
+                        if (model_name == "Quadratic") {
+                            estimated_current += coefficient_matrix(i, coeff_indices["betas_quad[DistanceToGoal_squared]"]) * std::pow(std_distance, 2) +
+                                                coefficient_matrix(i, coeff_indices["betas_quad[Position_squared]"]) * std::pow(std_position, 2);
+                        }
+
+                        // Unstandardize the result
+                        estimated_current = estimated_current * current_std + current_mean;
+                    }
                 }
-
             }
             // <<< EDIT 7: Add NearestNeighbor logic >>>
             else if (model_name == "NearestNeighbor") {
@@ -580,7 +715,7 @@ class TestMapping: public Module
 
              // Store the *raw* model prediction before limiting for analysis later (if needed)
              // Overwrite the value in model_prediction which might have been set by ANN logic
-             model_prediction(servo_idx) = std::abs(estimated_current);
+             model_prediction(servo_idx) = estimated_current;
         }
 
         return current_output;
@@ -591,7 +726,7 @@ class TestMapping: public Module
         std::string directory = __FILE__;
         // Get directory path just like you already do
         directory = directory.substr(0, directory.find_last_of("/"));
-        std::string envPath = directory + "/tensorflow_venv/bin/python3";
+        std::string envPath = directory + "/.tensorflow_venv/bin/python3";
         std::string pythonPath = directory + "/ANN_prediction.py";
 
         child_pid = fork();
@@ -600,8 +735,10 @@ class TestMapping: public Module
              return;
         }
         if (child_pid == 0) {
-             // Child process: replace the current process image with the Python script.
-             execl(envPath.c_str(), "python", pythonPath.c_str(), (char *)nullptr);
+             // Child process
+             Debug("StartPythonProcess (Child): Attempting to execl...");
+             // This line fails because envPath is wrong!
+             execl(envPath.c_str(), envPath.c_str(), pythonPath.c_str(), (char *)nullptr);
              // If exec returns, then an error occurred.
              Error("execl failed: " + std::string(strerror(errno)));
              exit(1);
@@ -635,12 +772,7 @@ class TestMapping: public Module
 
         std::string scriptPath = __FILE__;
         
-        //go up in the directory to get to the folder containing the coefficients.json file
-        std::string coefficientsPath = scriptPath.substr(0, scriptPath.find_last_of("/"));
-        coefficientsPath = coefficientsPath.substr(0, coefficientsPath.find_last_of("/"));
-        coefficientsPath = coefficientsPath + "/CurrentPositionMapping/models/coefficients.json";
-        current_coefficients.load_json(coefficientsPath);
-
+       
         
 
         number_transitions = num_transitions.as_int()+1; // Add one to the number of transitions to include the ending position
@@ -689,8 +821,20 @@ class TestMapping: public Module
         else{
             Error("Robot type not recognized");
         }
-        coeffcient_matrix = CreateCoefficientsMatrix(current_coefficients, current_controlled_servos, prediction_model.as_string(), servo_names);
+        
+        if (prediction_model.as_string() == "Linear" || prediction_model.as_string() == "Quadratic") {
+        // go up in the directory to get to the folder containing the coefficients.json file
+        std::string coefficientsPath = scriptPath.substr(0, scriptPath.find_last_of("/"));
+        coefficientsPath = coefficientsPath.substr(0, coefficientsPath.find_last_of("/"));
+        coefficientsPath = coefficientsPath + "/CurrentPositionMapping/models/coefficients.json";
+            current_coefficients.load_json(coefficientsPath);
+
+            coeffcient_matrix = CreateCoefficientsMatrix(current_coefficients, current_controlled_servos, prediction_model.as_string(), servo_names);
+            coeffcient_matrix.print();
+        }
+        
         reached_goal.set_name("ReachedGoal");
+        
 
         overshot_goal.set_name("OvershotGoal");
         unique_id = GenerateRandomNumber(0, 1000000);
@@ -769,6 +913,7 @@ class TestMapping: public Module
 
             // Start Python process
             StartPythonProcess();
+            Sleep(5); // Wait for the Python process to start
         }
         else if (std::string(prediction_model) == "NearestNeighbor") {
             Debug("NearestNeighbor model selected. Loading CSV data and building k-d trees.");
@@ -786,7 +931,7 @@ class TestMapping: public Module
             bool pan_load_success = false;
 
             // --- Load Data and Build Index for Tilt ---
-            std::string tilt_data_path = dataBasePath + "tilt_filtered_data_raw.csv";
+            std::string tilt_data_path = dataBasePath + "tilt_filtered_data_new_raw.csv";
             Debug("Loading Tilt NN data from: " + tilt_data_path);
             std::vector<std::string> tilt_feature_labels = {
                 "GyroX", "GyroY", "GyroZ", "AccelX", "AccelY", "AccelZ",
@@ -812,7 +957,7 @@ class TestMapping: public Module
 
 
              // --- Load Data and Build Index for Pan ---
-             std::string pan_data_path = dataBasePath + "pan_filtered_data_raw.csv";
+             std::string pan_data_path = dataBasePath + "pan_filtered_data_new_raw.csv";
              Debug("Loading Pan NN data from: " + pan_data_path);
               std::vector<std::string> pan_feature_labels = {
                   "GyroX", "GyroY", "GyroZ", "AccelX", "AccelY", "AccelZ",
@@ -876,7 +1021,7 @@ class TestMapping: public Module
                      auto now = std::chrono::system_clock::now();
                      auto now_c = std::chrono::system_clock::to_time_t(now);
                      std::stringstream ss_time;
-                     ss_time << std::put_time(std::localtime(&now_c), "%Y%m%d_%H%M%S");
+                     ss_time << std::put_time(std::localtime(&now_c), "%Y%m%d_%H%M");
                      std::string time_stamp_str = ss_time.str();
 
                     std::string filepath = resultsDir + "/deviance_log_" + time_stamp_str + "_" + std::to_string(unique_id) + ".json";
@@ -958,7 +1103,9 @@ class TestMapping: public Module
                     reached_goal(servo_idx) = 0;
                     approximating_goal(servo_idx) = 0;
                 }
-
+                if (log_deviance_data) {
+                    Sleep(0.5);
+                }
                 goal_position_out.copy(position_transitions[transition]);
                 goal_current.copy(present_current);
 
@@ -966,7 +1113,7 @@ class TestMapping: public Module
                 // Only do this once per transition
                 matrix all_predicted = SetGoalCurrent(present_current, current_increment, current_limit,
                                                       present_position, goal_position_out, position_margin,
-                                                      coeffcient_matrix, std::string(prediction_model), model_prediction);
+                                                      coeffcient_matrix, current_coefficients, std::string(prediction_model), model_prediction);
                 for (int i = 0; i < current_controlled_servos.size(); i++) {
                     int servo_idx = current_controlled_servos(i);
                     predicted_goal_current(transition, i) = all_predicted(servo_idx);
@@ -1073,8 +1220,8 @@ class TestMapping: public Module
                         int start_offset = regular_offset + 1;
                         
                         // Update predictions
-                        model_prediction[servo_idx] = abs(shared_data->data[regular_offset]);
-                        model_prediction_start[servo_idx] = abs(shared_data->data[start_offset]);
+                        model_prediction[servo_idx] = shared_data->data[regular_offset];
+                        model_prediction_start[servo_idx] = shared_data->data[start_offset];
                         
                         // Build debug message
                         if (i > 0) debug_msg += ", ";
@@ -1113,14 +1260,14 @@ class TestMapping: public Module
                         
                         if (abs(current_pos - start_pos) <= position_margin) {
                             // Use starting current from model_prediction_start matrix
-                            goal_current(servo_idx) = std::min<float>(model_prediction_start[servo_idx], (float)current_limit);
+                            goal_current(servo_idx) = std::min<float>(abs(model_prediction_start[servo_idx]), (float)current_limit);
                             
                             // Add debug to verify the correct current is being used
                             Debug("Using STARTING current (close to start pos) for " + std::string(servo_names[servo_idx]) + 
                                   ": " + std::to_string(model_prediction_start[servo_idx]));
                         } else {
                             // Use regular current from model_prediction matrix
-                            goal_current(servo_idx) = std::min<float>(model_prediction[servo_idx], (float)current_limit);
+                            goal_current(servo_idx) = std::min<float>(abs(model_prediction[servo_idx]), (float)current_limit);
                             
                             // Add debug to verify the correct current is being used
                             Debug("Using REGULAR current (moved from start pos) for " + std::string(servo_names[servo_idx]) + 
@@ -1130,7 +1277,7 @@ class TestMapping: public Module
                         // For other models, use the existing prediction method
                         goal_current.copy(SetGoalCurrent(present_current, current_increment, current_limit,
                                                    present_position, goal_position_out, position_margin,
-                                                   coeffcient_matrix, std::string(prediction_model), model_prediction));
+                                                   coeffcient_matrix, current_coefficients, std::string(prediction_model), model_prediction));
                     }
                 } else {
                     // Handle timeout case
@@ -1171,26 +1318,26 @@ class TestMapping: public Module
                 
             }
 
-            model_prediction.print();
-            model_prediction_start.print();
-            goal_current.print();
+            
         }
 
         if (GetTick() >= 2 && predicted_goal_current.sum() == 0) {
             matrix all_predicted = SetGoalCurrent(present_current, current_increment, current_limit,
                                                   present_position, goal_position_out, position_margin,
-                                                  coeffcient_matrix, std::string(prediction_model), model_prediction);
+                                                  coeffcient_matrix, current_coefficients, std::string(prediction_model), model_prediction);
             
             for (int i = 0; i < current_controlled_servos.size(); i++) {
                 int servo_idx = current_controlled_servos(i);
                 predicted_goal_current(transition, i) = all_predicted(servo_idx);
             }
         }
-
+        
         // <<< EDIT 4: Call LogDevianceData if enabled >>>
         // Log data *before* potentially changing state in this tick (like transition increment)
         if (log_deviance_data && GetTick() > 2) { // Start logging after initial ticks
-             LogDevianceData();
+            goal_current[0] = 2000;
+            goal_current[1] = 500;
+            LogDevianceData();
         }
         // <<< END EDIT 4 >>>
     }
@@ -1637,7 +1784,7 @@ void TestMapping::LogDevianceData() {
         deviance_log_stream.clear(); // Clear potential error states
         deviance_log_tick_counter = 0; // Reset counter
          // Optional: Flush the OS buffer to disk immediately (can impact performance)
-         // deviance_log_file.flush();
+        deviance_log_file.flush();
     }
 }
 // <<< END EDIT 6 >>>
