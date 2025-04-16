@@ -3,6 +3,9 @@
 	<parameter name="MinLimits" default="114,153 " description="Minimum limits for the servos in degrees" type="matrix" />
 	<parameter name = "MaxLimits" default="237,219" description="Maximum limits for the servos in degrees" type="matrix" />
 	<parameter name="RobotType" default="Torso" description="Type of the robot" options="Torso, FullBody" type="string" control="meny" />
+	<parameter name ="CurrentIncrement" default="2" description="Current increment for the transitions" type="int" />
+	<parameter name ="ConsistencyTest" default="false" description="If true, the module will test the consistency of current for same transition" type="bool" control="checkbox" />
+	<parameter name ="MinimumTorqueCurrentSearch" default="false" description="If true, the module will search for the minimum torque current" type="bool" control="checkbox" />
  
 	<input name="PresentPosition" description=""/>
 	<input name="PresentCurrent" description="" />
@@ -11,6 +14,7 @@
 	<input name="EulerAngles" description="Euler angles (XYZ) degrees" />
 	<output name="GoalPosition" description="" size="PresentPosition.size"/>
 	<output name="GoalCurrent" description="" size="PresentCurrent.size"/>
+	<output name="TorqueEnable" description="Torque enable for the servos" size="PresentCurrent.size"/>
 	<author>
 		<name>Pierre Klintefors</name>
 		<email>Pierre.Klintefors@lucs.lu.se</email>
