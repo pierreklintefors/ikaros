@@ -23,28 +23,47 @@
 #include "nanoflann.hpp" // Adjust path if needed, e.g., "libs/nanoflann.hpp"
 
 using namespace ikaros;
+using json = nlohmann::json; // Alias for convenience
 
 // --- Nanoflann Point Cloud Adaptor ---
 // Structure to hold the NN feature data and target currents
 struct PointCloud
 {
-	// Feature points (inner vector has 13 dimensions)
-	std::vector<std::vector<float>>  pts;
+	// Feature points (inner vector size determined dynamically)
+	std::vector<std::vector<float>>  pts; // Standardized feature data
 	// Corresponding target current values for each point
 	std::vector<float> target_currents;
+    // Feature names loaded from CSV header (excluding target)
+    std::vector<std::string> feature_names;
+    // Number of features (dimensionality)
+    size_t num_features = 0;
+
+    // Normalization data (means and stds for features only)
+    std::vector<float> feature_means;
+    std::vector<float> feature_stds;
+    bool normalization_enabled = true; // Flag if means/stds were loaded
+    // <<< EDIT 8: Add members for target normalization >>>
+    float target_mean = 0.0f;
+    float target_std = 1.0f; // Default to 1 to avoid division by zero if not loaded
+    // <<< END EDIT 8 >>>
+
 
 	// Must return the number of data points
 	inline size_t kdtree_get_point_count() const { return pts.size(); }
 
 	// Returns the dim'th component of the idx'th point in the class:
 	// Since pts[idx] is std::vector<float>, we can just return pts[idx][dim]
+	// Dimensionality is checked externally based on num_features
 	inline float kdtree_get_pt(const size_t idx, const size_t dim) const
 	{
+		// Basic bounds check for safety, though dim should be < num_features
 		if (idx < pts.size() && dim < pts[idx].size()) {
 			return pts[idx][dim];
 		}
 		// Return a default or handle error if index/dim is out of bounds
 		// For simplicity, returning 0. Proper error handling might be needed.
+		// Consider throwing or logging an error here in production.
+		std::cerr << "Out-of-bounds access in kdtree_get_pt: idx=" << idx << ", dim=" << dim << ", point count=" << pts.size() << std::endl;
 		return 0.0f;
 	}
 
@@ -165,11 +184,13 @@ class TestMapping: public Module
     PointCloud nn_pan_point_cloud;
 
     // Define the k-d tree index type using the PointCloud adaptor
+    // <<< EDIT 7: Use dynamic dimensionality (-1) for the k-d tree adaptor >>>
     using my_kd_tree_t = nanoflann::KDTreeSingleIndexAdaptor<
         nanoflann::L2_Simple_Adaptor<float, PointCloud>, // Distance metric (L2 = Euclidean)
         PointCloud,                                    // Dataset adaptor
-        NN_DIMS                                        // Dimensionality
+        -1                                             // Dimensionality (-1 for dynamic)
         >;
+    // <<< END EDIT 7 >>>
 
     // Unique pointers to hold the built k-d tree indices
     std::unique_ptr<my_kd_tree_t> nn_tilt_index;
@@ -633,13 +654,14 @@ class TestMapping: public Module
             }
             // <<< EDIT 7: Add NearestNeighbor logic >>>
             else if (model_name == "NearestNeighbor") {
-                 // Check if indices were built successfully in Init
-                 // Use servo_idx to determine which index/cloud to use
-                 bool index_ready = (servo_idx == 0 && nn_tilt_index) || (servo_idx == 1 && nn_pan_index);
+                 // Check if indices were built successfully in Init and normalization data is available
+                 bool tilt_ready = nn_tilt_index && nn_tilt_point_cloud.normalization_enabled;
+                 bool pan_ready = nn_pan_index && nn_pan_point_cloud.normalization_enabled;
+                 bool index_ready = (servo_idx == 0 && tilt_ready) || (servo_idx == 1 && pan_ready);
 
                  if (!index_ready) {
-                     Error("NN k-d tree index not ready for servo " + std::to_string(servo_idx));
-                     continue; // Skip NN estimation if index isn't built
+                     Error("NN k-d tree index or normalization data not ready for servo " + std::to_string(servo_idx));
+                     continue; // Skip NN estimation if index/data isn't ready
                  }
 
                  // Select the correct index and point cloud based on servo index
@@ -653,53 +675,87 @@ class TestMapping: public Module
                      current_index_ptr = &nn_pan_index;
                      current_point_cloud_ptr = &nn_pan_point_cloud;
                  } else {
-                     // This case should be caught earlier or handled, but for safety:
                       Warning("NearestNeighbor model only implemented for NeckTilt (0) and NeckPan (1). Servo " + std::to_string(servo_idx) + " not handled.");
                       estimated_current = 0;
                       continue;
                  }
 
-                // --- Construct the query vector as std::vector<float> ---
-                 std::vector<float> query_point_vec(NN_DIMS); // Expected 17 features
-                 int query_idx = 0;
+                 // Check if the selected point cloud has features
+                 if (current_point_cloud_ptr->num_features == 0 || current_point_cloud_ptr->feature_names.empty()) {
+                      Error("Selected PointCloud for servo " + std::to_string(servo_idx) + " has no features loaded.");
+                      continue;
+                 }
+                 size_t num_features = current_point_cloud_ptr->num_features;
 
-                 // Generic sensor data (first 9 features)
-                 if (gyro.size() < 3) { Error("Gyro data has insufficient size (<3) for NN query"); continue; }
-                 for(int g=0; g<3; ++g) query_point_vec[query_idx++] = gyro(g);
+                 // --- Construct the *raw* query vector based on feature_names ---
+                 std::vector<float> query_point_raw(num_features);
+                 bool query_build_ok = true;
+                 for (size_t feat_idx = 0; feat_idx < num_features; ++feat_idx) {
+                     const std::string& feature_name = current_point_cloud_ptr->feature_names[feat_idx];
+                     float value = 0.0f; // Default value
 
-                 if (accel.size() < 3) { Error("Accel data has insufficient size (<3) for NN query"); continue; }
-                 for(int a=0; a<3; ++a) query_point_vec[query_idx++] = accel(a);
-
-                 if (eulerAngles.size() < 3) { Error("EulerAngles data has insufficient size (<3) for NN query"); continue; }
-                 for(int e=0; e<3; ++e) query_point_vec[query_idx++] = eulerAngles(e);
-
-                 // For each servo in current_controlled_servos, add its features
-                 for (int i = 0; i < current_controlled_servos.size(); ++i) {
-                     int servo_idx = current_controlled_servos(i);
-                     
-                     // Add servo-specific features (4 per servo)
-                     query_point_vec[query_idx++] = position(servo_idx); // Position
-                     query_point_vec[query_idx++] = goal_position(servo_idx) - position(servo_idx); // DistToGoal
-                     query_point_vec[query_idx++] = goal_position(servo_idx); // GoalPosition
-                     
-                     // Add starting position if available
-                     if (transition < starting_positions.rows() && i < starting_positions.cols()) {
-                         query_point_vec[query_idx++] = starting_positions(transition, i); // StartPosition
-                     } else {
-                         Error("Starting position data out of bounds for NN query (t=" + std::to_string(transition) + ", i=" + std::to_string(i) + ")");
-                         query_point_vec[query_idx++] = 0.0f;
+                     // Assign value based on feature name
+                     // This part requires mapping feature names to the correct Ikaros input matrices
+                     if (feature_name == "GyroX") value = (gyro.size() > 0) ? gyro(0) : 0.0f;
+                     else if (feature_name == "GyroY") value = (gyro.size() > 1) ? gyro(1) : 0.0f;
+                     else if (feature_name == "GyroZ") value = (gyro.size() > 2) ? gyro(2) : 0.0f;
+                     else if (feature_name == "AccelX") value = (accel.size() > 0) ? accel(0) : 0.0f;
+                     else if (feature_name == "AccelY") value = (accel.size() > 1) ? accel(1) : 0.0f;
+                     else if (feature_name == "AccelZ") value = (accel.size() > 2) ? accel(2) : 0.0f;
+                     else if (feature_name == "AngleX") value = (eulerAngles.size() > 0) ? eulerAngles(0) : 0.0f;
+                     else if (feature_name == "AngleY") value = (eulerAngles.size() > 1) ? eulerAngles(1) : 0.0f;
+                     else if (feature_name == "AngleZ") value = (eulerAngles.size() > 2) ? eulerAngles(2) : 0.0f;
+                     // Servo-specific features (handle Tilt and Pan possibilities)
+                     else if (feature_name == "TiltPosition") value = (present_position.size() > 0) ? present_position(0) : 0.0f;
+                     else if (feature_name == "TiltDistToGoal") value = (present_position.size() > 0 && goal_position_out.size() > 0) ? goal_position_out(0) - present_position(0) : 0.0f;
+                     else if (feature_name == "TiltGoalPosition") value = (goal_position_out.size() > 0) ? goal_position_out(0) : 0.0f;
+                     else if (feature_name == "TiltStartPosition") value = (transition < starting_positions.rows() && starting_positions.cols() > 0) ? starting_positions(transition, 0) : 0.0f;
+                     else if (feature_name == "PanPosition") value = (present_position.size() > 1) ? present_position(1) : 0.0f;
+                     else if (feature_name == "PanDistToGoal") value = (present_position.size() > 1 && goal_position_out.size() > 1) ? goal_position_out(1) - present_position(1) : 0.0f;
+                     else if (feature_name == "PanGoalPosition") value = (goal_position_out.size() > 1) ? goal_position_out(1) : 0.0f;
+                     else if (feature_name == "PanStartPosition") value = (transition < starting_positions.rows() && starting_positions.cols() > 1) ? starting_positions(transition, 1) : 0.0f;
+                     // Add more features here if needed...
+                     else {
+                         Warning("Unrecognized feature name encountered during query construction: " + feature_name);
+                         // Keep value = 0.0f or handle differently
+                         query_build_ok = false; // Mark as problematic if unexpected feature
+                         break;
                      }
+                     query_point_raw[feat_idx] = value;
                  }
-                 // --- End query vector construction ---
+                 // --- End raw query vector construction ---
 
-                 if (query_idx != NN_DIMS) {
-                     Error("Internal error: Mismatch building NN query vector size (" + std::to_string(query_idx) +
-                           ") vs expected features (" + std::to_string(NN_DIMS) + ") for servo " + std::to_string(servo_idx));
-                     continue;
+                 if (!query_build_ok) {
+                      Error("Failed to construct NN query vector due to unrecognized feature names.");
+                      continue;
                  }
+
+
+                 // --- Standardize the query vector ---
+                 std::vector<float> query_point_standardized(num_features);
+                 for (size_t feat_idx = 0; feat_idx < num_features; ++feat_idx) {
+                      float mean = current_point_cloud_ptr->feature_means[feat_idx];
+                      float std = current_point_cloud_ptr->feature_stds[feat_idx];
+                      // Avoid division by zero
+                      if (std != 0.0f) {
+                          query_point_standardized[feat_idx] = (query_point_raw[feat_idx] - mean) / std;
+                      } else {
+                           // If std dev is zero, the standardized value should also be zero (as raw must equal mean)
+                           query_point_standardized[feat_idx] = 0.0f;
+                      }
+                 }
+                 // --- End standardization ---
+
 
                  // Perform the nearest neighbor search using the k-d tree
-                 estimated_current = FindNearestNeighborCurrent(query_point_vec, *current_index_ptr, *current_point_cloud_ptr);
+                 // <<< EDIT 5: Call updated FindNearestNeighborCurrent >>>
+                 estimated_current = FindNearestNeighborCurrent(
+                     query_point_standardized, // Pass standardized query
+                     num_features,             // Pass feature count
+                     *current_index_ptr,
+                     *current_point_cloud_ptr
+                 );
+                 // <<< END EDIT 5 >>>
 
             }
             // <<< END EDIT 7 >>>
@@ -931,60 +987,91 @@ class TestMapping: public Module
             bool pan_load_success = false;
 
             // --- Load Data and Build Index for Tilt ---
-            std::string tilt_data_path = dataBasePath + "tilt_filtered_data_new_raw.csv";
-            Debug("Loading Tilt NN data from: " + tilt_data_path);
-            std::vector<std::string> tilt_feature_labels = {
-                "GyroX", "GyroY", "GyroZ", "AccelX", "AccelY", "AccelZ",
-                "AngleX", "AngleY", "AngleZ", 
-                "TiltPosition", "TiltDistToGoal", "TiltGoalPosition", "TiltStartPosition",
-                "PanPosition", "PanDistToGoal", "PanGoalPosition", "PanStartPosition"  // Added pan features
-            };
-            std::string tilt_target_label = "TiltCurrent";
+            // <<< EDIT 2: Use standardized CSV and mean/std JSON paths >>>
+            std::string tilt_data_path = dataBasePath + "tilt_filtered_data_new_standardised.csv";
+            std::string tilt_mean_std_path = dataBasePath + "tilt_filtered_data_new_mean_std.json";
+            // <<< END EDIT 2 >>>
+            Debug("Loading Tilt NN data from: " + tilt_data_path + " (using means/stds from " + tilt_mean_std_path + ")");
 
-            tilt_load_success = LoadCSVData(tilt_data_path, tilt_feature_labels, tilt_target_label, nn_tilt_point_cloud);
+            // <<< EDIT 2: Call modified LoadCSVData >>>
+            tilt_load_success = LoadCSVData(tilt_data_path, tilt_mean_std_path, nn_tilt_point_cloud, "Tilt");
+            // <<< END EDIT 2 >>>
 
             if(tilt_load_success) {
-                 Debug("Building k-d tree index for Tilt data (" + std::to_string(nn_tilt_point_cloud.pts.size()) + " points)...");
-                 // Construct the k-d tree index
-                 nn_tilt_index = std::make_unique<my_kd_tree_t>(NN_DIMS, nn_tilt_point_cloud, nanoflann::KDTreeSingleIndexAdaptorParams(10 /* max_leaf */) );
-                 nn_tilt_index->buildIndex();
-                 Debug("Tilt k-d tree built.");
+                 Debug("Building k-d tree index for Tilt data (" + std::to_string(nn_tilt_point_cloud.pts.size()) + " points, " + std::to_string(nn_tilt_point_cloud.num_features) + " features)...");
+                 // <<< EDIT 2: Construct k-d tree index passing dynamic dimension >>>
+                 // Ensure num_features is > 0 before constructing
+                 if (nn_tilt_point_cloud.num_features > 0) {
+                     nn_tilt_index = std::make_unique<my_kd_tree_t>(
+                         nn_tilt_point_cloud.num_features, // Pass dynamic dimension
+                         nn_tilt_point_cloud,
+                         nanoflann::KDTreeSingleIndexAdaptorParams(10 /* max_leaf */)
+                     );
+                     nn_tilt_index->buildIndex();
+                     Debug("Tilt k-d tree built.");
+                 } else {
+                     Error("Tilt PointCloud has 0 features after loading. Cannot build k-d tree.");
+                     tilt_load_success = false; // Mark as failed if no features
+                 }
+                 // <<< END EDIT 2 >>>
             } else {
                 Error("Failed to load Tilt NN data. Nearest neighbor search for tilt will not work.");
-                // Decide if we should return or continue without tilt NN
-                // return; // Option: Stop initialization if tilt data fails
             }
 
 
              // --- Load Data and Build Index for Pan ---
-             std::string pan_data_path = dataBasePath + "pan_filtered_data_new_raw.csv";
-             Debug("Loading Pan NN data from: " + pan_data_path);
-              std::vector<std::string> pan_feature_labels = {
-                  "GyroX", "GyroY", "GyroZ", "AccelX", "AccelY", "AccelZ",
-                  "AngleX", "AngleY", "AngleZ",
-                  "TiltPosition", "TiltDistToGoal", "TiltGoalPosition", "TiltStartPosition",  // Added tilt features
-                  "PanPosition", "PanDistToGoal", "PanGoalPosition", "PanStartPosition"
-             };
-              std::string pan_target_label = "PanCurrent";
+             // <<< EDIT 2: Use standardized CSV and mean/std JSON paths >>>
+             std::string pan_data_path = dataBasePath + "pan_filtered_data_new_standardised.csv";
+             std::string pan_mean_std_path = dataBasePath + "pan_filtered_data_new_mean_std.json";
+             // <<< END EDIT 2 >>>
+             Debug("Loading Pan NN data from: " + pan_data_path + " (using means/stds from " + pan_mean_std_path + ")");
 
-              pan_load_success = LoadCSVData(pan_data_path, pan_feature_labels, pan_target_label, nn_pan_point_cloud);
+             // <<< EDIT 2: Call modified LoadCSVData >>>
+             pan_load_success = LoadCSVData(pan_data_path, pan_mean_std_path, nn_pan_point_cloud, "Pan");
+             // <<< END EDIT 2 >>>
 
              if (pan_load_success) {
-                 Debug("Building k-d tree index for Pan data (" + std::to_string(nn_pan_point_cloud.pts.size()) + " points)...");
-                 // Construct the k-d tree index
-                 nn_pan_index = std::make_unique<my_kd_tree_t>(NN_DIMS, nn_pan_point_cloud, nanoflann::KDTreeSingleIndexAdaptorParams(10 /* max_leaf */) );
-                 nn_pan_index->buildIndex();
-                 Debug("Pan k-d tree built.");
+                 Debug("Building k-d tree index for Pan data (" + std::to_string(nn_pan_point_cloud.pts.size()) + " points, " + std::to_string(nn_pan_point_cloud.num_features) + " features)...");
+                 // <<< EDIT 2: Construct k-d tree index passing dynamic dimension >>>
+                 if (nn_pan_point_cloud.num_features > 0) {
+                     nn_pan_index = std::make_unique<my_kd_tree_t>(
+                         nn_pan_point_cloud.num_features, // Pass dynamic dimension
+                         nn_pan_point_cloud,
+                         nanoflann::KDTreeSingleIndexAdaptorParams(10 /* max_leaf */)
+                     );
+                     nn_pan_index->buildIndex();
+                     Debug("Pan k-d tree built.");
+                 } else {
+                      Error("Pan PointCloud has 0 features after loading. Cannot build k-d tree.");
+                      pan_load_success = false; // Mark as failed if no features
+                 }
+                 // <<< END EDIT 2 >>>
              } else {
                  Error("Failed to load Pan NN data. Nearest neighbor search for pan will not work.");
-                 // return; // Option: Stop initialization if pan data fails
              }
              // Check if both failed?
              if (!tilt_load_success && !pan_load_success) {
                  Error("Failed to load data for both Tilt and Pan. NN model unusable.");
                  return; // Definitely stop if both failed
              }
-
+             // <<< EDIT 2: Add consistency check for feature count and names >>>
+             if (tilt_load_success && pan_load_success) {
+                 if (nn_tilt_point_cloud.num_features != nn_pan_point_cloud.num_features) {
+                     Error("Mismatch in number of features between Tilt (" + std::to_string(nn_tilt_point_cloud.num_features) +
+                           ") and Pan (" + std::to_string(nn_pan_point_cloud.num_features) + ") data.");
+                     return; // Stop if dimensions don't match
+                 }
+                 if (nn_tilt_point_cloud.feature_names != nn_pan_point_cloud.feature_names) {
+                      Warning("Feature names differ between Tilt and Pan datasets. Ensure this is intended.");
+                      // Optionally print differences for debugging
+                 }
+                 Debug("NN Feature count: " + std::to_string(nn_tilt_point_cloud.num_features));
+             } else if (tilt_load_success) {
+                 Debug("NN Feature count (Tilt only): " + std::to_string(nn_tilt_point_cloud.num_features));
+             } else if (pan_load_success) {
+                 Debug("NN Feature count (Pan only): " + std::to_string(nn_pan_point_cloud.num_features));
+             }
+             // <<< END EDIT 2 >>>
         }
 
   
@@ -1528,18 +1615,39 @@ class TestMapping: public Module
     // <<< EDIT 3: Implement helper functions >>>
     // Helper function to load CSV data and populate the PointCloud structure
     // Returns true on success, false on failure.
-    bool LoadCSVData(const std::string& filepath, const std::vector<std::string>& feature_labels, const std::string& target_label, PointCloud& point_cloud_out);
-    double FindNearestNeighborCurrent(const std::vector<float>& query_point, const std::unique_ptr<my_kd_tree_t>& index_ptr, const PointCloud& point_cloud);
+    bool LoadCSVData(const std::string& filepath, const std::string& mean_std_filepath, PointCloud& point_cloud_out, std::string servo);
+    double FindNearestNeighborCurrent(const std::vector<float>& query_point_standardized, const size_t num_features, const std::unique_ptr<my_kd_tree_t>& index_ptr, const PointCloud& point_cloud);
     // <<< END EDIT 3 >>>
 };
 
 // <<< EDIT 3: Implement helper functions >>>
 // Helper function to load CSV data and populate the PointCloud structure
 // Returns true on success, false on failure.
-bool TestMapping::LoadCSVData(const std::string& filepath, const std::vector<std::string>& feature_labels, const std::string& target_label, PointCloud& point_cloud_out) {
+bool TestMapping::LoadCSVData(const std::string& filepath, const std::string& mean_std_filepath, PointCloud& point_cloud_out, std::string servo) {
     point_cloud_out.pts.clear();
     point_cloud_out.target_currents.clear();
+    point_cloud_out.feature_names.clear();
+    point_cloud_out.feature_means.clear();
+    point_cloud_out.feature_stds.clear();
+    point_cloud_out.num_features = 0;
+    point_cloud_out.normalization_enabled = false;
+    // --- 1. Load Mean/Std JSON ---
+    nlohmann::json mean_std_data;
+    std::ifstream mean_std_file(mean_std_filepath);
+    if (!mean_std_file.is_open()) {
+        Error("Failed to open mean/std JSON file: " + mean_std_filepath);
+        return false;
+    }
+    try {
+        mean_std_file >> mean_std_data;
+        mean_std_file.close();
+    } catch (json::parse_error& e) {
+        Error("Failed to parse mean/std JSON file: " + mean_std_filepath + " - " + e.what());
+        if(mean_std_file.is_open()) mean_std_file.close();
+        return false;
+    }
 
+    // --- 2. Open and Read CSV Header ---
     std::ifstream file(filepath);
     if (!file.is_open()) {
         Error("Failed to open CSV file: " + filepath);
@@ -1548,16 +1656,17 @@ bool TestMapping::LoadCSVData(const std::string& filepath, const std::vector<std
 
     std::string line;
     std::vector<std::string> headers;
+    std::string target_label = "";
     int target_col_index = -1;
-    std::vector<int> feature_indices(feature_labels.size(), -1);
+    std::vector<int> feature_indices_in_csv; // Stores CSV column index for each feature *in order*
+    std::vector<std::string> ordered_feature_names; // Stores feature names *in order*
 
     // Read header line
     if (std::getline(file, line)) {
-        // Remove potential UTF-8 BOM if present
+        // Remove potential UTF-8 BOM and trailing \r
         if (line.size() >= 3 && line[0] == (char)0xEF && line[1] == (char)0xBB && line[2] == (char)0xBF) {
             line = line.substr(3);
         }
-        // Remove trailing carriage return if present (Windows line endings)
         if (!line.empty() && line.back() == '\r') {
             line.pop_back();
         }
@@ -1571,17 +1680,22 @@ bool TestMapping::LoadCSVData(const std::string& filepath, const std::vector<std
             header.erase(header.find_last_not_of(" \t\n\r\f\v") + 1);
             headers.push_back(header);
 
-            // Check if this header is our target
-            if (header == target_label) {
+            // Check if it's a target or a feature
+            if (header.find(servo + "Current") != std::string::npos) {
+                if (target_col_index != -1) {
+                    Error("Multiple columns containing 'Current' found in header of " + filepath + ". Ambiguous target.");
+                    return false;
+                }
+                target_label = header;
                 target_col_index = current_col;
-            }
-            // Check if this header is one of our features
-            for (size_t j = 0; j < feature_labels.size(); ++j) {
-                if (header == feature_labels[j]) {
-                    if (feature_indices[j] != -1) {
-                         Warning("Duplicate feature label '" + feature_labels[j] + "' found in CSV header: " + filepath);
-                    }
-                    feature_indices[j] = current_col;
+            } else {
+                // Check if this feature exists in the mean/std data
+                if (mean_std_data.contains(header)) {
+                    // It's a feature we expect
+                    feature_indices_in_csv.push_back(current_col);
+                    ordered_feature_names.push_back(header);
+                } else {
+                    Warning("Header '" + header + "' in CSV " + filepath + " not found in mean/std JSON " + mean_std_filepath + ". Skipping this column.");
                 }
             }
             current_col++;
@@ -1591,45 +1705,66 @@ bool TestMapping::LoadCSVData(const std::string& filepath, const std::vector<std
         return false;
     }
 
-    // Validate that all required columns were found
+    // Validate headers and mean/std consistency
     if (target_col_index == -1) {
-        Error("Target label '" + target_label + "' not found in CSV header: " + filepath);
+        Error("No target column (containing 'Current') found in CSV header: " + filepath);
         return false;
     }
-    std::string missing_features;
-    for (size_t j = 0; j < feature_labels.size(); ++j) {
-        if (feature_indices[j] == -1) {
-            if (!missing_features.empty()) missing_features += ", ";
-            missing_features += "'" + feature_labels[j] + "'";
+    if (ordered_feature_names.empty()) {
+        Error("No valid feature columns found in CSV header (matching mean/std JSON keys): " + filepath);
+        return false;
+    }
+
+    // Populate PointCloud feature info and load means/stds in the correct order
+    point_cloud_out.feature_names = ordered_feature_names;
+    point_cloud_out.num_features = ordered_feature_names.size();
+    point_cloud_out.feature_means.resize(point_cloud_out.num_features);
+    point_cloud_out.feature_stds.resize(point_cloud_out.num_features);
+
+    bool mean_std_load_ok = true;
+    for (size_t i = 0; i < point_cloud_out.num_features; ++i) {
+        const std::string& name = point_cloud_out.feature_names[i];
+        try {
+            if (!mean_std_data[name].contains("mean") || !mean_std_data[name].contains("std")) {
+                 Error("Mean or std missing for feature '" + name + "' in JSON file: " + mean_std_filepath);
+                 mean_std_load_ok = false;
+                 break;
+            }
+            point_cloud_out.feature_means[i] = mean_std_data[name]["mean"].get<float>();
+            point_cloud_out.feature_stds[i] = mean_std_data[name]["std"].get<float>();
+            // Check for zero std dev (potential division by zero later)
+            if (point_cloud_out.feature_stds[i] == 0.0f) {
+                Warning("Standard deviation is zero for feature '" + name + "' in " + mean_std_filepath);
+                // Decide how to handle: Keep it 0? Set to 1? For now, keep 0.
+            }
+        } catch (json::exception& e) {
+            Error("Error accessing mean/std for feature '" + name + "' in JSON file: " + mean_std_filepath + " - " + e.what());
+            mean_std_load_ok = false;
+            break;
         }
     }
-     if (!missing_features.empty()) {
-         Error("Feature label(s) " + missing_features + " not found in CSV header: " + filepath);
-         return false;
-     }
-     if (feature_labels.size() != NN_DIMS) {
-         Error("Number of feature labels (" + std::to_string(feature_labels.size()) + ") does not match expected NN_DIMS (" + std::to_string(NN_DIMS) + ")");
-         return false;
-     }
 
+    if (!mean_std_load_ok) {
+        return false; // Stop if mean/std loading failed
+    }
+    point_cloud_out.normalization_enabled = true; // Mark normalization data as loaded
 
-    // Read data rows
+    // --- 3. Read Data Rows ---
     while (std::getline(file, line)) {
-        // Remove trailing carriage return if present
+        // Remove trailing \r and skip empty lines
         if (!line.empty() && line.back() == '\r') {
             line.pop_back();
         }
-        if (line.empty()) continue; // Skip empty lines
+        if (line.empty()) continue;
 
         std::stringstream ss(line);
         std::string cell;
-        std::vector<float> all_row_values;
+        std::vector<float> all_row_values; // Stores all values from the CSV row temporarily
         while (std::getline(ss, cell, ',')) {
             try {
-                 // Handle potential empty cells or non-numeric gracefully? For now, error out.
                  if (cell.empty()) {
                       Error("Empty cell encountered in CSV file: " + filepath);
-                      return false;
+                      return false; // Fail on empty cells
                  }
                 all_row_values.push_back(std::stof(cell));
             } catch (const std::invalid_argument& e) {
@@ -1641,35 +1776,38 @@ bool TestMapping::LoadCSVData(const std::string& filepath, const std::vector<std
             }
         }
 
+        // Check if row size matches header size
         if (all_row_values.size() != headers.size()) {
             Warning("Row has different number of columns (" + std::to_string(all_row_values.size()) +
                     ") than header (" + std::to_string(headers.size()) + ") in CSV: " + filepath + ". Skipping row.");
-            continue; // Skip inconsistent rows
+            continue;
         }
 
-        // Extract feature values in the specified order and the target value
-        std::vector<float> feature_values(NN_DIMS);
-        bool row_ok = true;
-        for(size_t j=0; j < NN_DIMS; ++j) {
-            int col_idx = feature_indices[j];
-             // This check should be redundant due to header validation, but good for safety
-             if (col_idx < 0 || col_idx >= all_row_values.size()) {
-                 Error("Internal error: Invalid feature index " + std::to_string(col_idx) + " while reading row.");
-                 row_ok = false;
-                 break;
-             }
-            feature_values[j] = all_row_values[col_idx];
+        // Extract feature values (already standardized in the CSV) and the target value
+        std::vector<float> feature_values(point_cloud_out.num_features);
+        for(size_t j = 0; j < point_cloud_out.num_features; ++j) {
+            int csv_col_idx = feature_indices_in_csv[j];
+            // Bounds check (should be okay due to previous checks)
+            if (csv_col_idx < 0 || csv_col_idx >= all_row_values.size()) {
+                 Error("Internal error: Invalid feature index " + std::to_string(csv_col_idx) + " while reading row.");
+                 // Skip row or return false? Returning false for safety.
+                 return false;
+            }
+            feature_values[j] = all_row_values[csv_col_idx];
         }
-         // Check target index validity
-         if (target_col_index < 0 || target_col_index >= all_row_values.size()) {
-              Error("Internal error: Invalid target index " + std::to_string(target_col_index) + " while reading row.");
-              row_ok = false;
-         }
 
-        if (row_ok) {
-            point_cloud_out.pts.push_back(feature_values);
-            point_cloud_out.target_currents.push_back(all_row_values[target_col_index]);
+        // Extract target value
+        float target_value = 0.0f;
+        if (target_col_index >= 0 && target_col_index < all_row_values.size()) {
+            target_value = all_row_values[target_col_index];
+        } else {
+             Error("Internal error: Invalid target index " + std::to_string(target_col_index) + " while reading row.");
+             return false;
         }
+
+        // Add data to PointCloud
+        point_cloud_out.pts.push_back(feature_values);
+        point_cloud_out.target_currents.push_back(target_value);
     }
 
     file.close();
@@ -1679,58 +1817,165 @@ bool TestMapping::LoadCSVData(const std::string& filepath, const std::vector<std
         return false; // Treat as failure if no points loaded
     }
 
-    Debug("Loaded " + std::to_string(point_cloud_out.pts.size()) + " data points into PointCloud from " + filepath);
+    Debug("Loaded " + std::to_string(point_cloud_out.pts.size()) + " data points (" +
+          std::to_string(point_cloud_out.num_features) + " features) into PointCloud from " + filepath);
+    Debug("Target column: '" + target_label + "' (index " + std::to_string(target_col_index) + ")");
+    // Optional: Print feature names
+    std::string features_str = "Features loaded: ";
+    for(const auto& name : point_cloud_out.feature_names) features_str += name + " ";
+    Debug(features_str);
 
-    // // Optional Debug: Print loaded feature indices
-    // std::string feature_idx_str = "Feature column indices used: ";
-    // for(int idx : feature_indices) feature_idx_str += std::to_string(idx) + " ";
-    // Debug(feature_idx_str);
-    // Debug("Target column index used: " + std::to_string(target_col_index));
+    // <<< EDIT 8: Load target mean/std >>>
+    // Find the target label identified earlier and load its mean/std
+    if (target_col_index != -1 && !target_label.empty()) {
+        if (mean_std_data.contains(target_label)) {
+            try {
+                if (!mean_std_data[target_label].contains("mean") || !mean_std_data[target_label].contains("std")) {
+                     Error("Mean or std missing for target '" + target_label + "' in JSON file: " + mean_std_filepath);
+                     // Don't set normalization_enabled to true if target stats are missing
+                     point_cloud_out.normalization_enabled = false;
+                     return false; // Cannot proceed without target stats for denormalization
+                }
+                point_cloud_out.target_mean = mean_std_data[target_label]["mean"].get<float>();
+                point_cloud_out.target_std = mean_std_data[target_label]["std"].get<float>();
+
+                // Check for zero target std dev
+                if (point_cloud_out.target_std == 0.0f) {
+                     Warning("Target standard deviation is zero for '" + target_label + "' in " + mean_std_filepath + ". Denormalization might be inaccurate.");
+                     // Keep std as 0. The denormalized value will just be the mean.
+                }
+                 Debug("Loaded target normalization for '" + target_label + "': mean=" + std::to_string(point_cloud_out.target_mean) + ", std=" + std::to_string(point_cloud_out.target_std));
+
+            } catch (json::exception& e) {
+                 Error("Error accessing mean/std for target '" + target_label + "' in JSON file: " + mean_std_filepath + " - " + e.what());
+                 point_cloud_out.normalization_enabled = false; // Mark as failed
+                 return false;
+            }
+        } else {
+            Error("Target label '" + target_label + "' found in CSV header but not in mean/std JSON: " + mean_std_filepath);
+            point_cloud_out.normalization_enabled = false; // Mark as failed
+            return false;
+        }
+    } else {
+         Error("Could not identify target column or label during mean/std loading.");
+         return false; // Should have been caught earlier, but safety check
+    }
+    // <<< END EDIT 8 >>>
 
     return true;
 }
 
 // Helper function to find the nearest neighbor using the k-d tree index
 double TestMapping::FindNearestNeighborCurrent(
-    const std::vector<float>& query_point, // Use std::vector for query
+    const std::vector<float>& query_point_standardized, // Expect standardized query
+    const size_t num_features, // Pass dimensionality explicitly
     const std::unique_ptr<my_kd_tree_t>& index_ptr, // Pass pointer to the index
     const PointCloud& point_cloud) // Pass associated point cloud for target lookup
 {
-    if (!index_ptr || query_point.size() != NN_DIMS) {
-        Error("Invalid k-d tree index or query point dimension for nearest neighbor search.");
-        return 0.0; // Return a default value or handle error
+    // Validate inputs
+    if (!index_ptr) {
+        Error("Invalid k-d tree index pointer passed to FindNearestNeighborCurrent.");
+        return 0.0;
     }
-     if (point_cloud.pts.empty()) {
-          Warning("Point cloud associated with k-d tree index is empty.");
+     if (query_point_standardized.size() != num_features) {
+         Error("Query point dimension (" + std::to_string(query_point_standardized.size()) +
+               ") does not match expected feature count (" + std::to_string(num_features) + ").");
+         return 0.0; // Return a default value or handle error
+     }
+     if (point_cloud.pts.empty() || point_cloud.num_features != num_features) {
+          Error("Point cloud associated with k-d tree index is empty or has mismatched dimensions.");
           return 0.0;
      }
 
 
-    // Perform k-NN search: find 1 nearest neighbor
-    size_t num_results = 1;
-    size_t ret_index; // Index of the nearest neighbor in the PointCloud
-    float out_dist_sqr; // Squared distance to the nearest neighbor
+    // Perform k-NN search: find K nearest neighbors
+    const size_t num_results_k = 3; // Use k=3
+    std::vector<size_t> ret_indices(num_results_k); // Indices of the nearest neighbors
+    std::vector<float> out_dist_sqr(num_results_k); // Squared distances to neighbors
 
     // Prepare result set
-    nanoflann::KNNResultSet<float> resultSet(num_results);
-    resultSet.init(&ret_index, &out_dist_sqr);
+    // Use KNNResultSet: requires max_size (k), indices pointer, distances pointer
+    nanoflann::KNNResultSet<float> resultSet(num_results_k);
+    resultSet.init(&ret_indices[0], &out_dist_sqr[0]); // Provide pointers to first elements
 
     // Perform the search
-    // query_point.data() returns a float* needed by findNeighbors
-    // Use default search parameters by default-constructing SearchParams
-    index_ptr->findNeighbors(resultSet, query_point.data(), nanoflann::SearchParameters()); // Use default SearchParams
+    // query_point_standardized.data() returns a float* needed by findNeighbors
+    index_ptr->findNeighbors(resultSet, query_point_standardized.data(), nanoflann::SearchParameters()); // Use default SearchParams
 
+    // --- Calculate weighted average ---
+    double weighted_sum_currents = 0.0;
+    double sum_of_weights = 0.0;
+    const double epsilon = 1e-6; // To avoid division by zero
 
-    // Check if a neighbor was found and the index is valid
-    // resultSet.size() might be 0 if no neighbor is found (e.g., empty dataset - though checked earlier)
-    if (resultSet.size() > 0 && ret_index < point_cloud.target_currents.size()) {
-        // Return the target current value from the best matching point
-        return point_cloud.target_currents[ret_index];
-    } else {
-         // This case should ideally not happen if the index was built correctly and the dataset isn't empty.
-         Warning("Nearest neighbor search failed or returned invalid index. Ret Index: " + std::to_string(ret_index) + ", Target Size: " + std::to_string(point_cloud.target_currents.size()));
-        return 0.0; // Default if no neighbor found or index invalid
+    // Get the actual number of neighbors found (could be less than k if dataset is small)
+    size_t neighbors_found = resultSet.size();
+
+    if (neighbors_found == 0) {
+        Warning("Nearest neighbor search found 0 neighbors.");
+        return 0.0; // Default if no neighbors found
     }
+
+    for (size_t i = 0; i < neighbors_found; ++i) {
+        size_t neighbor_index = ret_indices[i];
+        float distance_sq = out_dist_sqr[i];
+
+        // Validate index
+        if (neighbor_index >= point_cloud.target_currents.size()) {
+             Warning("Nearest neighbor search returned invalid index: " + std::to_string(neighbor_index) +
+                     ". Target Size: " + std::to_string(point_cloud.target_currents.size()) + ". Skipping this neighbor.");
+             continue;
+        }
+
+        float neighbor_current = point_cloud.target_currents[neighbor_index];
+        double weight = 1.0 / (distance_sq + epsilon);
+
+        weighted_sum_currents += weight * neighbor_current;
+        sum_of_weights += weight;
+
+        // Debug: Print neighbor info
+        // Debug("Neighbor " + std::to_string(i) + ": index=" + std::to_string(neighbor_index) +
+        //       ", dist_sq=" + std::to_string(distance_sq) + ", current=" + std::to_string(neighbor_current) +
+        //       ", weight=" + std::to_string(weight));
+    }
+
+    if (sum_of_weights == 0.0) {
+         Warning("Sum of weights in NN weighted average is zero. This might happen if all distances are extremely large or weights are zero.");
+         // Fallback: return the current of the closest neighbor found, if any
+         if (neighbors_found > 0 && ret_indices[0] < point_cloud.target_currents.size()) {
+             return point_cloud.target_currents[ret_indices[0]];
+         } else {
+             return 0.0; // Default fallback
+         }
+    }
+
+    double predicted_current_normalised = weighted_sum_currents / sum_of_weights;
+
+    // <<< EDIT 8: Denormalize the prediction >>>
+    // Check if normalization was enabled (i.e., target mean/std were loaded)
+    if (point_cloud.normalization_enabled) {
+        // Denormalize: raw = normalized * std + mean
+        double predicted_current_raw = predicted_current_normalised * point_cloud.target_std + point_cloud.target_mean;
+         // Debug("Predicted Current (normalized): " + std::to_string(predicted_current_normalised));
+         // Debug("Predicted Current (denormalized): " + std::to_string(predicted_current_raw));
+        return predicted_current_raw;
+    } else {
+        Warning("Target normalization data was not loaded. Returning normalized prediction.");
+        return predicted_current_normalised; // Return normalized if stats weren't loaded
+    }
+    // <<< END EDIT 8 >>>
+
+
+    // // Old k=1 logic:
+    // // Check if a neighbor was found and the index is valid
+    // // resultSet.size() might be 0 if no neighbor is found (e.g., empty dataset - though checked earlier)
+    // if (resultSet.size() > 0 && ret_index < point_cloud.target_currents.size()) {
+    //     // Return the target current value from the best matching point
+    //     return point_cloud.target_currents[ret_index];
+    // } else {
+    //      // This case should ideally not happen if the index was built correctly and the dataset isn't empty.
+    //      Warning("Nearest neighbor search failed or returned invalid index. Ret Index: " + std::to_string(ret_index) + ", Target Size: " + std::to_string(point_cloud.target_currents.size()));
+    //     return 0.0; // Default if no neighbor found or index invalid
+    // }
 }
 // <<< END EDIT 3 >>>
 
