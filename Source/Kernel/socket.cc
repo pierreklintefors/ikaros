@@ -1,11 +1,9 @@
-
 //    socket.cc		Socket utilities for the IKAROS project
 
 #include "socket.h"
 #include "exceptions.h"
 
 #include <unistd.h>
-#include <cstring>  // For bzero
 #include <errno.h>
 #include <algorithm> // For std::min
 
@@ -14,14 +12,6 @@
 
 using namespace ikaros;
 
-
-static char *
-	int_to_string(char * s, int i, int n)
-	{
-		snprintf(s, n, "%d", i);
-		return s;
-	}
-    
 //
 //	Socket - functions that gets data from a HTTP server
 //
@@ -30,6 +20,7 @@ Socket::~Socket()
 {
     if(sd != -1) 
         close(sd);
+    sd = -1;
 }
 
 
@@ -47,7 +38,9 @@ Socket::SendRequest(const char * hostname, int port, const char * request, const
     hints.ai_socktype = SOCK_STREAM;
 
     if((rv = getaddrinfo(hostname, std::to_string(port).c_str(), &hints, &servinfo)) != 0)
-        return false; //  gai_strerror(rv));
+        return false; //  throw std::runtime_error(gai_strerror(rv));
+
+    std::unique_ptr<struct addrinfo, decltype(&freeaddrinfo)> servinfo_ptr(servinfo, freeaddrinfo);
 
     // loop through all the results and connect to the first we can
     for(p = servinfo; p != nullptr; p = p->ai_next) {
@@ -67,10 +60,8 @@ Socket::SendRequest(const char * hostname, int port, const char * request, const
 
     if(p == nullptr) 
     {
-        freeaddrinfo(servinfo);
         return false;
     }
-    freeaddrinfo(servinfo); // all done with this structure
 
     if(size == -1) // default to use size of string
     {
@@ -128,7 +119,7 @@ Socket::ReadData(char * result, int maxlen, bool fill)
     do
     {
         ssize_t read_size = (maxlen-dst < BUFFER_SIZE ? maxlen-dst : BUFFER_SIZE);
-        rc = read(sd, buffer, read_size);
+        //rc = read(sd, buffer, read_size);
 
         rc = read(sd, buffer, read_size);
         if(rc == -1)
@@ -179,13 +170,13 @@ std::string
 Socket::HTTPGet(const std::string & url) // Very temporary implementation that only handles incomplete urls for now with only site + path
 {
     long max_size = 100000;
-    char buffer[100000];
+    std::vector<char> buffer(100000);
     auto parts = split(url, "/", 1);
     auto site = parts.at(0);
     auto path = parts.at(1);
     std::string request = "GET /"+path+" HTTP/1.1\r\nHost: " + site+"\r\nConnection: close\r\n\r\n";
-    Get(site.c_str(), 80, request.c_str(), buffer, 100000);
-    auto buff = std::string(buffer);
+    Get(site.c_str(), 80, request.c_str(), buffer.data(), 100000);
+    auto buff = std::string(buffer.data());
     auto header_and_data = split(buff, "\r\n\r\n", 1);
     Close();
 
@@ -193,7 +184,7 @@ Socket::HTTPGet(const std::string & url) // Very temporary implementation that o
 }
 
 
-
+//
 //	ServerSocket
 //
 ServerSocket::ServerSocket(int port) 
@@ -361,6 +352,33 @@ const signed char HEX2DEC[256] =
     /* F */ -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1
 };
 
+static std::string UriDecode(const std::string &sSrc)
+{
+    const unsigned char *pSrc = (const unsigned char *)sSrc.c_str();
+    const size_t SRC_LEN = sSrc.length();
+    std::string result;
+    result.reserve(SRC_LEN);
+
+    for (size_t i = 0; i < SRC_LEN; ++i)
+    {
+        if (pSrc[i] == '%' && i + 2 < SRC_LEN)
+        {
+            char dec1 = HEX2DEC[pSrc[i + 1]];
+            char dec2 = HEX2DEC[pSrc[i + 2]];
+            if (dec1 != -1 && dec2 != -1)
+            {
+                result += (dec1 << 4) + dec2;
+                i += 2;
+                continue;
+            }
+        }
+        result += pSrc[i];
+    }
+    return result;
+}
+
+
+/* OLD VERSION
 
 static std::string UriDecode(const std::string & sSrc)
 {
@@ -402,6 +420,7 @@ static std::string UriDecode(const std::string & sSrc)
    delete [] pStart;
    return sResult;
 }
+*/
 
 
 
@@ -442,14 +461,13 @@ ServerSocket::GetRequest(bool block)
 	}
 	
 	header.Clear();
-    
 	header.Set("Method", strsep(&p, " "));
 	header.Set("URI", UriDecode(strsep(&p, " ")).c_str());
 	header.Set("HTTP-Version", strsep(&p, "\r"));
 	strsep(&p, "\n");
 	while(p && *p != '\r')
 	{
-        char * k = strip(strsep(&p, ":")); // Order is important!
+        char * k = strip(strsep(&p, ":"));
         char * v = strip(strsep(&p, "\r"));
 		header.Set(k, v);
 		strsep(&p, "\n");
@@ -462,18 +480,16 @@ ServerSocket::GetRequest(bool block)
     if(equal_strings(header.Get("Method"), "PUT"))
     {
         const char* content_length_str = header.Get("Content-Length");
-        if(content_length_str)
-        {
-            size_t content_length = std::stoull(content_length_str);
-            if(content_length > 0)
-            {   
-                char buffer[content_length];
+        if (content_length_str) {
+            const size_t content_length = std::stoull(content_length_str);
+            if (content_length > 0) {
+                std::vector<char> buffer(content_length);
                 size_t n = strlen(p);
-                strncpy(buffer, p, sizeof(buffer) - 1);
-                buffer[sizeof(buffer) - 1] = '\0';
+                strncpy(buffer.data(), p, buffer.size() - 1);
+                buffer[buffer.size() - 1] = '\0';
 
-                long rr = n+Read(buffer+n, content_length-n, true);
-                body = std::string(buffer);
+                long rr = n + Read(buffer.data() + n, content_length - n, true);
+                body = std::string(buffer.data());
             }
         }
     }
