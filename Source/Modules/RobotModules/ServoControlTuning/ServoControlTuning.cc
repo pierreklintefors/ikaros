@@ -1749,7 +1749,7 @@ class ServoControlTuning : public Module
         uint8_t dxl_error = 0;
         int dxl_comm_result;
         std::vector<int> expected_address_value(dynamixelParameters.cols());
-        int indirect_address = INDIRECTDATA_FOR_WRITE +1;
+        int indirect_data_address = INDIRECTDATA_FOR_WRITE +1;
 
         for (int p = 0; p < portHandlers.size(); p++) {
             std::cout << "Checking port: " << portHandlers[p]->getPortName() << std::endl;
