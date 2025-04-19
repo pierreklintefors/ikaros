@@ -693,10 +693,16 @@ class TestMapping: public Module
                  for (size_t feat_idx = 0; feat_idx < num_features; ++feat_idx) {
                      const std::string& feature_name = current_point_cloud_ptr->feature_names[feat_idx];
                      float value = 0.0f; // Default value
-
+                    
+                    
+                     // Skip features that contain "Current" to avoid using current values as predictors
+                     if (feature_name.find("Current") != std::string::npos) {
+                         query_point_raw[feat_idx] = 0.0f; // Set to zero or another appropriate default
+                         continue; // Skip to the next feature
+                     }
                      // Assign value based on feature name
                      // This part requires mapping feature names to the correct Ikaros input matrices
-                     if (feature_name == "GyroX") value = (gyro.size() > 0) ? gyro(0) : 0.0f;
+                     else if (feature_name == "GyroX") value = (gyro.size() > 0) ? gyro(0) : 0.0f;
                      else if (feature_name == "GyroY") value = (gyro.size() > 1) ? gyro(1) : 0.0f;
                      else if (feature_name == "GyroZ") value = (gyro.size() > 2) ? gyro(2) : 0.0f;
                      else if (feature_name == "AccelX") value = (accel.size() > 0) ? accel(0) : 0.0f;
@@ -715,6 +721,8 @@ class TestMapping: public Module
                      else if (feature_name == "PanGoalPosition") value = (goal_position_out.size() > 1) ? goal_position_out(1) : 0.0f;
                      else if (feature_name == "PanStartPosition") value = (transition < starting_positions.rows() && starting_positions.cols() > 1) ? starting_positions(transition, 1) : 0.0f;
                      // Add more features here if needed...
+                     
+                
                      else {
                          Warning("Unrecognized feature name encountered during query construction: " + feature_name);
                          // Keep value = 0.0f or handle differently
@@ -1689,13 +1697,16 @@ bool TestMapping::LoadCSVData(const std::string& filepath, const std::string& me
                 target_label = header;
                 target_col_index = current_col;
             } else {
-                // Check if this feature exists in the mean/std data
-                if (mean_std_data.contains(header)) {
+                // Check if this feature exists in the mean/std data AND is not "UniqueId"
+                if (header != "UniqueID" && mean_std_data.contains(header)) {
                     // It's a feature we expect
                     feature_indices_in_csv.push_back(current_col);
                     ordered_feature_names.push_back(header);
                 } else {
-                    Warning("Header '" + header + "' in CSV " + filepath + " not found in mean/std JSON " + mean_std_filepath + ". Skipping this column.");
+                    // Print warning only if it wasn't UniqueId but was still skipped
+                    if (header != "UniqueID") {
+                         Warning("Header '" + header + "' in CSV " + filepath + " not found in mean/std JSON " + mean_std_filepath + " or is excluded. Skipping this column.");
+                    }
                 }
             }
             current_col++;
