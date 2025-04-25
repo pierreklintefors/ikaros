@@ -1,12 +1,12 @@
 <group filename="" log_level="8" name="Untitled" real_time="True" start="true" stop="-1" tick_duration="0.025" webui_port="8000">
    <connection delay="1" source="TestMapping.GoalPositionOut" target="EpiServos.GOAL_POSITION"/>
-   <connection delay="1" source="GoalCurrent.OUTPUT" target="EpiServos.GOAL_CURRENT"/>
+   <connection delay="1" source="TestMapping.GoalCurrent" target="EpiServos.GOAL_CURRENT"/>
    <connection delay="1" source="EpiServos.PRESENT_POSITION" target="TestMapping.PresentPosition"/>
    <connection delay="1" source="EpiServos.PRESENT_CURRENT" target="TestMapping.PresentCurrent"/>
    <connection delay="1" source="UM7.EulerAngles" target="TestMapping.EulerAngles"/>
    <connection delay="1" source="UM7.ProcessedGyro" target="TestMapping.GyroData"/>
    <connection delay="1" source="UM7.ProcessedAccel" target="TestMapping.AccelData"/>
-   <module DevianceLogging="true" CurrentPrediction="ANN" CurrentIncrement="3" MaxLimits="237, 240" MinLimits="122, 142" NumberTransitions="10" RobotType="Torso" _x="408" _y="48" class="TestMapping" log_level="7" name="TestMapping">
+   <module CurrentIncrement="50" CurrentPrediction="NearestNeighbor" DevianceLogging="true" MaxLimits="230, 240" MinLimits="130, 142" NumberTransitions="50" RobotType="Torso" _x="408" _y="48" class="TestMapping" log_level="7" name="TestMapping">
       <files>
          <file/>
          <file/>
@@ -47,5 +47,5 @@
    <widget _index_="8" _x="24" _y="552" class="table" colorize="true" decimals="0" direction="normal" frame-style="" height="49" label_x="" label_y="" max="1" min="" name="Widget_5" scrollable="false" select="" show_frame="false" show_title="true" source="TestMapping.ModelPrediction" style="" title="Model Prediction" width="817"/>
    <widget _index_="10" _x="24" _y="600" class="table" colorize="true" decimals="0" direction="normal" frame-style="" height="49" label_x="" label_y="" max="1" min="" name="Widget_6" scrollable="false" select="" show_frame="false" show_title="true" source="TestMapping.ModelPredictionStart" style="" title="Model Prediction Start" width="817"/>
    <widget _index_="12" _x="30" _y="700" buffer_size="300" class="plot" color="blue" direction="vertical" frame-style="" height="400" max="1500" min="0" name="Widget_7" select="1" show_frame="false" show_title="true" source="TestMapping.ModelPrediction" style="--decimals:0" title="Prediction vs goal current" width="600"/>
-   <widget _index_="14" _x="30" _y="700" buffer_size="300" class="plot" color="green" direction="vertical" frame-style="" height="400" max="1500" min="0" name="Widget_8" select="1" show_frame="false" show_title="false" source="EpiServos.GoalCurrent" style="--decimals:0, --scale-offset: 0" title="Goal current" width="600"/>
+   <widget _index_="14" _x="696" _y="696" buffer_size="300" class="plot" color="green" direction="vertical" frame-style="" height="400" max="1500" min="0" name="Widget_8" select="1" show_frame="false" show_title="true" source="EpiServos.PRESENT_CURRENT" style="--decimals:0, --scale-offset: 0" title="Present Current" width="600"/>
 </group>
