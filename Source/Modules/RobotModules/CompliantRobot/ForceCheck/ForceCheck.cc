@@ -7,11 +7,12 @@ class ForceCheck: public Module
 {
     matrix present_current;
     matrix current_limit;
-    matrix current_output;
+    matrix force_output;
     matrix present_position;// assumes degrees
     matrix goal_position_in;
     matrix goal_position_out;
     matrix previous_position;
+    matrix current_prediction;
     
     parameter gain_constant;
     parameter smooth_factor;
@@ -122,11 +123,11 @@ class ForceCheck: public Module
     {
         Bind(present_current, "PresentCurrent");
         Bind(current_limit, "CurrentLimit");
-        Bind(current_output, "CurrentOutput");
+        Bind(current_output, "ForceOutput");
         Bind(present_position, "PresentPosition");
         Bind(goal_position_in, "GoalPositionIn");
         Bind(goal_position_out, "GoalPositionOut");
-
+        Bind(current_prediction, "CurrentPrediction");
         Bind(gain_constant, "GainConstant");
         Bind(smooth_factor, "SmoothFactor");
         Bind(error_threshold, "ErrorThreshold");
@@ -160,8 +161,7 @@ class ForceCheck: public Module
             }
             goal_reached = GoalReached(present_position, goal_position_in, position_margin);
             ObstacleCheck(present_position, current_limit, goal_position_in, goal_position_out, goal_reached);
-            current_output = SetCurrent(present_current, current_limit, present_position, goal_position_in, gain_constant, error_threshold, smooth_factor);
-        }
+            
         else
         {
             Notify(msg_fatal_error, "Present position, present current and goal position must be connected");

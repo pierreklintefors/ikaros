@@ -1,13 +1,13 @@
 <class name="ForceCheck" description="Checking the used current and increase it step by step to reach the target. Reduce the current with too much restance is met">
-	<parameter name="GainConstant" type= "double" default= "8.5" description="Gain constant for how much current should increased in relation to distance from goal position" />
-    <parameter name="SmoothFactor" type= "double" default= "0.7" description="Determines the influence of present current to goal current"/>
-	<parameter name="ErrorThreshold" type= "double" default= "10" description="Threshold for position error (in degrees) for when the current should be reduced to avoid overshooting"/>
+	<parameter name="AllowedDeviance" type= "double" default= "10" description="Allowed deviance of the current from the current prediction"/>
+	<parameter name= "PredictionModel" type= "string" default= "ANN" description="The model used for the current prediction"/>
 	<input name="GoalPositionIn" description="The goal position of the servomotors in degrees" size="19"/>
 	<input name="PresentPosition" description="The present position of the servomotors in degrees"/>
 	<input name="PresentCurrent" description="The present current from the servomotors in mA" />
-	<input name="CurrentLimit" description="The present current from the servomotors in mA"/>
-	<output name="CurrentOutput" description="Goal current in mA to be sent to the servos (only in current-based (position) control mode)" />
+	<input name="CurrentPrediction" description="The current prediction from the servomotors in mA" />
+
 	<output name="GoalPositionOut" description="The goal position of the servomotors in degrees"/>
+	<output name="ForceOutput" description="The force output of the servomotors in mA"/>
 	<author>
 		<name>Pierre Klintefors</name>
 		<email>Pierre.Klintefors@lucs.lu.se</email>
