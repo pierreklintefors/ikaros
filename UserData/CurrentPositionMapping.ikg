@@ -7,7 +7,7 @@
    <connection delay="1" source="UM7.ProcessedAccel" target="Mapping.AccelData"/>
    <connection delay="1" source="UM7.EulerAngles" target="Mapping.EulerAngles"/>
    <connection delay="1" source="Mapping.TorqueEnable" target="Servos.TORQUE_ENABLE"/>
-   <module ConsistencyTest="false" CurrentIncrement="500" MaxLimits="237, 240" MinLimits="122, 142" MinimumTorqueCurrentSearch="false" NumberTransitions="1000" RobotType="Torso" _x="648" _y="120" class="CurrentPositionMapping" log_level="7" name="Mapping">
+   <module ConsistencyTest="false" CurrentIncrement="500" MaxLimits="237, 240" MinLimits="122, 142" MinimumTorqueCurrentSearch="false" NumberTransitions="500" RobotType="Torso" _x="648" _y="120" class="CurrentPositionMapping" log_level="7" name="Mapping">
       <files>
          <file/>
          <file/>

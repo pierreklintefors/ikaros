@@ -6,6 +6,8 @@ from time import sleep
 import sys
 import signal
 import struct  # Add struct for size calculations
+import time # Add this at the top
+import csv
 try:
     import posix_ipc
 except ImportError as e:
@@ -17,450 +19,553 @@ from keras.layers import Dense, BatchNormalization, Dropout, Input
 from keras.regularizers import l2
 from keras.optimizers import Adam
 
-# Update shared memory configuration for new servo-grouped data order
-SHM_NAME = "/ikaros_ann_shm"
-# New order: 
-# - gyro(3)
-# - accel(3)
-# - angles(3)
-# - For each servo (2 servos: tilt and pan):
-#   - position(1)
-#   - distance to goal(1)
-#   - goal position(1)
-#   - starting position(1)
-# - predictions(4)
+import tensorflow as tf
+import os # Make sure os is imported if not already
+
+# # Force CPU execution
+# tf.config.set_visible_devices([], 'GPU')
+# os.environ['TF_DISABLE_METAL'] = '1' # Another way to potentially disable Metal
+# print("Attempting to force CPU execution...", file=sys.stderr)
+
+# Removed old SHM constants: SHM_NAME, FLOAT_COUNT, MEM_SIZE, BOOL_SIZE
+
+# Define constants for SHM interaction based on PythonScriptCaller.cc
+FLOAT_SIZE = 4  # Size of a float in bytes
+BOOL_SIZE = 1   # Size of a bool in bytes (Python struct module uses 1 byte for '?')
+
+# Offsets for flags within the flags structure at the beginning of SHM
+# These are byte offsets.
+CPP_WROTE_INPUT_OFFSET = 0
+PYTHON_WROTE_OUTPUT_OFFSET = BOOL_SIZE  # e.g., 1
+SHUTDOWN_SIGNAL_OFFSET = BOOL_SIZE * 2 # e.g., 2
+
+# NUM_SERVOS is critical for parsing input and determining output size.
+# This script is specific to a 2-servo setup (Tilt and Pan).
+# If PythonScriptCaller is configured for a different number of inputs,
+# this script would need to adapt or fail.
 NUM_SERVOS = 2
-# Important: Make sure FLOAT_COUNT matches the C++ definition
-FLOAT_COUNT = 21  # 17 inputs + 4 predictions - must match C++ definition
-# Calculate memory size using Python's struct module
-FLOAT_SIZE = 4  # Float32 is 4 bytes
-BOOL_SIZE = 1   # Boolean is 1 byte
-MEM_SIZE = (FLOAT_COUNT * FLOAT_SIZE) + (BOOL_SIZE * 2)  # Match C++ calculation
-
-class SharedMemory:
-    def __init__(self):
-        try:
-            print(f"Attempting to open shared memory at {SHM_NAME}", file=sys.stderr)
-            # Use posix_ipc to open shared memory
-            self.memory = posix_ipc.SharedMemory(SHM_NAME)
-            self.size = MEM_SIZE
-            
-            # Map the shared memory
-            self.shared_data = mmap.mmap(self.memory.fd, self.size)
-            print(f"Successfully mapped shared memory of size {self.size} bytes", 
-                  file=sys.stderr)
-                
-        except Exception as e:
-            print(f"Error initializing shared memory: {e}", file=sys.stderr)
-            print(f"Current working directory: {os.getcwd()}", file=sys.stderr)
-            raise
-            
-    def __del__(self):
-        try:
-            if hasattr(self, 'shared_data') and self.shared_data is not None:
-                self.shared_data.close()
-                self.shared_data = None
-                
-            if hasattr(self, 'memory') and self.memory is not None:
-                self.memory.close_fd()
-                self.memory = None
-        except Exception as e:
-            print(f"Error cleaning up shared memory: {e}", file=sys.stderr)
-    
-    def read_data(self):
-        self.shared_data.seek(0)
-        data = np.frombuffer(self.shared_data.read(FLOAT_COUNT * 4), dtype=np.float32)
-        
-        
-        # Extract data according to new servo-grouped order
-        gyro = data[0:3]           # First 3 values are gyro
-        accel = data[3:6]          # Next 3 values are accel
-        angles = data[6:9]         # Next 3 values are euler angles
-        
-        # For each servo, extract its data
-        num_servos = NUM_SERVOS  # tilt & pan
-        servo_data_size = 4  # position, distance, goal, start
-        
-        positions = []
-        distances = []
-        goal_positions = []
-        starting_positions = []
-        
-        for i in range(num_servos):
-            # Calculate base index for this servo's data
-            base_idx = 9 + (i * servo_data_size)
-            
-            
-            positions.append(data[base_idx])
-            distances.append(data[base_idx + 1])
-            goal_positions.append(data[base_idx + 2])
-            starting_positions.append(data[base_idx + 3])
-       
-        # Last 2 values are predictions
-        predictions = data[-2:]
-        # Restructure data to have all position data of one servo first, then the next servo
-        servo_data = []
-        for i in range(num_servos):
-            servo_data.append({
-                'position': positions[i],
-                'distance': distances[i],
-                'goal_position': goal_positions[i],
-                'starting_position': starting_positions[i]
-            })
-        
-        return {
-            'gyro': gyro,
-            'accel': accel,
-            'angles': angles,
-            'servo_data': servo_data,
-            'predictions': predictions,
-            'num_servos': num_servos
-        }
-    
-    def write_prediction(self, predictions):
-        # First, check and ensure we have the right number of predictions
-        if len(predictions) > 4:  # We expect 4 values (2 per servo)
-            print(f"Warning: Truncating predictions to 4 values (received {len(predictions)})", file=sys.stderr)
-            predictions = predictions[:4]
-        elif len(predictions) < 4:
-            print(f"Warning: Padding predictions to 4 values (received {len(predictions)})", file=sys.stderr)
-            predictions = predictions + [0.0] * (4 - len(predictions))
-        
-        print(f"Final predictions to write: {predictions}", file=sys.stderr)
-        
-        # Calculate the offset where predictions should be written
-        prediction_offset = (FLOAT_COUNT - 4) * 4  # Skip past all input data
-        
-        # Write each prediction value individually to avoid array bounds issues
-        try:
-            for i, pred in enumerate(predictions):
-                self.shared_data.seek(prediction_offset + (i * 4))
-                self.shared_data.write(np.array([pred], dtype=np.float32).tobytes())
-            print(f"Successfully wrote all predictions to offset {prediction_offset}", file=sys.stderr)
-            
-            # After writing predictions, reset the new_data flag to signal C++ that data is ready
-            self.clear_new_data_flag()
-            
-        except Exception as e:
-            print(f"Error writing predictions: {e}", file=sys.stderr)
-            print(f"Offset: {prediction_offset}, Predictions: {predictions}", file=sys.stderr)
-            raise
-    
-    def get_new_data_flag(self):
-        # New data flag is stored at offset FLOAT_COUNT * 4
-        self.shared_data.seek(FLOAT_COUNT * 4)
-        flag_byte = self.shared_data.read(1)
-        return bool(flag_byte[0])
-    
-    def clear_new_data_flag(self):
-        # Explicitly reset the new_data flag to signal predictions are ready
-        self.shared_data.seek(FLOAT_COUNT * 4)
-        self.shared_data.write(bytearray([0]))
-        print("Reset new_data flag to signal predictions are ready", file=sys.stderr)
-    
-    def get_shutdown_flag(self):
-        # Shutdown flag is stored at offset (FLOAT_COUNT * 4) + 1
-        self.shared_data.seek((FLOAT_COUNT * 4) + 1)
-        flag_byte = self.shared_data.read(1)
-        return bool(flag_byte[0])
+EXPECTED_INPUTS_PER_SERVO = 5
+EXPECTED_BASE_INPUTS = 9 # Gyro(3) + Accel(3) + Angles(3)
+EXPECTED_TOTAL_INPUTS_FROM_CPP = EXPECTED_BASE_INPUTS + NUM_SERVOS * EXPECTED_INPUTS_PER_SERVO
 
 
-def normalise_input(input_data, means_stds, servo_name, model_name):
+# Define which features to use for each servo model
+TILT_FEATURES = ['GyroX', 'GyroY', 'GyroZ', 'TiltPosition', 'TiltDistToGoal', 'TiltDistToStart']
+PAN_FEATURES = ['PanPosition', 'PanDistToGoal', 'PanDistToStart', 'TiltPosition', 'TiltDistToGoal', 'TiltDistToStart']
+
+# Global variable for shared memory map, to be cleaned up in signal_handler
+shm_map = None
+shm_handle = None
+
+def parse_input_array_to_dict(flat_input_array, num_servos_expected):
     """
-    Normalize input data for a specific servo model
-    
-    Args:
-        input_data: Dictionary containing gyro, accel, positions, distances
-        means_stds: Dictionary with normalization parameters
-        servo_name: Name of the servo (e.g., 'tilt', 'pan')
-    
-    Returns:
-        Normalized input as numpy array
+    Parses a flat numpy array of input data from shared memory into the
+    dictionary structure expected by the `normalise_input` function.
+    Assumes a fixed order: gyro(3), accel(3), angles(3),
+    then for each servo: position(1), dist_to_goal(1), dist_to_start(1),
+    goal_pos(1), start_pos(1).
     """
-    # Define the expected feature order
-    expected_feature_order = [
-        'GyroX', 'GyroY', 'GyroZ', 'AccelX', 'AccelY', 'AccelZ', 'AngleX',
-        'AngleY', 'AngleZ', 'TiltPosition', 'TiltDistToGoal',
-        'TiltGoalPosition', 'TiltStartPosition', 'PanPosition', 'PanDistToGoal',
-        'PanGoalPosition', 'PanStartPosition'
-    ]
-    
-    # Get the list of available servos
-    available_servos = [s for i, s in enumerate(['tilt', 'pan', 'roll', 'yaw', 'pitch']) 
-                        if i < input_data['num_servos']]
-    
-    # Map servo names to their indices
-    servo_indices = {name.lower(): i for i, name in enumerate(available_servos)}
-    
-    # Create input array in the expected order
+    ptr = 0
+    gyro = flat_input_array[ptr:ptr+3]; ptr += 3
+    accel = flat_input_array[ptr:ptr+3]; ptr += 3
+    angles = flat_input_array[ptr:ptr+3]; ptr += 3
+
+    servo_data_list = []
+    positions = []
+    goal_distances = []
+    start_distances = []
+    goal_positions = []
+    starting_positions = []
+
+    features_per_servo = EXPECTED_INPUTS_PER_SERVO
+    for i in range(num_servos_expected):
+        pos = flat_input_array[ptr]; ptr += 1
+        dist_goal = flat_input_array[ptr]; ptr += 1
+        dist_start = flat_input_array[ptr]; ptr += 1
+        goal_pos = flat_input_array[ptr]; ptr += 1
+        start_pos = flat_input_array[ptr]; ptr += 1
+
+        positions.append(pos)
+        goal_distances.append(dist_goal)
+        start_distances.append(dist_start)
+        goal_positions.append(goal_pos)
+        starting_positions.append(start_pos)
+        
+        servo_data_list.append({
+            'position': pos,
+            'goal_distance': dist_goal,
+            'start_distance': dist_start,
+            'goal_position': goal_pos,
+            'starting_position': start_pos
+        })
+
+    if ptr != len(flat_input_array):
+        print(f"Warning: Parsed {ptr} input values, but received {len(flat_input_array)} from C++.", file=sys.stderr)
+
+    # For debugging, print the parsed values similar to the old script
+    # print("Parsed Gyro: ", gyro, file=sys.stderr)
+    # print("Parsed Accel: ", accel, file=sys.stderr)
+    # print("Parsed Angles: ", angles, file=sys.stderr)
+    # print("Parsed Positions: ", positions, file=sys.stderr)
+    # print("Parsed Goal distances: ", goal_distances, file=sys.stderr)
+    # print("Parsed Start distances: ", start_distances, file=sys.stderr)
+    # print("Parsed Goal positions: ", goal_positions, file=sys.stderr)
+    # print("Parsed Starting positions: ", starting_positions, file=sys.stderr)
+
+    return {
+        'gyro': gyro,
+        'accel': accel,
+        'angles': angles,
+        'servo_data': servo_data_list,
+        'num_servos': num_servos_expected
+        # 'predictions' key is not part of input, it was an old artifact
+    }
+
+def get_flag(shm_map_obj, offset):
+    """Reads a boolean flag from shared memory."""
+    flag_byte = struct.unpack_from('<?', shm_map_obj, offset)[0]
+    return bool(flag_byte)
+
+def set_flag(shm_map_obj, offset, value):
+    """Writes a boolean flag to shared memory."""
+    shm_map_obj.seek(offset) # Important: mmap object needs seek before write if not sequential
+    shm_map_obj.write(struct.pack('<?', bool(value)))
+    shm_map_obj.flush() # Ensure it's written
+
+def normalise_input(input_data, means_stds, servo_name, model_name, feature_list):
+    """
+    Normalize input data for a specific servo model using a custom feature list.
+    """
     input_array = []
-    extraction_log = []
-    
-    for feature in expected_feature_order:
+    for feature in feature_list:
         if feature not in means_stds:
-            # Skip features that aren't in the means_stds dictionary
-            continue
-            
-        feature_value = None
-        
-        if feature.startswith('Gyro'):
-            axis = feature[-1]
-            idx = {'X': 0, 'Y': 1, 'Z': 2}.get(axis, 0)
-            if idx < len(input_data['gyro']):
-                feature_value = input_data['gyro'][idx]
-                extraction_log.append(f"{feature} = {feature_value} (gyro[{idx}])")
-        
-        elif feature.startswith('Accel'):
-            axis = feature[-1]
-            idx = {'X': 0, 'Y': 1, 'Z': 2}.get(axis, 0)
-            if idx < len(input_data['accel']):
-                feature_value = input_data['accel'][idx]
-                extraction_log.append(f"{feature} = {feature_value} (accel[{idx}])")
-        
-        elif feature.startswith('Angle'):
-            axis = feature[-1]
-            idx = {'X': 0, 'Y': 1, 'Z': 2}.get(axis, 0)
-            if idx < len(input_data['angles']):
-                feature_value = input_data['angles'][idx]
-                extraction_log.append(f"{feature} = {feature_value} (angles[{idx}])")
-        
-        else:
-            # Extract servo name from feature (looking for standard prefixes)
-            feature_servo_name = None
-            for prefix in [s.capitalize() for s in available_servos]:
-                if feature.startswith(prefix):
-                    feature_servo_name = prefix.lower()
-                    break
-            
-            if feature_servo_name is not None:
-                servo_idx = servo_indices.get(feature_servo_name, -1)
-                
-                if servo_idx >= 0 and servo_idx < len(input_data['servo_data']):
-                    # Get the specific value based on what kind of property it is
-                    if feature.endswith('Position') and 'Goal' not in feature and 'Start' not in feature:
-                        feature_value = input_data['servo_data'][servo_idx]['position']
-                        extraction_log.append(f"{feature} = {feature_value} (servo_data[{servo_idx}]['position'])")
-                    elif 'DistToGoal' in feature:
-                        feature_value = input_data['servo_data'][servo_idx]['distance']
-                        extraction_log.append(f"{feature} = {feature_value} (servo_data[{servo_idx}]['distance'])")
-                    elif 'GoalPosition' in feature:
-                        feature_value = input_data['servo_data'][servo_idx]['goal_position']
-                        extraction_log.append(f"{feature} = {feature_value} (servo_data[{servo_idx}]['goal_position'])")
-                    elif 'StartPosition' in feature:
-                        feature_value = input_data['servo_data'][servo_idx]['starting_position']
-                        extraction_log.append(f"{feature} = {feature_value} (servo_data[{servo_idx}]['starting_position'])")
-        
-        # If we couldn't extract a value, use 0.0 as fallback
-        if feature_value is None:
-            feature_value = 0.0
-            extraction_log.append(f"{feature} = 0.0 (fallback)")
-        
-        input_array.append(feature_value)
-    
-    # Print detailed extraction log for debugging
-    # print(f"Feature extraction log for {servo_name}:", file=sys.stderr)
-    # for log_entry in extraction_log:
-    #     print(f"  {log_entry}", file=sys.stderr)
-    
-    # Convert input_array to numpy array before normalization
-    x = np.array(input_array)
-    
-    # Get means and stds for normalization - make sure to keep the same order as input_array
-    means = np.array([means_stds[feature]['mean'] for feature in expected_feature_order if feature in means_stds])
-    stds = np.array([means_stds[feature]['std'] for feature in expected_feature_order if feature in means_stds])
-    
-    # Ensure the input shape matches the expected shape
-    if len(x) != len(means):
-        print(f"Shape mismatch! Input shape: {x.shape}, Means shape: {means.shape}", file=sys.stderr)
-        print(f"Input array: {x}", file=sys.stderr)
-        print(f"Means: {means}", file=sys.stderr)
-        print(f"Stds: {stds}", file=sys.stderr)
-        
-        # Pad or truncate input array to match expected size
-        if len(x) < len(means):
-            # Pad with zeros
-            x = np.pad(x, (0, len(means) - len(x)), 'constant')
-            print(f"Padded input to match expected size: {x.shape}", file=sys.stderr)
-        else:
-            # Truncate
-            x = x[:len(means)]
-            print(f"Truncated input to match expected size: {x.shape}", file=sys.stderr)
-    
-    #if modelname contains 'raw' then don't normalise
-    if 'raw' in model_name:
-        return x
+            # It's possible for a feature to be in the feature_list (e.g. common features like GyroX for Pan model)
+            # but not have its own entry in means_stds[servo_name] if it's meant to use global or another servo's stats.
+            # However, the current structure implies means_stds[servo_name] should contain all needed stats for that servo's model.
+            raise ValueError(f"Feature '{feature}' not found in means_stds for servo '{servo_name}', model '{model_name}'. Check your mean_std.json files and feature lists.")
 
-    # Normalize
+        feature_value = None
+        processed = False # Flag to track if feature_value was set by specific logic
+
+        # Servo-specific features (e.g., TiltPosition, PanDistToGoal)
+        # These features combine the servo name with the metric.
+        current_servo_prefix = servo_name.capitalize() # "Tilt" or "Pan"
+        
+        if feature.startswith(current_servo_prefix):
+            servo_idx_in_data = 0 if servo_name == 'tilt' else 1 # 0 for tilt, 1 for pan in input_data['servo_data']
+            
+            if feature == f"{current_servo_prefix}Position":
+                feature_value = input_data['servo_data'][servo_idx_in_data]['position']
+                processed = True
+            elif feature == f"{current_servo_prefix}DistToGoal":
+                feature_value = input_data['servo_data'][servo_idx_in_data]['goal_distance']
+                processed = True
+            elif feature == f"{current_servo_prefix}DistToStart":
+                feature_value = input_data['servo_data'][servo_idx_in_data]['start_distance']
+                processed = True
+            # Note: GoalPosition and StartPosition from servo_data are usually not direct inputs to the model itself,
+            # but rather used to calculate DistToGoal/DistToStart. If they were direct inputs, add them here.
+
+        # Handling for features that might be from the OTHER servo (e.g., Pan model using TiltPosition)
+        # This is relevant for PAN_FEATURES which includes TiltPosition, TiltDistToGoal, TiltDistToStart
+        elif servo_name == 'pan' and feature.startswith('Tilt'):
+            other_servo_idx_in_data = 0 # Tilt is always index 0 in input_data['servo_data']
+            if feature == 'TiltPosition':
+                feature_value = input_data['servo_data'][other_servo_idx_in_data]['position']
+                processed = True
+            elif feature == 'TiltDistToGoal':
+                feature_value = input_data['servo_data'][other_servo_idx_in_data]['goal_distance']
+                processed = True
+            elif feature == 'TiltDistToStart':
+                feature_value = input_data['servo_data'][other_servo_idx_in_data]['start_distance']
+                processed = True
+        
+        # IMU features (common to both models or general)
+        if not processed:
+            if feature == 'GyroX':
+                feature_value = input_data['gyro'][0]
+                processed = True
+            elif feature == 'GyroY':
+                feature_value = input_data['gyro'][1]
+                processed = True
+            elif feature == 'GyroZ':
+                feature_value = input_data['gyro'][2]
+                processed = True
+            elif feature == 'AccelX':
+                feature_value = input_data['accel'][0]
+                processed = True
+            elif feature == 'AccelY':
+                feature_value = input_data['accel'][1]
+                processed = True
+            elif feature == 'AccelZ':
+                feature_value = input_data['accel'][2]
+                processed = True
+            elif feature == 'AngleX':
+                feature_value = input_data['angles'][0]
+                processed = True
+            elif feature == 'AngleY':
+                feature_value = input_data['angles'][1]
+                processed = True
+            elif feature == 'AngleZ':
+                feature_value = input_data['angles'][2]
+                processed = True
+
+        if not processed:
+            # If feature_value is still None, it means the feature in feature_list
+            # was not handled by any of the specific extraction logic above.
+            # This indicates a mismatch between feature_list and extraction logic.
+            # The original code had a fallback to mean/default, but it's safer to error out
+            # or at least be very explicit if a feature is expected but not found.
+            # For robustness, let's try the default from original code but with a clear warning.
+            print(f"Warning: Feature '{feature}' for servo '{servo_name}' was not explicitly extracted from input_data. Attempting to use default value from means_stds.", file=sys.stderr)
+            if means_stds[feature].get('default') is not None:
+                 feature_value = means_stds[feature]['default']
+            elif means_stds[feature].get('mean') is not None: # Fallback to mean if default is not present
+                 feature_value = means_stds[feature]['mean']
+            else:
+                 raise ValueError(f"Feature '{feature}' for servo '{servo_name}' could not be extracted and no 'default' or 'mean' found in means_stds.")
+            processed = True # Mark as processed via fallback
+
+        if feature_value is None and processed is False: # Should ideally not happen if logic is complete
+             raise ValueError(f"Critical: Feature '{feature}' for servo '{servo_name}' was not processed and resulted in a None value before appending to input_array.")
+
+        input_array.append(feature_value)
+
+    x = np.array(input_array)
+    means = np.array([means_stds[feature]['mean'] for feature in feature_list])
+    stds = np.array([means_stds[feature]['std'] for feature in feature_list])
+    stds = np.maximum(stds, 1e-2) # Avoid division by zero or very small stds
+    
+    if 'raw' in model_name: # Check if 'raw' is part of the model name string
+        return x.reshape(1, -1) # Return raw data, but ensure it's 2D
     return (x.reshape(1, -1) - means) / stds
 
 
 def create_model_with_weights(weights_path, model_name, num_inputs):
-    # Try to load model from config file
+    # Importing json here as it's only used in this function and main
+    import json 
+    tflite_model_path = weights_path.replace('.weights.h5', '.tflite')
+
+    # Try to load TFLite model if it exists
+    if os.path.exists(tflite_model_path):
+        try:
+            interpreter = tf.lite.Interpreter(model_path=tflite_model_path)
+            interpreter.allocate_tensors()
+            print(f"Successfully loaded TFLite model: {tflite_model_path}", file=sys.stderr)
+            # You might want to verify input/output tensor details here if needed
+            return interpreter
+        except Exception as e:
+            print(f"Error loading existing TFLite model {tflite_model_path}: {e}. Will try to convert Keras model.", file=sys.stderr)
+
+    # If TFLite model doesn't exist or failed to load, load Keras model and convert
+    keras_model = None
     config_path = weights_path.replace('.weights.h5', '_config.json')
     if os.path.exists(config_path):
         try:
             with open(config_path, 'r') as f:
                 config = json.load(f)
             
-            model = Sequential()
-            model.name = model_name
+            keras_model = Sequential()
+            keras_model.name = model_name
             
-            # First layer needs input shape
-            model.add(Input(shape=(num_inputs,)))  
+            keras_model.add(Input(shape=(num_inputs,)))  
             
-            for layer in config['layers']:
-                if layer['class_name'] == 'Dense':
-                    layer_config = layer['config']
+            for layer_config_item in config['layers']: # Renamed to avoid conflict
+                if layer_config_item['class_name'] == 'Dense':
+                    dense_config = layer_config_item['config'] # Renamed to avoid conflict
                     regularizer = None
-                    if layer_config.get('kernel_regularizer'):
-                        reg_config = layer_config['kernel_regularizer']['config']
+                    if dense_config.get('kernel_regularizer'):
+                        reg_config = dense_config['kernel_regularizer']['config']
                         regularizer = l2(reg_config.get('l2', 0))
                     
-                    model.add(Dense(
-                        units=layer_config['units'],
-                        activation=layer_config['activation'],
+                    keras_model.add(Dense(
+                        units=dense_config['units'],
+                        activation=dense_config['activation'],
                         kernel_regularizer=regularizer
                     ))
-                elif layer['class_name'] == 'BatchNormalization':
-                    model.add(BatchNormalization())
-                elif layer['class_name'] == 'Dropout':
-                    model.add(Dropout(layer['config']['rate']))
+                elif layer_config_item['class_name'] == 'BatchNormalization':
+                    keras_model.add(BatchNormalization())
+                elif layer_config_item['class_name'] == 'Dropout':
+                    keras_model.add(Dropout(layer_config_item['config']['rate']))
             
-            # Compile model
-            model.compile(optimizer=Adam(learning_rate=0.001), 
+            keras_model.compile(optimizer=Adam(learning_rate=0.001), 
                           loss='mean_squared_error', 
                           metrics=['mae'])
             
-            # Load pretrained weights
-            model.load_weights(weights_path)
-            
-            print(f"Successfully loaded model from config: {config_path}", file=sys.stderr)
-            return model
+            keras_model.load_weights(weights_path)
+            print(f"Successfully loaded Keras model from config: {config_path} for TFLite conversion", file=sys.stderr)
             
         except Exception as e:
-            print(f"Error loading model from config: {e}", file=sys.stderr)
-            print("Falling back to default model architecture", file=sys.stderr)
-    
-    # Fallback to default implementation
-    print(f"Using default model architecture for {model_name}", file=sys.stderr)
-    model = Sequential()
-    model.name = model_name
-    model.add(Input(shape=(num_inputs,)))  
-    model.add(Dense(128, activation='relu', kernel_regularizer=l2(0.001)))
-    model.add(BatchNormalization())
-    model.add(Dropout(0.3))
-    model.add(Dense(32, activation='relu'))
-    model.add(BatchNormalization())
-    model.add(Dropout(0.3))
-    model.add(Dense(1, activation='linear'))
-    model.compile(optimizer=Adam(learning_rate=0.001), loss='mean_squared_error', metrics=['mae'])
+            print(f"Error loading Keras model from config for TFLite conversion: {e}", file=sys.stderr)
+            keras_model = None # Reset to ensure fallback is used if config loading fails partially
 
-    model.load_weights(weights_path)
-    return model
+    if keras_model is None: # Fallback to default Keras model architecture if config failed or no weights_path
+        print(f"Using default Keras model architecture for {model_name} (or weights_path was None) for TFLite conversion", file=sys.stderr)
+        keras_model = Sequential()
+        keras_model.name = model_name
+        keras_model.add(Input(shape=(num_inputs,)))  
+        keras_model.add(Dense(128, activation='relu', kernel_regularizer=l2(0.001)))
+        keras_model.add(BatchNormalization())
+        keras_model.add(Dropout(0.3))
+        keras_model.add(Dense(32, activation='relu'))
+        keras_model.add(BatchNormalization())
+        keras_model.add(Dropout(0.3))
+        keras_model.add(Dense(1, activation='linear'))
+        keras_model.compile(optimizer=Adam(learning_rate=0.001), loss='mean_squared_error', metrics=['mae'])
+        if weights_path and os.path.exists(weights_path):
+            keras_model.load_weights(weights_path)
+        else:
+            print(f"Warning: No Keras weights file found at {weights_path}. Model will be uninitialized if not for TFLite conversion from scratch.", file=sys.stderr)
+
+
+    # Convert Keras model to TFLite
+    try:
+        converter = tf.lite.TFLiteConverter.from_keras_model(keras_model)
+        # You can enable optimizations like float16 quantization here if desired
+        # converter.optimizations = [tf.lite.Optimize.DEFAULT]
+        # converter.target_spec.supported_types = [tf.lite.constants.FLOAT16]
+        tflite_model_content = converter.convert()
+        
+        with open(tflite_model_path, 'wb') as f:
+            f.write(tflite_model_content)
+        print(f"Successfully converted Keras model to TFLite and saved to {tflite_model_path}", file=sys.stderr)
+        
+        interpreter = tf.lite.Interpreter(model_path=tflite_model_path) # Load from file to be consistent
+        # Or use: interpreter = tf.lite.Interpreter(model_content=tflite_model_content)
+        interpreter.allocate_tensors()
+        return interpreter
+    except Exception as e:
+        print(f"Error converting Keras model to TFLite: {e}", file=sys.stderr)
+        raise # Re-raise the exception as we can't proceed without a model
 
 
 def signal_handler(sig, frame):
+    global shm_map, shm_handle
     print("Received termination signal. Cleaning up...", file=sys.stderr)
-    # Global cleanup will happen via __del__ methods
+    if shm_map is not None:
+        try:
+            # Signal C++ that we are shutting down if possible (though C++ usually drives shutdown)
+            # This script mostly reacts to C++'s shutdown_signal.
+            # If we wanted to proactively tell C++ we are dying unexpectedly,
+            # we'd need a separate flag or mechanism.
+            # For now, just ensure flags are in a known state if an error occurs before setting python_wrote_output.
+            # If C++ is waiting on python_wrote_output, it might timeout.
+            # The primary role here is to clean up Python-side resources.
+            print("Closing mmap object.", file=sys.stderr)
+            shm_map.close()
+            shm_map = None
+        except Exception as e:
+            print(f"Error closing mmap object during cleanup: {e}", file=sys.stderr)
+            
+    if shm_handle is not None:
+        try:
+            print("Closing shared memory file descriptor.", file=sys.stderr)
+            shm_handle.close_fd()
+            shm_handle = None
+        except Exception as e:
+            print(f"Error closing shared memory FD during cleanup: {e}", file=sys.stderr)
     sys.exit(0)
 
 def main():
+    global shm_map, shm_handle # Allow signal_handler to access these
+    import json # Import json here as it's used in main
+
     try:
         # Register signal handlers for proper cleanup
         signal.signal(signal.SIGTERM, signal_handler)
         signal.signal(signal.SIGINT, signal_handler)
+
+        # --- Argument Parsing ---
+        if len(sys.argv) != 5:
+            print("Usage: python_script.py <shm_base_name> <num_inputs_cpp> <max_outputs_cpp> <flags_struct_size>", file=sys.stderr)
+            sys.exit(1)
+
+        shm_base_name = sys.argv[1]
+        try:
+            num_inputs_cpp = int(sys.argv[2])
+            max_outputs_cpp = int(sys.argv[3]) # Max number of float data elements Python can write
+            flags_struct_size = int(sys.argv[4]) # Size of the flag structure in bytes
+        except ValueError:
+            print("Error: num_inputs, max_outputs, and flags_struct_size must be integers.", file=sys.stderr)
+            sys.exit(1)
+
+        shm_name = "/" + shm_base_name
+        print(f"Python script starting with SHM name: {shm_name}, Inputs: {num_inputs_cpp}, Max Outputs: {max_outputs_cpp}, Flags Size: {flags_struct_size}", file=sys.stderr)
+
+        if num_inputs_cpp != EXPECTED_TOTAL_INPUTS_FROM_CPP:
+            print(f"Error: Received {num_inputs_cpp} inputs from C++, but script expects {EXPECTED_TOTAL_INPUTS_FROM_CPP} for {NUM_SERVOS} servos.", file=sys.stderr)
+            sys.exit(1)
         
+        # Max outputs this script will produce is NUM_SERVOS (one per servo current)
+        # Ensure C++ is configured to expect at least this many.
+        if max_outputs_cpp < NUM_SERVOS:
+            print(f"Error: C++ expects max {max_outputs_cpp} outputs, but script produces {NUM_SERVOS}. Please configure 'NumberOutputs' in Ikaros for PythonScriptCaller >= {NUM_SERVOS}.", file=sys.stderr)
+            sys.exit(1)
+
+        # --- Shared Memory Setup ---
+        # Calculate total size of the data portion (inputs + 1_for_output_count + outputs)
+        input_data_size = num_inputs_cpp * FLOAT_SIZE
+        # Python writes: 1 float for actual_output_count, then actual_output_count floats for data.
+        # C++ allocates space for max_outputs_cpp data elements + 1 count.
+        output_data_buffer_size = (1 + max_outputs_cpp) * FLOAT_SIZE
+        
+        total_shm_size = flags_struct_size + input_data_size + output_data_buffer_size
+        
+        # Define data offsets
+        input_data_offset = flags_struct_size
+        output_data_offset = flags_struct_size + input_data_size # Start of [count, data1, data2...]
+
+        print(f"Calculated SHM: Total Size={total_shm_size}, InputDataOffset={input_data_offset}, OutputDataOffset={output_data_offset}", file=sys.stderr)
+
+        try:
+            shm_handle = posix_ipc.SharedMemory(shm_name)
+            shm_map = mmap.mmap(shm_handle.fd, total_shm_size)
+            # shm_handle.close_fd() # According to docs, fd can be closed after mmap
+            print(f"Successfully mapped shared memory '{shm_name}' of size {total_shm_size} bytes.", file=sys.stderr)
+        except posix_ipc.ExistentialError:
+            print(f"Error: Shared memory segment '{shm_name}' does not exist. Was it created by C++?", file=sys.stderr)
+            sys.exit(1)
+        except Exception as e:
+            print(f"Error initializing shared memory: {e}", file=sys.stderr)
+            sys.exit(1)
+        
+        # --- Model Loading ---
         directory = os.path.dirname(os.path.abspath(__file__))
+        servos = ['tilt', 'pan'] 
+        model_name_suffix = 'L1_128_L2_64_position_control_standardised_Relu_mean_squared_error_2Output_DropOut_0.2_l2_0.0001_gyro_position_distances'
         
-        servos = ['tilt', 'pan']  # This could be expanded for more servos
-        #model_name = 'L1_128_L2_32_filtered_data_standardised_LeakyReLU_HuberLoss'
-        model_name = 'L1_128_L2_32_filtered_data_standardised_Relu_MSE_2Output'
-    # Load models and means/stds
         models = {}
         means_stds = {}
+        num_features_for_model_init = 0 # To store feature count for dummy input
+
         for servo in servos:
-            # Load model weights
-            weights_path = directory + f'/weights/{servo}_{model_name}.weights.h5'
-            models[servo] = create_model_with_weights(weights_path, f'{servo}_model', 17)
+            feature_list_for_servo = TILT_FEATURES if servo == 'tilt' else PAN_FEATURES
+            num_inputs_for_this_model = len(feature_list_for_servo)
+            if num_features_for_model_init == 0: # Store for dummy input
+                 num_features_for_model_init = num_inputs_for_this_model
+
+            weights_path = directory + f'/weights/{servo}_{model_name_suffix}.weights.h5'
+            models[servo] = create_model_with_weights(weights_path, f'{servo}_model', num_inputs_for_this_model)
             
-            # Load normalization parameters
-            with open(directory + f'/weights/{servo}_filtered_data_mean_std.json', 'r') as f:
+            with open(directory + f'/weights/{servo}_filtered_data_position_control_mean_std.json', 'r') as f:
                 means_stds[servo] = json.load(f)
         
-        shm = SharedMemory()
-        print("Successfully connected to shared memory", file=sys.stderr)
-        
+        print("Warming up models...", file=sys.stderr)
+        if num_features_for_model_init > 0:
+            dummy_input = np.zeros((1, num_features_for_model_init))
+            for servo in servos:
+                interpreter = models[servo]
+                input_details = interpreter.get_input_details()
+                interpreter.set_tensor(input_details[0]['index'], dummy_input.astype(np.float32))
+                interpreter.invoke()
+                _ = interpreter.get_tensor(interpreter.get_output_details()[0]['index'])
+            print("Models warmed up.", file=sys.stderr)
+        else:
+            print("Warning: No features found for model warm-up. Skipping.", file=sys.stderr)
+
+        print(f"Python script '{shm_name}' initialized and waiting for data.", file=sys.stderr)
+
+        # --- Main Loop ---
         while True:
-            if shm.get_shutdown_flag():
-                print("Shutdown flag received. Exiting ANN prediction loop.", file=sys.stderr)
-                del shm  # Explicitly delete to ensure cleanup
+            if get_flag(shm_map, SHUTDOWN_SIGNAL_OFFSET):
+                print("Shutdown signal received from C++. Exiting ANN prediction loop.", file=sys.stderr)
                 break
 
-            if shm.get_new_data_flag():
-                print("New data flag detected. Processing...", file=sys.stderr)
+            if get_flag(shm_map, CPP_WROTE_INPUT_OFFSET):
+                t_start_read = time.perf_counter()
                 
-                # Read all input data
-                input_data = shm.read_data()
-       
-                # Make predictions for each servo
+                # Read input data array
+                shm_map.seek(input_data_offset)
+                input_bytes = shm_map.read(input_data_size)
+                flat_input_array = np.frombuffer(input_bytes, dtype=np.float32)
+                
+                t_end_read = time.perf_counter()
+
+                # Parse flat array into dictionary
+                input_data_dict = parse_input_array_to_dict(flat_input_array, NUM_SERVOS)
+                
                 predictions = []
+                t_start_predict_loop = time.perf_counter()
                 try:
-                    for i, servo in enumerate(servos):
-                        # Normalize inputs for this specific servo
-                        normalized_input = normalise_input(input_data, means_stds[servo], servo, model_name)
-                        # Make prediction
-                        pred = models[servo].predict(normalized_input, verbose=0)
-                        
-                        # Check if model has two outputs
-                        if "2Output" in model_name:
-                            # First output is the current
-                            print(f"Predicted {servo} current: {pred[0][0]}", file=sys.stderr)
-                            # Denormalize prediction for current
-                            target_var = f"{servo.capitalize()}Current"
-                            pred_scalar = abs(float(pred[0][0]) * means_stds[servo][target_var]['std'] + means_stds[servo][target_var]['mean'])
-                            print(f"Denormalized {servo} current: {pred_scalar}", file=sys.stderr)
-                            
-                            # Second output is the effective current (not used in predictions list)
-                            target_var_eff = f"{servo.capitalize()}EffectiveCurrent"
-                            print(f"Predicted {servo} effective current: {pred[0][1]}", file=sys.stderr)
-                            pred_eff_scalar = abs(float(pred[0][1]) * means_stds[servo][target_var_eff]['std'] + means_stds[servo][target_var_eff]['mean'])
-                            print(f"Denormalized {servo} effective current: {pred_eff_scalar}", file=sys.stderr)
-                            predictions.append(float(pred_scalar))    # Regular current
-                            predictions.append(float(pred_eff_scalar)) # Start current
+                    for i, servo_name_key in enumerate(servos): # tilt, pan
+                        # ... (rest of prediction logic using input_data_dict)
+                        if servo_name_key == 'tilt':
+                            feature_list = TILT_FEATURES
+                        elif servo_name_key == 'pan':
+                            feature_list = PAN_FEATURES
                         else:
-                            # Single output model
-                            print(f"Predicted {servo} current: {pred[0][0]}", file=sys.stderr)
-                            # Denormalize prediction
-                            target_var = f"{servo.capitalize()}Current"
-                            pred_scalar = abs(float(pred[0][0]) * means_stds[servo][target_var]['std'] + means_stds[servo][target_var]['mean'])
-                            print(f"Denormalized {servo} current: {pred_scalar}", file=sys.stderr)
-                            
-                            predictions.append(float(pred_scalar))
+                            raise ValueError(f"Unknown servo: {servo_name_key}")
+
+                        normalized_input = normalise_input(input_data_dict, means_stds[servo_name_key], servo_name_key, model_name_suffix, feature_list)
+                        
+                        interpreter = models[servo_name_key]
+                        input_details = interpreter.get_input_details()
+                        output_details = interpreter.get_output_details()
+                        
+                        interpreter.set_tensor(input_details[0]['index'], normalized_input.astype(np.float32))
+                        interpreter.invoke()
+                        pred_nn_output = interpreter.get_tensor(output_details[0]['index'])
+                        
+                        # Denormalization (assuming "2Output" model structure as before)
+                        if "2Output" in model_name_suffix:
+                            target_var = f"{servo_name_key.capitalize()}Current"
+                            pred_scalar = float(pred_nn_output[0][0] * means_stds[servo_name_key][target_var]['std'] + means_stds[servo_name_key][target_var]['mean'])
+                            predictions.append(pred_scalar)
+                        else: # Single output model
+                            target_var = f"{servo_name_key.capitalize()}Current"
+                            pred_scalar = float(pred_nn_output[0][0] * means_stds[servo_name_key][target_var]['std'] + means_stds[servo_name_key][target_var]['mean'])
+                            predictions.append(pred_scalar)
                     
-                    # Debug before writing
-                    print(f"Final prediction list before writing: {predictions}", file=sys.stderr)
-                    print(f"Prediction types: {[type(p) for p in predictions]}", file=sys.stderr)
+                    t_start_write = time.perf_counter()
                     
-                    # Write predictions - this will also clear the new_data flag
-                    shm.write_prediction(predictions)
-                    print(f"Predictions written to shared memory: {predictions}", file=sys.stderr)
+                    # Write predictions back to shared memory
+                    # First, the count of actual outputs
+                    actual_output_count = len(predictions)
+                    if actual_output_count > max_outputs_cpp:
+                        print(f"Warning: Python produced {actual_output_count} outputs, but C++ expects max {max_outputs_cpp}. Truncating.", file=sys.stderr)
+                        predictions = predictions[:max_outputs_cpp]
+                        actual_output_count = max_outputs_cpp
+
+                    # Pack count and then data
+                    output_payload = struct.pack(f'<f{actual_output_count}f', float(actual_output_count), *predictions)
+                    
+                    shm_map.seek(output_data_offset)
+                    shm_map.write(output_payload)
+                    shm_map.flush()
+                    
+                    t_end_write = time.perf_counter()
+
+                    # Signal C++ that output is ready
+                    set_flag(shm_map, CPP_WROTE_INPUT_OFFSET, False) # C++ can write again
+                    set_flag(shm_map, PYTHON_WROTE_OUTPUT_OFFSET, True) # Python has written
+
+                    t_total = time.perf_counter() - t_start_read
+                    # print(f"Total Python time: {t_total:.6f}s (Read={t_end_read-t_start_read:.6f}s, PredictLoop={t_start_write-t_start_predict_loop:.6f}s, Write={t_end_write-t_start_write:.6f}s)", file=sys.stderr)
+                    # print("Predictions sent: ", predictions, file=sys.stderr)
+
                 except Exception as e:
                     print(f"Error during prediction generation: {e}", file=sys.stderr)
-                    # Even if there's an error, we should reset the new_data flag
+                    # Reset flags defensively if an error occurs
                     try:
-                        # Reset the new_data flag
-                        shm.clear_new_data_flag()
+                        set_flag(shm_map, CPP_WROTE_INPUT_OFFSET, False) 
+                        set_flag(shm_map, PYTHON_WROTE_OUTPUT_OFFSET, False) # Indicate no valid output
                     except Exception as reset_err:
-                        print(f"Error resetting new_data flag: {reset_err}", file=sys.stderr)
+                        print(f"Error resetting flags after prediction error: {reset_err}", file=sys.stderr)
             else:
-                # Small sleep to prevent CPU spinning when waiting for new data
-                sleep(0.001)
+                sleep(0.0001) # Small sleep to prevent CPU spinning
                 
     except Exception as e:
         print(f"Error in main: {e}", file=sys.stderr)
+        # Attempt to clean up even on main error
+        if shm_map is not None: shm_map.close()
+        if shm_handle is not None: shm_handle.close_fd()
         sys.exit(1)
     finally:
-        print("Clean exit from ANN prediction service", file=sys.stderr)
+        print(f"Clean exit from ANN prediction service for SHM '{shm_name}'.", file=sys.stderr)
+        if shm_map is not None:
+            shm_map.close()
+        if shm_handle is not None:
+            shm_handle.close_fd()
 
 if __name__ == "__main__":
     main()
