@@ -135,12 +135,12 @@ class UM7 : public Module
             std::cerr << "Failed to initialize serial port." << std::endl;
             return;
         }
-        Notify(msg_print, std::string("Serial port opened on ") + std::string(port).c_str() + " with baudrate " + std::to_string(baudrate) + "\n");
+        Debug(std::string("Serial port for UM7 opened on ") + std::string(port).c_str() + " with baudrate " + std::to_string(baudrate) + "\n");
 
         DisableBroadcast();
         sendConfig(0x05); // Enable Euler angles at 255 Hz
         sendConfig(0x03); // Enable processed accelerometer and gyro data at 255 Hz
-        Notify(msg_debug, "UM7 configured for gyro, accelerometer, and Euler angle data broadcasting.");
+        Debug( "UM7 configured for gyro, accelerometer, and Euler angle data broadcasting.");
     }
 
     void Tick()
@@ -179,17 +179,17 @@ class UM7 : public Module
 
         if (parse_result == 2)
         {
-            Notify(msg_debug, "No header found in buffer.");
+            Debug( "No header found in buffer.");
         }
         if (parse_result == 3)
         {
 
-            Notify(msg_debug, "Not enough data for a full packet.");
+            Debug( "Not enough data for a full packet.");
         }
         if (parse_result == 4)
         {
 
-            Notify(msg_debug, "Checksum mismatch, invalid packet discarded.");
+            Debug( "Checksum mismatch, invalid packet discarded.");
         }
 
         // Manage buffer size
@@ -217,7 +217,8 @@ class UM7 : public Module
         gyroProc[1] = gyroY;
         gyroProc[2] = gyroZ;
 
-        //std::cout << "Gyro X: " << (float)gyroProc[0] << " deg/s, Y: " << (float)gyroProc[1] << " deg/s, Z: " << (float)gyroProc[2] << " deg/s" << std::endl;
+
+        // std::cout << "Gyro X: " << (float)gyroProc[0] << " deg/s, Y: " << (float)gyroProc[1] << " deg/s, Z: " << (float)gyroProc[2] << " deg/s" << std::endl;
     }
 
     void ProcessAccelData()
@@ -260,6 +261,8 @@ class UM7 : public Module
         eulerAngles[0] = estRoll / 91.02222;
         eulerAngles[1] = estPitch / 91.02222;
         eulerAngles[2] = estYaw / 91.02222;
+
+
 
        
     }
@@ -346,7 +349,7 @@ class UM7 : public Module
 
         if (received_checksum != computed_checksum)
         {
-            Notify(msg_debug, "Checksum mismatch, discarding packet.");
+            Debug( "Checksum mismatch, discarding packet.");
             rx_buffer.erase(0, packet_index + 7); // Remove bad packet
             return 4;                             // Bad checksum
         }
@@ -355,7 +358,7 @@ class UM7 : public Module
         size_t erase_length = packet_index + 5 + data_length + 2;
         if (erase_length > rx_buffer.size())
         {
-            Notify(msg_warning, "Error: Attempt to erase beyond buffer size. Buffer size: " + std::to_string(rx_buffer.size())
+            Warning( "Error: Attempt to erase beyond buffer size. Buffer size: " + std::to_string(rx_buffer.size())
                       + ", Requested erase length: " + std::to_string(erase_length));
             return 3; // Not enough data yet
         }
