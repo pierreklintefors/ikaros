@@ -1,19 +1,26 @@
 <group filename="" name="Untitled" real_time="True" start="true" stop="-1" tick_duration="0.025" webui_port="8000">
-   <connection delay="1" source="position.OUTPUT" target="testmapping.PresentPosition"/>
+   <connection delay="1" source="tilt.OUTPUT" target="testmapping.PresentPosition[0]"/>
+   <connection delay="1" source="pan.OUTPUT" target="testmapping.PresentPosition[1]"/>
+   <connection delay="1" source="position.OUTPUT" target="testmapping.PresentPosition[2:19]"/>
    <connection delay="1" source="current.OUTPUT" target="testmapping.PresentCurrent"/>
    <connection delay="1" source="gyro.OUTPUT" target="testmapping.GyroData"/>
    <connection delay="1" source="accel.OUTPUT" target="testmapping.AccelData"/>
-   <module _x="96" _y="96" class="Constant" data="180, 185, 0, 0, 0, 0, 0 , 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0" log_level="5" name="position"/>
+   <connection delay="1" source="angles.OUTPUT" target="testmapping.EulerAngles"/>
+   <module _x="96" _y="96" class="Constant" data="0, 0, 0, 0, 0 , 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0" log_level="5" name="position"/>
    <module _x="96" _y="168" class="Constant" data="100,100,100,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0" log_level="5" name="current"/>
-   <module _x="96" _y="216" class="Constant" data="0.2,0.3,0.4" log_level="5" name="gyro"/>
-   <module _x="96" _y="288" class="Constant" data="0.2,0.3,0.4" log_level="5" name="accel"/>
-   <module CurrentPrediction="ANN" _x="408" _y="72" class="TestMapping" log_level="5" name="testmapping">
+   <module _x="96" _y="224" class="Oscillator" type="sin" frequency="1" log_level="5" name="tilt"/>
+   <module _x="96" _y="256" class="Oscillator" type="sin" frequency="1.5" log_level="5" name="pan"/>
+   <module _x="96" _y="288" class="Constant" data="0.2,0.3,0.4" log_level="5" name="gyro"/>  
+   <module _x="96" _y="320" class="Constant" data="0.2,0.3,0.4" log_level="5" name="accel"/>
+   <module _x="96" _y="352" class="Constant" data="0.2,0.3,0.4" log_level="5" name="angles"/>
+   <module CurrentPrediction="ANN" _x="408" _y="72" class="TestMapping" log_level="7" name="testmapping">
+
       <files>
          <file/>
          <file/>
       </files>
    </module>
-   <widget _index_="0" _x="216" _y="432" class="table" colorize="true" decimals="2" direction="normal" frame-style="" height="73" label_x="" label_y="" max="1" min="0" name="Widget_1" scrollable="false" select="" show_frame="false" show_title="true" source="testmapping.GoalCurrent" style="" title="goal current" width="529"/>
+   <widget _index_="0" _x="216" _y="432" class="table" colorize="true" decimals="2" direction="normal" frame-style="" height="73" label_x="" label_y="" max="1" min="0" name="Widget_1" scrollable="false" select="" show_frame="false" show_title="true" source="testmapping.ModelPrediction" style="" title="model prediction" width="529"/>
    <widget _index_="2" _x="216" _y="528" class="table" colorize="true" decimals="2" direction="normal" frame-style="" height="73" label_x="" label_y="" max="1" min="0" name="Widget_2" scrollable="false" select="" show_frame="false" show_title="true" source="testmapping.PresentPosition" style="" title="position" width="529"/>
    <widget _index_="4" _x="720" _y="144" class="slider-horizontal" count="1" frame-style="" height="49" labels="tilt" max="200" min="0" name="Widget_3" parameter="position.data" select="0" show_frame="false" show_title="false" show_values="true" source="" step="0.01" style="" title="Widget_3" width="241"/>
    <widget _index_="6" _x="720" _y="192" class="slider-horizontal" count="1" frame-style="" height="49" labels="pan" max="200" min="0" name="Widget_4" parameter="position.data" select="1" show_frame="false" show_title="false" show_values="true" source="position.data" step="0.01" style="" title="Widget_4" width="241"/>

@@ -76,7 +76,7 @@ struct PointCloud
 // --- End Nanoflann ---
 
 #define SHM_NAME "/ikaros_ann_shm"
-#define FLOAT_COUNT 21  // 17 inputs + 4 predictions
+#define FLOAT_COUNT 21  // 19 inputs + 2 predictions
 #define MEM_SIZE ((FLOAT_COUNT * sizeof(float)) + sizeof(bool)*2)  // Add explicit size calculation including two flags
 #define NN_DIMS 17  // 9 base features + 4 features per servo * 2 servos (for Torso)
 
@@ -133,7 +133,7 @@ class TestMapping: public Module
     std::random_device rd;
     
     int number_transitions; //Will be used to add starting and ending position
-    int position_margin = 3;
+    int position_margin = 2;
     int transition = 0;
     int starting_current = 30;
     int current_limit = 2000;
@@ -687,54 +687,54 @@ class TestMapping: public Module
                  }
                  size_t num_features = current_point_cloud_ptr->num_features;
 
-                 // --- Construct the *raw* query vector based on feature_names ---
-                 std::vector<float> query_point_raw(num_features);
+                 // <<< EDIT: Construct the *raw* query vector using only the 4 servo-specific features >>>
+                 // The order MUST match the order defined and loaded in LoadCSVData:
+                 // 0: Position, 1: DistToGoal, 2: GoalPosition, 3: StartPosition
+                 size_t expected_num_features = 4; // We now expect exactly 4 features
+                 if (current_point_cloud_ptr->num_features != expected_num_features) {
+                      Error("PointCloud for servo " + std::to_string(servo_idx) +
+                            " has unexpected number of features (" + std::to_string(current_point_cloud_ptr->num_features) +
+                            "). Expected " + std::to_string(expected_num_features) + ". Check LoadCSVData filtering.");
+                      continue;
+                 }
+                 std::vector<float> query_point_raw(expected_num_features);
                  bool query_build_ok = true;
-                 for (size_t feat_idx = 0; feat_idx < num_features; ++feat_idx) {
-                     const std::string& feature_name = current_point_cloud_ptr->feature_names[feat_idx];
-                     float value = 0.0f; // Default value
-                    
-                    
-                     // Skip features that contain "Current" to avoid using current values as predictors
-                     if (feature_name.find("Current") != std::string::npos) {
-                         query_point_raw[feat_idx] = 0.0f; // Set to zero or another appropriate default
-                         continue; // Skip to the next feature
-                     }
-                     // Assign value based on feature name
-                     // This part requires mapping feature names to the correct Ikaros input matrices
-                     else if (feature_name == "GyroX") value = (gyro.size() > 0) ? gyro(0) : 0.0f;
-                     else if (feature_name == "GyroY") value = (gyro.size() > 1) ? gyro(1) : 0.0f;
-                     else if (feature_name == "GyroZ") value = (gyro.size() > 2) ? gyro(2) : 0.0f;
-                     else if (feature_name == "AccelX") value = (accel.size() > 0) ? accel(0) : 0.0f;
-                     else if (feature_name == "AccelY") value = (accel.size() > 1) ? accel(1) : 0.0f;
-                     else if (feature_name == "AccelZ") value = (accel.size() > 2) ? accel(2) : 0.0f;
-                     else if (feature_name == "AngleX") value = (eulerAngles.size() > 0) ? eulerAngles(0) : 0.0f;
-                     else if (feature_name == "AngleY") value = (eulerAngles.size() > 1) ? eulerAngles(1) : 0.0f;
-                     else if (feature_name == "AngleZ") value = (eulerAngles.size() > 2) ? eulerAngles(2) : 0.0f;
-                     // Servo-specific features (handle Tilt and Pan possibilities)
-                     else if (feature_name == "TiltPosition") value = (present_position.size() > 0) ? present_position(0) : 0.0f;
-                     else if (feature_name == "TiltDistToGoal") value = (present_position.size() > 0 && goal_position_out.size() > 0) ? goal_position_out(0) - present_position(0) : 0.0f;
-                     else if (feature_name == "TiltGoalPosition") value = (goal_position_out.size() > 0) ? goal_position_out(0) : 0.0f;
-                     else if (feature_name == "TiltStartPosition") value = (transition < starting_positions.rows() && starting_positions.cols() > 0) ? starting_positions(transition, 0) : 0.0f;
-                     else if (feature_name == "PanPosition") value = (present_position.size() > 1) ? present_position(1) : 0.0f;
-                     else if (feature_name == "PanDistToGoal") value = (present_position.size() > 1 && goal_position_out.size() > 1) ? goal_position_out(1) - present_position(1) : 0.0f;
-                     else if (feature_name == "PanGoalPosition") value = (goal_position_out.size() > 1) ? goal_position_out(1) : 0.0f;
-                     else if (feature_name == "PanStartPosition") value = (transition < starting_positions.rows() && starting_positions.cols() > 1) ? starting_positions(transition, 1) : 0.0f;
-                     // Add more features here if needed...
-                     
-                
-                     else {
-                         Warning("Unrecognized feature name encountered during query construction: " + feature_name);
-                         // Keep value = 0.0f or handle differently
-                         query_build_ok = false; // Mark as problematic if unexpected feature
-                         break;
-                     }
-                     query_point_raw[feat_idx] = value;
+
+                 // Feature 0: Position
+                 if (present_position.size() > servo_idx) {
+                     query_point_raw[0] = present_position(servo_idx);
+                 } else {
+                     Error("Present position index out of bounds for servo " + std::to_string(servo_idx));
+                     query_build_ok = false;
+                 }
+
+                 // Feature 1: DistToGoal
+                 if (query_build_ok && present_position.size() > servo_idx && goal_position_out.size() > servo_idx) {
+                     query_point_raw[1] = goal_position_out(servo_idx) - present_position(servo_idx);
+                 } else if (query_build_ok) {
+                     Error("Present or goal position index out of bounds for DistToGoal for servo " + std::to_string(servo_idx));
+                     query_build_ok = false;
+                 }
+
+                 // Feature 2: GoalPosition
+                 if (query_build_ok && goal_position_out.size() > servo_idx) {
+                     query_point_raw[2] = goal_position_out(servo_idx);
+                 } else if (query_build_ok) {
+                     Error("Goal position index out of bounds for servo " + std::to_string(servo_idx));
+                     query_build_ok = false;
+                 }
+
+                 // Feature 3: StartPosition
+                 if (query_build_ok && transition < starting_positions.rows() && starting_positions.cols() > i /* Use i (loop index) here */) {
+                     query_point_raw[3] = starting_positions(transition, i); // Use i for column index matching current_controlled_servos loop
+                 } else if (query_build_ok) {
+                     Error("Starting position index out of bounds for transition " + std::to_string(transition) + ", servo index " + std::to_string(i));
+                     query_build_ok = false;
                  }
                  // --- End raw query vector construction ---
 
                  if (!query_build_ok) {
-                      Error("Failed to construct NN query vector due to unrecognized feature names.");
+                      Error("Failed to construct NN query vector due to missing data or index issues for servo " + std::to_string(servo_idx));
                       continue;
                  }
 
@@ -759,7 +759,7 @@ class TestMapping: public Module
                  // <<< EDIT 5: Call updated FindNearestNeighborCurrent >>>
                  estimated_current = FindNearestNeighborCurrent(
                      query_point_standardized, // Pass standardized query
-                     num_features,             // Pass feature count
+                     expected_num_features,    // Pass feature count (now fixed at 4)
                      *current_index_ptr,
                      *current_point_cloud_ptr
                  );
@@ -842,6 +842,65 @@ class TestMapping: public Module
         number_transitions = num_transitions.as_int()+1; // Add one to the number of transitions to include the ending position
         position_transitions.set_name("PositionTransitions");
         position_transitions = RandomisePositions(number_transitions, min_limits, max_limits, robotType.as_string());
+        // position_transitions = {
+        //     {180, 225, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        //     {125, 218, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        //     {126, 207, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        //     {180, 170, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        //     {183, 225, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        //     {125, 218, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        //     {126, 207, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        //     {180, 170, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        //     {183, 225, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        //     {125, 218, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        //     {126, 207, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        //     {180, 170, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        //     {183, 225, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        //     {125, 218, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        //     {126, 207, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        //     {180, 170, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        //     {183, 225, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        //     {125, 218, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        //     {126, 207, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        //     {180, 170, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        //     {183, 225, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        //     {125, 218, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        //     {126, 207, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        //     {180, 170, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}};
+
+        // position_transitions = {
+        //     {180, 180, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        //     {125, 180, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        //     {180, 180, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        //     {125, 180, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        //     {180, 180, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        //     {125, 180, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        //     {180, 180, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        //     {125, 180, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        //     {180, 180, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        //     {125, 180, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        //     {180, 180, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        //     {125, 180, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        //     {180, 180, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        //     {125, 180, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        //     {180, 180, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        //     {125, 180, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        //     {180, 180, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        //     {125, 180, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        //     {180, 180, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        //     {125, 180, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        //     {180, 180, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        //     {125, 180, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        //     {180, 180, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        //     {125, 180, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}};
+            
+            
+            
+    
+
+
+            
+
         goal_position_out.copy(position_transitions[0]);
 
         goal_current.set(starting_current);
@@ -894,7 +953,7 @@ class TestMapping: public Module
             current_coefficients.load_json(coefficientsPath);
 
             coeffcient_matrix = CreateCoefficientsMatrix(current_coefficients, current_controlled_servos, prediction_model.as_string(), servo_names);
-            coeffcient_matrix.print();
+            
         }
         
         reached_goal.set_name("ReachedGoal");
@@ -970,7 +1029,7 @@ class TestMapping: public Module
             memset(shared_data, 0, required_size);
             shared_data->new_data = false;
 
-            // Print debug information
+            
             Debug("Shared memory initialized:\n");
             Debug("- Required size: " + std::to_string(required_size) + " bytes\n");
             Debug("- SharedData size: " + std::to_string(sizeof(SharedData)) + " bytes\n");
@@ -996,8 +1055,8 @@ class TestMapping: public Module
 
             // --- Load Data and Build Index for Tilt ---
             // <<< EDIT 2: Use standardized CSV and mean/std JSON paths >>>
-            std::string tilt_data_path = dataBasePath + "tilt_filtered_data_new_standardised.csv";
-            std::string tilt_mean_std_path = dataBasePath + "tilt_filtered_data_new_mean_std.json";
+            std::string tilt_data_path = dataBasePath + "tilt_filtered_data_position_control_standardised.csv";
+            std::string tilt_mean_std_path = dataBasePath + "tilt_filtered_data_position_control_mean_std.json";
             // <<< END EDIT 2 >>>
             Debug("Loading Tilt NN data from: " + tilt_data_path + " (using means/stds from " + tilt_mean_std_path + ")");
 
@@ -1029,8 +1088,8 @@ class TestMapping: public Module
 
              // --- Load Data and Build Index for Pan ---
              // <<< EDIT 2: Use standardized CSV and mean/std JSON paths >>>
-             std::string pan_data_path = dataBasePath + "pan_filtered_data_new_standardised.csv";
-             std::string pan_mean_std_path = dataBasePath + "pan_filtered_data_new_mean_std.json";
+             std::string pan_data_path = dataBasePath + "pan_filtered_data_position_control_standardised.csv";
+             std::string pan_mean_std_path = dataBasePath + "pan_filtered_data_position_control_mean_std.json";
              // <<< END EDIT 2 >>>
              Debug("Loading Pan NN data from: " + pan_data_path + " (using means/stds from " + pan_mean_std_path + ")");
 
@@ -1119,7 +1178,7 @@ class TestMapping: public Module
                      ss_time << std::put_time(std::localtime(&now_c), "%Y%m%d_%H%M");
                      std::string time_stamp_str = ss_time.str();
 
-                    std::string filepath = resultsDir + "/deviance_log_" + time_stamp_str + "_" + std::to_string(unique_id) + ".json";
+                    std::string filepath = resultsDir + "/deviance_log_" + time_stamp_str + "position_control" + ".json";
 
                     deviance_log_file.open(filepath, std::ios::out | std::ios::trunc);
                     if (!deviance_log_file.is_open()) {
@@ -1127,9 +1186,10 @@ class TestMapping: public Module
                         log_deviance_data = false; // Disable logging on failure
                     } else {
                         Debug("Opened deviance log file: " + filepath);
-                        // Start the JSON structure
-                        deviance_log_stream << "{\n  \"deviance_data\": [\n";
-                        is_first_deviance_log_entry = true; // Reset comma flag
+                        // Initialize with a valid empty JSON array structure
+                        deviance_log_file << "{\n\"deviance_data\" : [\n{ \n]}\n";
+                        deviance_log_file.flush(); // Ensure it's written
+                        is_first_deviance_log_entry = true; // This flag now means "is the *next logged entry* the first one in the array?"
                     }
                 }
             } catch (const std::exception& e) {
@@ -1146,6 +1206,9 @@ class TestMapping: public Module
     
     void Tick()
     {   
+        //print tick
+        Debug("Tick " + std::to_string(GetTick()));
+        
         // First check if required inputs are connected
         if (!present_current.connected() || !present_position.connected()) {
             Error("Present current and present position must be connected");
@@ -1180,11 +1243,12 @@ class TestMapping: public Module
                     
                 }
             }
-
+            PrintProgressBar(transition, number_transitions);
             transition++;
             
+            
             // Save data after every 5th transition
-            if (transition % 5 == 0) {
+            if (transition % 2 == 0) {
                 SaveCurrentData();
                 Debug("Saved data after transition " + std::to_string(transition));
             }
@@ -1250,8 +1314,11 @@ class TestMapping: public Module
                 // Current position
                 shared_data->data[idx++] = present_position[servo_idx];
                 
-                // Distance to goal
-                shared_data->data[idx++] = abs((float)goal_position_out[servo_idx] - (float)present_position[servo_idx]);
+                // Distance to goal -- potential bug. Changed from absolute value 
+                shared_data->data[idx++] = (float)goal_position_out[servo_idx] - (float)present_position[servo_idx];
+
+                //Distance to start position
+                shared_data->data[idx++] = (float)starting_positions(transition, i) - (float)present_position[servo_idx];
                 
                 // Goal position
                 shared_data->data[idx++] = goal_position_out[servo_idx];
@@ -1276,7 +1343,7 @@ class TestMapping: public Module
             std::atomic_thread_fence(std::memory_order_release);
             
             // Wait for Python to process (with timeout)
-            int timeout_ms = 5;  // 5ms timeout
+            int timeout_ms = 5  ;  // 5ms timeout
             auto start = std::chrono::steady_clock::now();
             bool got_response = false;
             
@@ -1285,7 +1352,7 @@ class TestMapping: public Module
                 auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - start).count();
                 
                 if (elapsed > timeout_ms) {
-                    Debug("Timeout waiting for ANN prediction. Elapsed time: " + std::to_string(elapsed) + "ms");
+                    Warning("Timeout waiting for ANN prediction. Elapsed time: " + std::to_string(elapsed) + "ms. Tick: " + std::to_string(GetTick()));
                     break;
                 }
 
@@ -1311,20 +1378,23 @@ class TestMapping: public Module
                     for (int i = 0; i < current_controlled_servos.size(); i++) {
                         int servo_idx = current_controlled_servos(i);
                         // Each servo has 2 predictions (regular and start current)
-                        int regular_offset = prediction_base_offset + (i * 2);
-                        int start_offset = regular_offset + 1;
+                        int regular_offset = prediction_base_offset + (i );
+                        
                         
                         // Update predictions
                         model_prediction[servo_idx] = shared_data->data[regular_offset];
-                        model_prediction_start[servo_idx] = shared_data->data[start_offset];
+                        
                         
                         // Build debug message
                         if (i > 0) debug_msg += ", ";
                         debug_msg += std::string(servo_names[servo_idx]) + 
                                     "=(regular=" + std::to_string(model_prediction[servo_idx]) + 
-                                    ", start=" + std::to_string(model_prediction_start[servo_idx]) + ")";
+                                    ")";
                     }
-                    
+                    std::cout << "Tick: " << GetTick() << std::endl;
+                    present_current.print();
+                    model_prediction.print();
+
                     got_response = true;
                     Debug(debug_msg);
                 }
@@ -1333,10 +1403,12 @@ class TestMapping: public Module
             }
 
             if (!got_response) {
-                Debug("Using previous ANN predictions due to timeout");
+                Warning("Using previous ANN predictions due to timeout");
             }
         }
 
+       
+        
         // Process servo movements and timeouts
         for (int i = 0; i < current_controlled_servos.size(); i++) {
             int servo_idx = current_controlled_servos(i);
@@ -1353,21 +1425,13 @@ class TestMapping: public Module
                         float start_pos = starting_positions(transition, i);
                         float current_pos = present_position(servo_idx);
                         
-                        if (abs(current_pos - start_pos) <= position_margin) {
-                            // Use starting current from model_prediction_start matrix
-                            goal_current(servo_idx) = std::min<float>(abs(model_prediction_start[servo_idx]), (float)current_limit);
-                            
-                            // Add debug to verify the correct current is being used
-                            Debug("Using STARTING current (close to start pos) for " + std::string(servo_names[servo_idx]) + 
-                                  ": " + std::to_string(model_prediction_start[servo_idx]));
-                        } else {
-                            // Use regular current from model_prediction matrix
-                            goal_current(servo_idx) = std::min<float>(abs(model_prediction[servo_idx]), (float)current_limit);
-                            
-                            // Add debug to verify the correct current is being used
-                            Debug("Using REGULAR current (moved from start pos) for " + std::string(servo_names[servo_idx]) + 
-                                  ": " + std::to_string(model_prediction[servo_idx]));
-                        }
+                        
+                        goal_current(servo_idx) = std::min<float>(abs(model_prediction[servo_idx]), (float)current_limit);
+                        
+                        // Add debug to verify the correct current is being used
+                        Debug("Using REGULAR current (moved from start pos) for " + std::string(servo_names[servo_idx]) + 
+                                ": " + std::to_string(model_prediction[servo_idx]));
+                    
                     } else {
                         // For other models, use the existing prediction method
                         goal_current.copy(SetGoalCurrent(present_current, current_increment, current_limit,
@@ -1432,6 +1496,8 @@ class TestMapping: public Module
         if (log_deviance_data && GetTick() > 2) { // Start logging after initial ticks
             goal_current[0] = 2000;
             goal_current[1] = 500;
+            
+            
             LogDevianceData();
         }
         // <<< END EDIT 4 >>>
@@ -1598,22 +1664,27 @@ class TestMapping: public Module
             system("lsof -ti:8000 | xargs kill -9 2>/dev/null || true");
         }
 
-        // <<< EDIT 5: Finalize and close deviance log file >>>
+        // Finalize and close deviance log file
         if (log_deviance_data && deviance_log_file.is_open()) {
             // Write any remaining data from the buffer
-            if (deviance_log_tick_counter > 0 || !deviance_log_stream.str().empty()) {
-                 deviance_log_file << deviance_log_stream.str();
-                 deviance_log_stream.str(""); // Clear buffer after writing
-                 deviance_log_stream.clear();
-            }
-            // Close the JSON array and root object
-            deviance_log_stream << "\n  ]\n}\n";
-            deviance_log_file << deviance_log_stream.str(); // Write final closing brackets
+            if (!deviance_log_stream.str().empty()) { // Check if the buffer has content
+                deviance_log_file.seekp(-7L, std::ios::end); // Seek to before the closing "\\n  ]\\n}\\n"
 
+                if (!is_first_deviance_log_entry) { // If not the first ever entry, add a comma
+                    deviance_log_file << ",\n";
+                }
+                
+                deviance_log_file << deviance_log_stream.str(); // Write the remaining buffered objects
+                                
+                deviance_log_file << "\n  ]\n}\n"; // Add the final closing structure
+                deviance_log_file.flush(); // Ensure it's written
+            }
+            // If deviance_log_stream was empty, the file was already correctly closed 
+            // by the last flush in LogDevianceData, or it's still in its initial valid empty state from Init.
+            
             deviance_log_file.close();
             Debug("Closed deviance log file.");
         }
-        // <<< END EDIT 5 >>>
     }
 
     // <<< EDIT 6: Add function signature >>>
@@ -1668,6 +1739,20 @@ bool TestMapping::LoadCSVData(const std::string& filepath, const std::string& me
     int target_col_index = -1;
     std::vector<int> feature_indices_in_csv; // Stores CSV column index for each feature *in order*
     std::vector<std::string> ordered_feature_names; // Stores feature names *in order*
+    // <<< EDIT: Define the desired features and their fixed order >>>
+    std::vector<std::string> desired_feature_base_names = {"GyroX", "GyroY", "GyroZ", "AngleX", "AngleY", "AngleZ", "Position", "DistToGoal", "GoalPosition", "StartPosition"};
+    std::vector<std::string> desired_feature_full_names(desired_feature_base_names.size());
+    for(size_t i = 0; i < desired_feature_base_names.size(); ++i) {
+        desired_feature_full_names[i] = servo + desired_feature_base_names[i];
+    }
+    std::map<std::string, int> desired_feature_map; // Map full name to its fixed index (0-3)
+    for(size_t i = 0; i < desired_feature_full_names.size(); ++i) {
+        desired_feature_map[desired_feature_full_names[i]] = i;
+    }
+    // Vectors to store loaded feature info temporarily, ordered by desired_feature_map index
+    std::vector<int> temp_feature_indices_in_csv(desired_feature_full_names.size(), -1);
+    std::vector<std::string> temp_ordered_feature_names(desired_feature_full_names.size(), "");
+    // <<< END EDIT >>>
 
     // Read header line
     if (std::getline(file, line)) {
@@ -1697,20 +1782,28 @@ bool TestMapping::LoadCSVData(const std::string& filepath, const std::string& me
                 target_label = header;
                 target_col_index = current_col;
             } else {
-                // Check if this feature exists in the mean/std data AND is not "UniqueId"
-                if (header != "UniqueID" && mean_std_data.contains(header)) {
-                    // It's a feature we expect
-                    feature_indices_in_csv.push_back(current_col);
-                    ordered_feature_names.push_back(header);
+                // <<< EDIT: Check if the header matches one of the desired features >>>
+                if (desired_feature_map.count(header)) {
+                    // Check if this feature exists in the mean/std data AND is not "UniqueId"
+                    if (mean_std_data.contains(header)) {
+                        // It's a desired feature we expect, store its info based on its fixed index
+                        int fixed_index = desired_feature_map[header];
+                        temp_feature_indices_in_csv[fixed_index] = current_col;
+                        temp_ordered_feature_names[fixed_index] = header;
+                    } else {
+                         Warning("Desired feature header '" + header + "' in CSV " + filepath + " not found in mean/std JSON " + mean_std_filepath + ". Skipping this feature.");
+                    }
+                // <<< END EDIT >>>
                 } else {
-                    // Print warning only if it wasn't UniqueId but was still skipped
-                    if (header != "UniqueID") {
+                    // Print warning only if column contain servo name but was skipped
+                    if (header.find(servo) != std::string::npos) {
                          Warning("Header '" + header + "' in CSV " + filepath + " not found in mean/std JSON " + mean_std_filepath + " or is excluded. Skipping this column.");
                     }
                 }
             }
             current_col++;
         }
+       
     } else {
         Error("CSV file is empty or could not read header: " + filepath);
         return false;
@@ -1721,14 +1814,25 @@ bool TestMapping::LoadCSVData(const std::string& filepath, const std::string& me
         Error("No target column (containing 'Current') found in CSV header: " + filepath);
         return false;
     }
-    if (ordered_feature_names.empty()) {
-        Error("No valid feature columns found in CSV header (matching mean/std JSON keys): " + filepath);
-        return false;
+  
+
+    // <<< EDIT: Populate final feature lists based on successfully found desired features >>>
+    feature_indices_in_csv.clear();
+    ordered_feature_names.clear();
+    for(size_t i = 0; i < desired_feature_full_names.size(); ++i) {
+        if (temp_feature_indices_in_csv[i] != -1 && !temp_ordered_feature_names[i].empty()) {
+            feature_indices_in_csv.push_back(temp_feature_indices_in_csv[i]);
+            ordered_feature_names.push_back(temp_ordered_feature_names[i]);
+        } else {
+             Warning("Desired feature '" + desired_feature_full_names[i] + "' was not found or loaded successfully from CSV/JSON. It will be excluded.");
+             // We might need to decide if this is an error condition depending on requirements.
+        }
     }
+    // <<< END EDIT >>>
 
     // Populate PointCloud feature info and load means/stds in the correct order
     point_cloud_out.feature_names = ordered_feature_names;
-    point_cloud_out.num_features = ordered_feature_names.size();
+    point_cloud_out.num_features = ordered_feature_names.size(); // Use the count of actually loaded features
     point_cloud_out.feature_means.resize(point_cloud_out.num_features);
     point_cloud_out.feature_stds.resize(point_cloud_out.num_features);
 
@@ -1791,6 +1895,14 @@ bool TestMapping::LoadCSVData(const std::string& filepath, const std::string& me
         if (all_row_values.size() != headers.size()) {
             Warning("Row has different number of columns (" + std::to_string(all_row_values.size()) +
                     ") than header (" + std::to_string(headers.size()) + ") in CSV: " + filepath + ". Skipping row.");
+            // Print header 
+            std::string header_str = "Header: ";
+            for(const auto& h : headers) header_str += h + " ";
+            Warning(header_str);
+            // Print all_row_values
+            std::string values_str = "Values: ";
+            for(const auto& v : all_row_values) values_str += std::to_string(v) + " ";
+            Warning(values_str);
             continue;
         }
 
@@ -1900,7 +2012,7 @@ double TestMapping::FindNearestNeighborCurrent(
 
 
     // Perform k-NN search: find K nearest neighbors
-    const size_t num_results_k = 3; // Use k=3
+    const size_t num_results_k = 1; // Use k=3
     std::vector<size_t> ret_indices(num_results_k); // Indices of the nearest neighbors
     std::vector<float> out_dist_sqr(num_results_k); // Squared distances to neighbors
 
@@ -1973,41 +2085,13 @@ double TestMapping::FindNearestNeighborCurrent(
         Warning("Target normalization data was not loaded. Returning normalized prediction.");
         return predicted_current_normalised; // Return normalized if stats weren't loaded
     }
-    // <<< END EDIT 8 >>>
 
-
-    // // Old k=1 logic:
-    // // Check if a neighbor was found and the index is valid
-    // // resultSet.size() might be 0 if no neighbor is found (e.g., empty dataset - though checked earlier)
-    // if (resultSet.size() > 0 && ret_index < point_cloud.target_currents.size()) {
-    //     // Return the target current value from the best matching point
-    //     return point_cloud.target_currents[ret_index];
-    // } else {
-    //      // This case should ideally not happen if the index was built correctly and the dataset isn't empty.
-    //      Warning("Nearest neighbor search failed or returned invalid index. Ret Index: " + std::to_string(ret_index) + ", Target Size: " + std::to_string(point_cloud.target_currents.size()));
-    //     return 0.0; // Default if no neighbor found or index invalid
-    // }
 }
-// <<< END EDIT 3 >>>
 
-// <<< EDIT 6: Add function implementation >>>
 void TestMapping::LogDevianceData() {
     if (!log_deviance_data || !deviance_log_file.is_open()) {
         return; // Logging not enabled or file not open
     }
-
-    // Add comma before adding a new object, except for the first one
-    if (!is_first_deviance_log_entry) {
-        deviance_log_stream << ",\n";
-    } else {
-        is_first_deviance_log_entry = false;
-    }
-
-    // Use stringstream for efficient JSON object creation
-    deviance_log_stream << "    {\n";
-    deviance_log_stream << "      \"tick\": " << GetTick() << ",\n";
-    deviance_log_stream << "      \"time\": " << std::fixed << std::setprecision(4) << GetNominalTime() << ",\n"; // Use nominal time for consistency
-    deviance_log_stream << "      \"transition\": " << transition << ",\n";
 
     // Helper lambda to serialize only the controlled servo elements of a matrix to a JSON array string
     auto serialize_controlled_servos = [this](const matrix& m) -> std::string {
@@ -2026,21 +2110,65 @@ void TestMapping::LogDevianceData() {
         return ss.str();
     };
 
-    deviance_log_stream << "      \"present_position\": " << serialize_controlled_servos(present_position) << ",\n";
-    deviance_log_stream << "      \"goal_position\": " << serialize_controlled_servos(goal_position_out) << ",\n";
-    deviance_log_stream << "      \"present_current\": " << serialize_controlled_servos(present_current) << ",\n";
-    deviance_log_stream << "      \"model_prediction\": " << serialize_controlled_servos(model_prediction) << "\n"; // Last element, no comma
-    deviance_log_stream << "    }"; // Close the JSON object
+    auto serialise_imu_data = [this](const matrix& m) -> std::string {
+        std::stringstream ss;
+        ss << "[";
+        bool first = true;
+        for (int i = 0; i < m.size(); ++i) {
+            if (!first) ss << ", ";
+            ss << std::fixed << std::setprecision(4) << m(i);
+            first = false;
+        }
+        ss << "]";
+        return ss.str();
+    };
+    
+    // Use a temporary stringstream to build the current JSON object
+    std::stringstream current_object_ss;
+    current_object_ss << "    {\n";
+    current_object_ss << "      \"tick\": " << GetTick() << ",\n";
+    current_object_ss << "      \"time\": " << std::fixed << std::setprecision(4) << GetNominalTime() << ",\n";
+    current_object_ss << "      \"transition\": " << transition << ",\n";
+    current_object_ss << "      \"present_position\": " << serialize_controlled_servos(present_position) << ",\n";
+    current_object_ss << "      \"goal_position\": " << serialize_controlled_servos(goal_position_out) << ",\n";
+    current_object_ss << "      \"present_current\": " << serialize_controlled_servos(present_current) << ",\n";
+    current_object_ss << "      \"model_prediction\": " << serialize_controlled_servos(model_prediction) << ",\n"; // Last element in object
+    current_object_ss << "      \"gyro\": " << serialise_imu_data(gyro) << ",\n";
+    current_object_ss << "      \"accel\": " << serialise_imu_data(accel) << ",\n";
+    current_object_ss << "      \"angles\": " << serialise_imu_data(eulerAngles) << ",\n";
+    current_object_ss << "      \"starting_positions\": " << serialize_controlled_servos(starting_positions[transition]) << "\n";
+    current_object_ss << "    }"; // Current object ends here, no "]}"
 
-    // Increment counter and check if it's time to flush
+    // Add the current object to the deviance_log_stream buffer
+    // If the buffer already contains objects, prefix the new one with a comma and newline
+    if (deviance_log_stream.tellp() > 0) {
+        deviance_log_stream << ",\n";
+    }
+    deviance_log_stream << current_object_ss.str();
+    
     deviance_log_tick_counter++;
     if (deviance_log_tick_counter >= DEVIANCE_LOG_FLUSH_INTERVAL) {
-        deviance_log_file << deviance_log_stream.str(); // Write buffer to file
-        deviance_log_stream.str(""); // Clear the stringstream buffer
-        deviance_log_stream.clear(); // Clear potential error states
-        deviance_log_tick_counter = 0; // Reset counter
-         // Optional: Flush the OS buffer to disk immediately (can impact performance)
-        deviance_log_file.flush();
+        // Time to write the buffer to the file
+        
+        // Seek to before the closing "\\n  ]\\n}\\n" (7 characters)
+        deviance_log_file.seekp(-7L, std::ios::end); 
+
+        // If this is not the absolute first entry being written to the file, 
+        // a comma is needed to separate it from previous (already flushed) entries.
+        if (!is_first_deviance_log_entry) {
+            deviance_log_file << ",\n"; 
+        }
+        
+        deviance_log_file << deviance_log_stream.str(); // Write the buffered objects
+        
+        deviance_log_stream.str(""); // Clear the buffer
+        deviance_log_stream.clear(); 
+        deviance_log_tick_counter = 0; 
+        
+        is_first_deviance_log_entry = false; // Mark that at least one entry/batch has now been written to the file
+
+        deviance_log_file << "\n  ]\n}\n"; // Re-add the closing structure to keep the JSON valid
+        deviance_log_file.flush(); // Ensure it's written to disk
     }
 }
 // <<< END EDIT 6 >>>
