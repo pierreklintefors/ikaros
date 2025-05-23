@@ -73,7 +73,7 @@ class CurrentPositionMapping : public Module
     matrix SetGoalCurrent(matrix present_current, int increment, int limit, matrix position, matrix goal_position, int margin)
     {
         matrix current_output(present_current.size());
-        
+
         Notify(msg_debug, "Inside SetGoalCurrent()");
         if (present_current.size() != current_output.size())
         {
@@ -82,6 +82,9 @@ class CurrentPositionMapping : public Module
             Error("Present current and Goal current must be the same size");
             return -1; // Consider returning an empty or error matrix
         }
+        // Initialize current_output with the previous goal_current
+        current_output.copy(goal_current);
+
         for (int i = 0; i < current_controlled_servos.size(); i++)
         {
             int servo_idx = current_controlled_servos(i);
@@ -92,7 +95,7 @@ class CurrentPositionMapping : public Module
                 // Calculate the increased current
                 current_output(servo_idx) = abs(goal_current(servo_idx)) + increment;
             }
-           
+            // Else: current_output(servo_idx) retains the value copied from goal_current
         }
         return current_output;
     }
@@ -294,7 +297,7 @@ class CurrentPositionMapping : public Module
 
         std::string scriptPath = __FILE__;
         std::string scriptDirectory = scriptPath.substr(0, scriptPath.find_last_of("/\\"));
-        std::string filePath = scriptDirectory + "/data/Trajectories" + robotType + "_Increment_" + std::to_string((int)current_increment);
+        std::string filePath = scriptDirectory + "/data/Trajectories" + robotType + "_PositionMode";
         std::string suffix;
         if (ConsistencyTest)
         {
@@ -506,7 +509,9 @@ class CurrentPositionMapping : public Module
 
     void Init()
     {
-
+        // Seed RNG early so RandomisePositions uses a non-default seed
+        gen.seed(rd());
+        
         Bind(present_current, "PresentCurrent");
         Bind(present_position, "PresentPosition");
         Bind(gyro, "GyroData");
@@ -589,7 +594,7 @@ class CurrentPositionMapping : public Module
 
         number_ticks.copy(reached_goal);
 
-        gen.seed(rd());
+
     }
 
     void Tick()
@@ -613,9 +618,8 @@ class CurrentPositionMapping : public Module
                     transition_start_time.set(now_ms);
                     first_start_position = false;
                 }
-
+                // Save trajectory data (smart pointer for memory management to avoid memory leaks)
                 moving_trajectory.push_back(std::make_shared<std::vector<float>>(present_position.data_->begin(), present_position.data_->end()));
-                
                 current_history.push_back(std::make_shared<std::vector<float>>(present_current.data_->begin(), present_current.data_->end()));
                 gyro_history.push_back(std::make_shared<std::vector<float>>(gyro.data_->begin(), gyro.data_->end()));
                 accel_history.push_back(std::make_shared<std::vector<float>>(accel.data_->begin(), accel.data_->end()));
@@ -686,6 +690,7 @@ class CurrentPositionMapping : public Module
                             reached_goal.reset();
                             number_ticks.set(0);
                             start_position.copy(present_position);
+                            unique_id = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
                         }
                         else
                         {
@@ -742,6 +747,7 @@ class CurrentPositionMapping : public Module
                         reached_goal.reset();
                         number_ticks.set(0);
                         start_position.copy(present_position);
+                        unique_id = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
                     }
                     else
                     {
@@ -795,8 +801,8 @@ class CurrentPositionMapping : public Module
         }
 
         second_tick = true;
-        goal_current[0] = 2000;
-        goal_current[1] = 500;
+        // goal_current[0] = 2000;
+        //goal_current[1] = 450;
     }
 };
 
