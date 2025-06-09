@@ -12,6 +12,7 @@
 	<input name ="GyroData" description="Gyro data (XYZ) degrees/s" />
 	<input name="AccelData" description="Accelerometer data (XYZ) m/s^2" />
 	<input name="EulerAngles" description="Euler angles (XYZ) degrees" />
+	<input name="ANN_prediction" optional="true" description="ANN prediction" />
 	<output name="GoalCurrent" description="" size="19"/>
 	<output name="GoalPositionOut" description="" size="19"/>
 	<output name="ModelPrediction" description="" size="19"/>

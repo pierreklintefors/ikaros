@@ -1,0 +1,38 @@
+<class name="GoalSetter" description="Sets the goal position of the servomotors">
+
+    <parameter name="PositionMargin" type="int" default="3" description="The margin of the present position to the goal position in degrees"/>
+    <parameter name="MinLimitPosition" type="matrix" description="The minimum limit of the position in degrees of the servos. Not including pupils"
+	control="textedit"  
+	default="122,142, 161, 156, 53, 73, 87, 53, 70, 0, 53, 79, 88, 158, 70, 0, 9"
+	data="122,142, 161, 156, 53, 73, 87, 53, 70, 0, 53, 79, 88, 158, 70, 0, 9"
+	/>
+	<parameter name="MaxLimitPosition" type="matrix" description="The maximum limit of the position of the servos in degrees. Not including pupils "
+	control="textedit"
+	default="237, 240, 202, 193, 281, 281, 263, 202, 342, 360, 281, 290, 264, 316, 343, 360, 343"
+	data="237, 240, 202, 193, 281, 281, 263, 202, 342, 360, 281, 290, 264, 316, 343, 360, 343"
+	/>
+    <parameter name="RobotType" type="string" options="Torso,FullBody" default="Torso" description="The type of robot to control"/>
+    <parameter name="NumTransitions" type="int" default="10" description="The number of transitions to make"/>
+    <parameter name="NumServos" type="int" default="2" description="The number of servos to control"/>
+    <parameter name="TransitionDelay" type="number" default="0.5" description="The delay between transitions in seconds"/>
+    <parameter name="OneCycle" type="bool" default="false" description="If true, the servo will go back and forward to the GOAL_POSITION_IN and 180 degrees in between"/>
+    
+    
+    <input name="GOAL_POSITION_IN" optional="true" description="The goal position of the servomotors in degrees, if not provided, the goal position will be randomised" size="19"/>
+	<input name="PRESENT_POSITION" description="The present position of the servomotors in degrees" size="19"/>
+    <input name="TRAJECTORY_MODE" optional="true" description="The trajectory mode to use" size="1"/>
+
+	<output name="GOAL_POSITION" size="PRESENT_POSITION.size" description="The goal position of the servomotors in degrees"/>
+    <output name="START_POSITION" size="PRESENT_POSITION.size" description="The start position of the servomotors in degrees"/>
+
+    <files>
+        <file>GoalSetter.cc</file>
+        <file>GoalSetter.ikc</file>
+    </files>
+
+    <author>
+        <name>Pierre Klintefors</name>
+        <email>Pierre.Klintefors@lucs.lu.se</email>
+        <affiliation>Lund University Cognitive Science</affiliation>
+    </author>
+</class>

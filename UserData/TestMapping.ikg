@@ -6,6 +6,18 @@
    <connection delay="1" source="UM7.EulerAngles" target="TestMapping.EulerAngles"/>
    <connection delay="1" source="UM7.ProcessedGyro" target="TestMapping.GyroData"/>
    <connection delay="1" source="UM7.ProcessedAccel" target="TestMapping.AccelData"/>
+
+   <connection delay="1" source="UM7.ProcessedGyro" target="CurrentPrediction.Input[0:3]"/>
+   <connection delay="1" source="UM7.ProcessedAccel" target="CurrentPrediction.Input[3:6]"/>
+   <connection delay="1" source="UM7.EulerAngles" target="CurrentPrediction.Input[6:9]"/>
+   <connection delay="1" source="EpiServos.PRESENT_POSITION[0]" target="CurrentPrediction.Input[10]"/>
+   
+
+   
+   <connection delay="1" source="CurrentPrediction.Output" target="TestMapping.ANN_prediction"/>
+   <module NumberInputs="19" NumberOutputs="2" ScriptPath="/Users/pierre/ikaros/Source/Modules/RobotModules/CompliantRobot/TestMapping/ANN_prediction.py" SharedMemoryName="ikaros_ann_shm" VenvPath="/Users/pierre/ikaros/Source/Modules/RobotModules/CompliantRobot/TestMapping/.tensorflow_venv/bin/python3.12" _x="624" _y="96" class="PythonScriptCaller" log_level="7" name="CurrentPrediction"/>
+
+
    <module CurrentIncrement="50" CurrentPrediction="ANN" DevianceLogging="true" MaxLimits="230, 240" MinLimits="130, 142" NumberTransitions="100" RobotType="Torso" _x="408" _y="48" class="TestMapping" log_level="8" name="TestMapping">
       <files>
          <file/>

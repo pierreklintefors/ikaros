@@ -1,13 +1,21 @@
 <class name="ForceCheck" description="Checking the used current and increase it step by step to reach the target. Reduce the current with too much restance is met">
-	<parameter name="AllowedDeviance" type= "double" default= "10" description="Allowed deviance of the current from the current prediction"/>
-	<parameter name= "PredictionModel" type= "string" default= "ANN" description="The model used for the current prediction"/>
+	
+	<parameter name="ForceChangeRate" type= "int" default= "1" description="The rate of change of the force output in PWM percentage"/>
 	<input name="GoalPositionIn" description="The goal position of the servomotors in degrees" size="19"/>
+	<input name="StartPosition" description="The start position of the servomotors in degrees"/>
 	<input name="PresentPosition" description="The present position of the servomotors in degrees"/>
 	<input name="PresentCurrent" description="The present current from the servomotors in mA" />
 	<input name="CurrentPrediction" description="The current prediction from the servomotors in mA" />
+	<input name="AllowedDeviance" optional="true" default= "700, 200" description="Allowed deviance of the current from the current prediction"/>
 
-	<output name="GoalPositionOut" description="The goal position of the servomotors in degrees"/>
-	<output name="ForceOutput" description="The force output of the servomotors in mA"/>
+	<output name="GoalPositionOut" size="CurrentPrediction.size" description="The goal position of the servomotors in degrees"/>
+	<output name="ForceOutput" size="CurrentPrediction.size" description="The force output of the servomotors in PWM percentage"/>
+	<output name="Deviation" size="CurrentPrediction.size" description="The deviation of the current from the current prediction in mA"/>
+	<output name="LedIntensity" size="3" default="0.5, 0.5, 0.5" description="The intensity of the leds in percentage, left eye, right eye, mouth"/>
+	<output name="LedColorEyes" size="3,12"  description="The color of the leds in RGB, 0-1 "/>
+	<output name="LedColorMouth" size="3,8"  description="The color of the leds in RGB, 0-1 "/>
+
+	
 	<author>
 		<name>Pierre Klintefors</name>
 		<email>Pierre.Klintefors@lucs.lu.se</email>
@@ -17,6 +25,7 @@
    		<file>ForceCheck.cc</file>
    		<file>ForceCheck.ikc</file>
    </files>
+
    
 </class>
 

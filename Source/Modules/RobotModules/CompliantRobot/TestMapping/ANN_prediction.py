@@ -163,8 +163,12 @@ def normalise_input(input_data, means_stds, servo_name, model_name, feature_list
             elif feature == f"{current_servo_prefix}DistToStart":
                 feature_value = input_data['servo_data'][servo_idx_in_data]['start_distance']
                 processed = True
-            # Note: GoalPosition and StartPosition from servo_data are usually not direct inputs to the model itself,
-            # but rather used to calculate DistToGoal/DistToStart. If they were direct inputs, add them here.
+            elif feature == f"{current_servo_prefix}GoalPosition":
+                feature_value = input_data['servo_data'][servo_idx_in_data]['goal_position']
+                processed = True
+            elif feature == f"{current_servo_prefix}StartPosition":
+                feature_value = input_data['servo_data'][servo_idx_in_data]['starting_position']
+                processed = True
 
         # Handling for features that might be from the OTHER servo (e.g., Pan model using TiltPosition)
         # This is relevant for PAN_FEATURES which includes TiltPosition, TiltDistToGoal, TiltDistToStart
@@ -251,7 +255,7 @@ def create_model_with_weights(weights_path, model_name, num_inputs):
         try:
             interpreter = tf.lite.Interpreter(model_path=tflite_model_path)
             interpreter.allocate_tensors()
-            print(f"Successfully loaded TFLite model: {tflite_model_path}", file=sys.stderr)
+            print(f"Successfully loaded TFLite model", file=sys.stderr)
             # You might want to verify input/output tensor details here if needed
             return interpreter
         except Exception as e:
@@ -450,7 +454,7 @@ def main():
             with open(directory + f'/weights/{servo}_filtered_data_position_control_mean_std.json', 'r') as f:
                 means_stds[servo] = json.load(f)
         
-        print("Warming up models...", file=sys.stderr)
+       
         if num_features_for_model_init > 0:
             dummy_input = np.zeros((1, num_features_for_model_init))
             for servo in servos:

@@ -100,6 +100,7 @@ class TestMapping: public Module
     matrix gyro;
     matrix accel;
     matrix eulerAngles;
+    matrix ANN_prediction;
 
     // Outputs
     matrix goal_current;
@@ -539,15 +540,8 @@ class TestMapping: public Module
             // Calculate estimated current based on model type
             double estimated_current = 0.0;
 
-            if (model_name == "ANN")
-            {
-                // Use existing ANN output for this servo
-                // NOTE: ANN output is updated elsewhere (in Tick) and stored in model_prediction/model_prediction_start
-                // This function *might* not be the right place to set ANN current directly,
-                // but we use the value already stored in model_prediction by the Tick logic.
-                 estimated_current = model_prediction[servo_idx]; // Assuming Tick already populated this
-            }
-            else if (model_name == "Linear" || model_name == "Quadratic")
+      
+            if (model_name == "Linear" || model_name == "Quadratic")
             {
                 // Check if indices were successfully found earlier
                 if (!indices_found) {
@@ -823,7 +817,7 @@ class TestMapping: public Module
         Bind(goal_position_out, "GoalPositionOut");
         Bind(model_prediction, "ModelPrediction");
         Bind(model_prediction_start, "ModelPredictionStart");
-        
+        Bind(ANN_prediction, "ANN_prediction");
 
         //parameters
         Bind(min_limits, "MinLimits");
@@ -989,54 +983,13 @@ class TestMapping: public Module
         model_prediction_start.set(0);
         
         if (std::string(prediction_model) == "ANN") {
-            Debug("Attempting to create shared memory at " + std::string(SHM_NAME));
-            
-            // First, ensure any existing shared memory is removed
-            shm_unlink(SHM_NAME);
-            
-            // Create shared memory
-            shm_fd = shm_open(SHM_NAME, O_CREAT | O_RDWR, 0666);
-            if (shm_fd == -1) {
-                Error("Failed to create shared memory: " + std::string(strerror(errno)) + " (errno: " + std::to_string(errno) + ")");
+            if (ANN_prediction.connected()) {
+                model_prediction.copy(ANN_prediction);
+            }
+            else {
+                Error("ANN_prediction is not connected");
                 return;
             }
-            Debug("Successfully created shared memory. File descriptor: " + std::to_string(shm_fd));
-
-            // Calculate size
-            size_t required_size = sizeof(SharedData);
-            Debug("Attempting to set shared memory size to " + std::to_string(required_size) + " bytes\n");
-            
-            // Set the size of shared memory
-            if (ftruncate(shm_fd, required_size) == -1) {
-                Error("Failed to set shared memory size (" + std::to_string(required_size) + " bytes): " + strerror(errno) + " (errno: " + std::to_string(errno) + ")");
-                close(shm_fd);
-                shm_unlink(SHM_NAME);
-                return;
-            }
-
-            // Map the shared memory
-            void* ptr = mmap(nullptr, required_size, PROT_READ | PROT_WRITE, 
-                           MAP_SHARED, shm_fd, 0);
-            if (ptr == MAP_FAILED) {
-                Error("Failed to map shared memory: " + std::string(strerror(errno)));
-                close(shm_fd);
-                shm_unlink(SHM_NAME);
-                return;
-            }
-
-            // Initialize the shared memory
-            shared_data = static_cast<SharedData*>(ptr);
-            memset(shared_data, 0, required_size);
-            shared_data->new_data = false;
-
-            
-            Debug("Shared memory initialized:\n");
-            Debug("- Required size: " + std::to_string(required_size) + " bytes\n");
-            Debug("- SharedData size: " + std::to_string(sizeof(SharedData)) + " bytes\n");
-
-            // Start Python process
-            StartPythonProcess();
-            Sleep(5); // Wait for the Python process to start
         }
         else if (std::string(prediction_model) == "NearestNeighbor") {
             Debug("NearestNeighbor model selected. Loading CSV data and building k-d trees.");

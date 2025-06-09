@@ -1294,7 +1294,7 @@ class ServoControlTuning : public Module
         // Create dynamixel objects
         if (EpiTorsoMode || EpiMode)
         {
-            groupSyncWriteHead = new dynamixel::GroupSyncWrite(portHandlerHead, packetHandlerHead, INDIRECTDATA_FOR_WRITE, len_write_data); // Torque enable, goal position, goal current, P, I, D, Profile acceleration, Profile velocity
+            groupSyncWriteHead = new dynamixel::GroupSyncWrite(portHandlerHead, packetHandlerHead, INDIRECTDATA_FOR_WRITE, len_write_data); // 
             groupSyncReadHead = new dynamixel::GroupSyncRead(portHandlerHead, packetHandlerHead, INDIRECTDATA_FOR_READ,len_read_data );   // Present poistion, present current, temperature, goal current
             
         }

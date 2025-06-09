@@ -6,4 +6,8 @@
 	<input name="RIGHT_EYE" description="" />
 	<input name="MOUTH_HIGH" description="" />
 	<input name="MOUTH_LOW" description="" />
+	<input name="INTENSITY" optional="true" default="0.5, 0.5, 0.5" description="The inensity of the left eye, right eye and mouth in that order, 0-1" />
+
+
+	
 </class>

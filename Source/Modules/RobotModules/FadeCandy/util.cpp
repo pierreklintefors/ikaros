@@ -37,6 +37,7 @@
 #include <list>
 #include <math.h>
 #include <stdexcept>
+#include <string>
 
 #include "./util.h"
 
@@ -58,12 +59,11 @@ Color::Color(int r, int g, int b) : r_(r), g_(g), b_(b)
 
 std::vector<unsigned char> intToCharArray(int in, const size_t bytes_per_int)
 {
-  if (in > pow(2, bytes_per_int * 8))
+  if (in > (1ULL << (bytes_per_int * 8)))
   {
     throw std::overflow_error("Overflow error while converting integer " + std::to_string(in) + " to char array of " +
                               std::to_string(bytes_per_int) + " bytes");
   }
-  //unsigned char buffer[bytes_per_int];
   std::vector<unsigned char> buffer(bytes_per_int);
   std::vector<unsigned char> char_array;
   for (size_t i = 0; i < bytes_per_int; i++)

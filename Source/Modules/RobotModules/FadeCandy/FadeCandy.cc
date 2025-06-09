@@ -31,9 +31,10 @@ using namespace fadecandy_driver;
 
 class FadeCandy : public Module
 {
-    matrix RightEye, LeftEye, MouthLow, MouthHigh;
+    matrix RightEye, LeftEye, MouthLow, MouthHigh, Intensity;
     fadecandy_driver::FadecandyDriver fd_driver;
     parameter simulate;
+
 
     // Initialize the led array colors
     std::vector<std::vector<Color>> led_array_colors = {
@@ -50,6 +51,7 @@ class FadeCandy : public Module
         Bind(RightEye, "RIGHT_EYE");
         Bind(MouthHigh, "MOUTH_HIGH");
         Bind(MouthLow, "MOUTH_LOW");
+        Bind(Intensity, "INTENSITY");
 
         Bind(simulate, "simulate");
 
@@ -66,6 +68,8 @@ class FadeCandy : public Module
             Notify(msg_warning, "Input MOUTH_HIGH size is not 3x8");
         if ((MouthLow.size() <= 8 && MouthLow.size_y() != 3))
             Notify(msg_warning, "Input MOUTH_LOW size is not 3x8");
+
+       
 
         try
         {
@@ -98,18 +102,23 @@ class FadeCandy : public Module
                 Notify(msg_debug, "Could not connect to Fadecandy board");
                 return;
             }
-        }
+        }   
+            
+        Debug("Intensity Matrix: " + Intensity.json());
+
+        
+      
 
         // Fill color from input
         for (size_t i = 0; i < 8; ++i) // 8 Leds in each row of the mouth
         {
-            led_array_colors[1][i] = Color(MouthHigh[0][i] * 255, MouthHigh[1][i] * 255, MouthHigh[2][i] * 255);
-            led_array_colors[0][i] = Color(MouthLow[0][i] * 255, MouthLow[1][i] * 255, MouthLow[2][i] * 255);
+            led_array_colors[1][i] = Color(MouthHigh[0][i] * 255 * Intensity[2] , MouthHigh[1][i] * 255 * Intensity[2] , MouthHigh[2][i] * 255 * Intensity[2]);
+            led_array_colors[0][i] = Color(MouthLow[0][i] * 255 * Intensity[2] , MouthLow[1][i] * 255 * Intensity[2] , MouthLow[2][i] * 255 * Intensity[2]);
         }
         for (size_t i = 0; i < 12; ++i) // 12 Leds in each eye
         {
-            led_array_colors[2][i] = Color(RightEye[0][i] * 255, RightEye[1][i] * 255, RightEye[2][i] * 255);
-            led_array_colors[3][i] = Color(LeftEye[0][i] * 255, LeftEye[1][i] * 255, LeftEye[2][i] * 255);
+            led_array_colors[2][i] = Color(RightEye[0][i] * 255 * Intensity[1] , RightEye[1][i] * 255 * Intensity[1] , RightEye[2][i] * 255 * Intensity[1]);
+            led_array_colors[3][i] = Color(LeftEye[0][i] * 255 * Intensity[0] , LeftEye[1][i] * 255 * Intensity[0] , LeftEye[2][i] * 255 * Intensity[0]);
         }
 
         try
@@ -118,8 +127,32 @@ class FadeCandy : public Module
         }
         catch (const std::exception &e)
         {
-            Notify(msg_debug, "Could not set colors of the eyes");
+            Debug("Could not set colors of the eyes");
+        }
+        
+    
+    }
+
+    ~FadeCandy()
+    {
+        // Turn off all LEDs by setting them to black
+        for (auto& row : led_array_colors) {
+            for (auto& led : row) {
+                led = Color(0, 0, 0);
+            }
+        }
+
+        try {
+            if (fd_driver.isConnected()) {
+                fd_driver.setColors(led_array_colors);
+            }
+        }
+        catch (const std::exception& e) {
+            Debug("Error shutting off LEDs during destruction: " + std::string(e.what()));
         }
     }
+    
+    
 };
+
 INSTALL_CLASS(FadeCandy)
