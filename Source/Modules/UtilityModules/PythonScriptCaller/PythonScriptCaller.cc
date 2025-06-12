@@ -295,7 +295,7 @@ class PythonScriptCaller: public Module {
                 {
                     memcpy(output_matrix.data(), &output_section_ptr[1], actual_output_count * sizeof(float));
                 }
-                output_matrix.print(); // For debugging
+              
 
                 // The flags are now: cpp_wrote_input=false (set by Python), python_wrote_output=true (set by Python)
                 // This state is correct for the next C++ write cycle.

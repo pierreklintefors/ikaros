@@ -1,6 +1,9 @@
 <class name="ForceCheck" description="Checking the used current and increase it step by step to reach the target. Reduce the current with too much restance is met">
 	
 	<parameter name="ForceChangeRate" type= "int" default= "1" description="The rate of change of the force output in PWM percentage"/>
+	<parameter name="TimeWindow" type="int" default="1" description="The time window in seconds to count deviations"/>
+	<parameter name="ControlMode" type="int" options="0,1,2" default="0" description="The control mode for how the robot handles deviations from predicted current, 0=Normal, 1=Avoidant, 2=Compliant"/>
+
 	<input name="GoalPositionIn" description="The goal position of the servomotors in degrees" size="19"/>
 	<input name="StartPosition" description="The start position of the servomotors in degrees"/>
 	<input name="PresentPosition" description="The present position of the servomotors in degrees"/>
@@ -8,12 +11,13 @@
 	<input name="CurrentPrediction" description="The current prediction from the servomotors in mA" />
 	<input name="AllowedDeviance" optional="true" default= "700, 200" description="Allowed deviance of the current from the current prediction"/>
 
-	<output name="GoalPositionOut" size="CurrentPrediction.size" description="The goal position of the servomotors in degrees"/>
+	<output name="GoalPositionOut" size="19" description="The goal position of the servomotors in degrees"/>
 	<output name="ForceOutput" size="CurrentPrediction.size" description="The force output of the servomotors in PWM percentage"/>
 	<output name="Deviation" size="CurrentPrediction.size" description="The deviation of the current from the current prediction in mA"/>
 	<output name="LedIntensity" size="3" default="0.5, 0.5, 0.5" description="The intensity of the leds in percentage, left eye, right eye, mouth"/>
 	<output name="LedColorEyes" size="3,12"  description="The color of the leds in RGB, 0-1 "/>
 	<output name="LedColorMouth" size="3,8"  description="The color of the leds in RGB, 0-1 "/>
+	<output name="Torque" size="19" description="The torque off status of the servos, 0 if torque is off, 1 if torque is on"/>
 
 	
 	<author>

@@ -68,7 +68,7 @@
 	<parameter name="ServoControlMode" type="string" options="Position,CurrentPosition" default="Position" description="The control mode of the servos."/>
 	<input name="GOAL_POSITION" description="Goal position of the joints in degrees." />
 	<input name="GOAL_CURRENT" optional ="true" description="Goal current in mA. This is an optional input and only used if the servo uses current-based position control mode" />
-	<input name="TORQUE_ENABLE" optional ="true" description="Enable servos. This is an optional and not recommended input" />
+	<input name="TORQUE_ENABLE" optional ="true" description="Enable servos. This is an optional and not recommended input" size="19" />
 	<input name="GOAL_PWM" optional ="true" description="Pulse width modulation in percentage. This is an optional input that can be used to limit PWM and thereby force in position control mode." />
 	<output name="PRESENT_POSITION" description="Present angle of the joints in degrees." size="19" />
 	<output name="PRESENT_CURRENT" description="Present current (if supported by the servo) in mA." size="19" />

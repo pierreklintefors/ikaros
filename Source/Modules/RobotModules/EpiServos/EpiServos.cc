@@ -134,7 +134,7 @@ class EpiServos : public Module
     // Ikaros IO
     matrix goalPosition;
     matrix goalCurrent;
-    bool torqueEnable = true;
+    matrix torqueEnable = true;
     matrix goalPWM;
 
     matrix presentPosition;
@@ -337,7 +337,7 @@ class EpiServos : public Module
         index = IOIndex;
         for (int i = IDMin; i <= IDMax; i++)
         {
-            param_sync_write[0] = 1; // Torque on
+            param_sync_write[0] = torqueEnable[i]; // Torque on
 
             if (goalPosition.connected())
             {
@@ -720,6 +720,7 @@ class EpiServos : public Module
         Bind(goalPosition, "GOAL_POSITION");
         Bind(goalCurrent, "GOAL_CURRENT");
         Bind(goalPWM, "GOAL_PWM");
+        Bind(torqueEnable, "TORQUE_ENABLE");
 
         // Ikaros output
         Bind(presentPosition, "PRESENT_POSITION");
@@ -731,6 +732,7 @@ class EpiServos : public Module
         Debug("Bytes to write: " + std::to_string(len_write_data));
         Debug("Data to write: " + dataToWrite.as_string());
 
+       
         // Check if the input size are correct. We do not need to have an input at all!
         if (EpiTorsoMode)
         {
@@ -1082,7 +1084,8 @@ class EpiServos : public Module
         goalPosition[PUPIL_INDEX_IO] = PupilMMToDynamixel(goalPosition[PUPIL_INDEX_IO], AngleMinLimitPupil[0], AngleMaxLimitPupil[0]);
         goalPosition[PUPIL_INDEX_IO + 1] = PupilMMToDynamixel(goalPosition[PUPIL_INDEX_IO + 1], AngleMinLimitPupil[1], AngleMaxLimitPupil[1]);
 
-        // Fire up some threads to work in parallell
+        
+            // Fire up some threads to work in parallell
         auto headThread = std::async(std::launch::async, &EpiServos::Communication, this, HEAD_ID_MIN, HEAD_ID_MAX, HEAD_INDEX_IO, std::ref(portHandlerHead), std::ref(packetHandlerHead), std::ref(groupSyncReadHead), std::ref(groupSyncWriteHead));
         auto pupilThread = std::async(std::launch::async, &EpiServos::CommunicationPupil, this); // Special!
 
@@ -1091,6 +1094,7 @@ class EpiServos : public Module
             Warning("Can not communicate with head");
             portHandlerHead->clearPort();
         }
+
         if (!pupilThread.get())
         {
             Warning("Oops.. Communication glitch with pupil servo");
@@ -2679,6 +2683,11 @@ class EpiServos : public Module
         uint8_t dxl_error = 0;              // Dynamixel error
         uint16_t start_p_value[7] = {0, 0, 0, 0, 0, 0, 0};
         uint32_t present_postition_value[7] = {0, 0, 0, 0, 0, 0, 0};
+
+        // Set torque value to 0
+        for (int i = 0; i < nrOfServos; i++)
+            if (COMM_SUCCESS != packetHandler->write1ByteTxRx(portHandler, IDMin + i, 64, 0, &dxl_error))
+                return false;
 
         // Get P values
         for (int i = 0; i < nrOfServos; i++)
