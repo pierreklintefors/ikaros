@@ -27,7 +27,6 @@ import os # Make sure os is imported if not already
 # os.environ['TF_DISABLE_METAL'] = '1' # Another way to potentially disable Metal
 # print("Attempting to force CPU execution...", file=sys.stderr)
 
-# Removed old SHM constants: SHM_NAME, FLOAT_COUNT, MEM_SIZE, BOOL_SIZE
 
 # Define constants for SHM interaction based on PythonScriptCaller.cc
 FLOAT_SIZE = 4  # Size of a float in bytes
