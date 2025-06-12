@@ -16,9 +16,8 @@
     <parameter name="NumServos" type="int" default="2" description="The number of servos to control"/>
     <parameter name="TransitionDelay" type="number" default="0.5" description="The delay between transitions in seconds"/>
     <parameter name="OneCycle" type="bool" default="false" description="If true, the servo will go back and forward to the GOAL_POSITION_IN and 180 degrees in between"/>
-    
-    
-    <input name="GOAL_POSITION_IN" optional="true" description="The goal position of the servomotors in degrees, if not provided, the goal position will be randomised" size="19"/>
+   
+    <input name="GOAL_POSITION_IN" optional="true" description="The goal position of the servomotors in degrees, if not provided, the goal position will be randomised. If the matrix is stacked the first row will be used as the goal position"/>
 	<input name="PRESENT_POSITION" description="The present position of the servomotors in degrees" size="19"/>
     <input name="TRAJECTORY_MODE" optional="true" description="The trajectory mode to use" size="1"/>
 

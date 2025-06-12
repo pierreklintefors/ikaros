@@ -1,5 +1,6 @@
 #include "ikaros.h"
 #include <random>
+#include <chrono>
 
 using namespace ikaros;
 
@@ -18,19 +19,28 @@ class GoalSetter: public Module
     //inputs
     matrix present_position;
     matrix goal_position_in;
+   
 
     //outputs
     matrix goal_position;
     matrix start_position;
+   
 
 
     //internal
     matrix reached_goal;
     matrix planned_positions;
+    matrix previous_goal_position_in;
     std::random_device rd;
     int transition;
-    bool first_tick;
+    bool initialising_tick;
     bool going_to_neutral;
+    bool get_time_after_transition;
+    bool get_time_after_all_transitions;
+    std::chrono::steady_clock::time_point reached_goal_time_point;
+    std::chrono::steady_clock::time_point final_transition_time_point;
+
+    int time_before_restart = 5; // seconds before restarting transitions
     
     matrix RandomisePositions(int num_transitions, matrix min_limits, matrix max_limits, std::string robotType)
     {
@@ -91,6 +101,7 @@ class GoalSetter: public Module
     Bind(start_position, "START_POSITION");
     Bind(goal_position_in, "GOAL_POSITION_IN");
 
+
     //Bind parameters
     Bind(min_limit_position, "MinLimitPosition");
     Bind(max_limit_position, "MaxLimitPosition");
@@ -108,77 +119,129 @@ class GoalSetter: public Module
     }
     else
     {
-        goal_position.copy(goal_position_in);
+        
+        goal_position.copy(goal_position_in[0]);
     }
     reached_goal = matrix(present_position.size());
     reached_goal.set(0);
-    first_tick = true;
+    initialising_tick = true;
     transition = 0;
     going_to_neutral = false;
+    get_time_after_transition = true;
+    get_time_after_all_transitions = true;
    }
    
 
 
    void Tick()
    {
-    if (first_tick){
-        first_tick = false;
-        start_position.copy(present_position);
+    Print("GoalSetter: Goal pos in: " + goal_position_in.json());
+    if (initialising_tick && present_position.sum() > 0)
+    {
+        initialising_tick = false;
+        start_position.copy(present_position);   
+        
+    }
+    // For one_cycle mode, ensure we have a valid goal position
+    if (one_cycle && goal_position_in.connected() )
+    {
+        goal_position.copy(goal_position_in[0]);
     }
 
-    ReachedGoal(present_position, goal_position, reached_goal, position_margin);
+    if (goal_position.sum() > 0)
+        ReachedGoal(present_position, goal_position, reached_goal, position_margin);
 
-    if (reached_goal.sum() == num_servos && transition < num_transitions && present_position.sum() > 0)
+   
+    if (reached_goal.sum() == num_servos && transition < num_transitions && goal_position.sum() > 0)
     {
         Debug("GoalSetter: Reached goal starting new transition");
-        Sleep(transition_delay);
-        transition++;
-        if (transition < num_transitions && !one_cycle)
+        // Take time to wait for transition delay
+        if (get_time_after_transition && goal_position.sum() > 0)
         {
-            start_position.copy(present_position);
-            goal_position.copy(planned_positions[transition]);
-            reached_goal.set(0);
+            reached_goal_time_point = std::chrono::steady_clock::now();
+            get_time_after_transition = false;
         }
-        else if (one_cycle && goal_position_in.connected())
+
+        auto now = std::chrono::steady_clock::now();
+        auto elapsed_time = std::chrono::duration_cast<std::chrono::milliseconds>(now - reached_goal_time_point).count();
+
+        if (elapsed_time >= transition_delay * 1000)
         {
-            // Alternate between goal_position_in and neutral position (180)
-            start_position.copy(present_position);
-            if (!going_to_neutral)
+
+            Debug("GoalSetter: Transitioning to next goal position");
+            // Reset reached_goal for the next transition
+
+            if (transition < num_transitions && !one_cycle)
             {
-                // Currently at goal position, now go to neutral
-                for (int i = 0; i < num_servos; i++)
+                transition++;
+                start_position.copy(present_position);
+                goal_position.copy(planned_positions[transition]);
+                reached_goal.set(0);
+            }
+            else if (one_cycle && goal_position_in.connected())
+            {
+                // Alternate between goal_position_in and neutral position (180)
+                start_position.copy(present_position);
+                if (!going_to_neutral)
                 {
-                    goal_position(i) = 180;
+                    // Currently at goal position, now go to neutral
+                    for (int i = 0; i < num_servos; i++)
+                    {
+                        goal_position(i) = 180;
+                    }
+                    going_to_neutral = true;
                 }
-                going_to_neutral = true;
+                else
+                {
+                    // Currently at neutral, now go to goal position (update from input)
+                    goal_position.copy(goal_position_in[0]);
+                    going_to_neutral = false;
+                }
+                reached_goal.set(0);
+            }
+
+            get_time_after_transition = true; // TO get the time for when next transition is finished
+        }
+    }
+    //This does not work yet. Needs somthing like this for avoidance mode
+    // else if (goal_position_in[1].sum() != goal_position_in[0].sum() && goal_position_in[1].sum() > 0)
+    // {
+    //         Debug("GoalSetter: New Goal position received, updating goal position");
+    //         goal_position.copy(goal_position_in[1]);
+    // }
+    
+    
+
+    else if (reached_goal.sum() == num_servos && transition == num_transitions)
+    {
+        Print("All goals reached. Starting over with same transitions in " + std::to_string(time_before_restart) + " seconds");
+        if (get_time_after_all_transitions)
+        {
+            final_transition_time_point = std::chrono::steady_clock::now();
+            get_time_after_all_transitions = false;
+        }
+        auto now = std::chrono::steady_clock::now();
+        auto elapsed_time = std::chrono::duration_cast<std::chrono::milliseconds>(now - final_transition_time_point).count();
+        if (elapsed_time >= time_before_restart * 1000)
+        {
+
+            get_time_after_all_transitions = true; // Reset for next cycle
+            initialising_tick = true;
+            transition = 0;
+            reached_goal.set(0);
+            start_position.copy(present_position);
+            if (!one_cycle)
+            {
+                goal_position.copy(planned_positions[transition]);
             }
             else
             {
-                // Currently at neutral, now go to goal position (update from input)
-                goal_position.copy(goal_position_in);
-                going_to_neutral = false;
+                goal_position.copy(goal_position_in[0]);
             }
-            reached_goal.set(0);
         }
+    }
+    Debug("GoalSetter: Time since last transition: " + std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - reached_goal_time_point).count() / 1000.0) + " seconds");
 
-    }
-    else if (reached_goal.sum() == num_servos && transition == num_transitions)
-    {
-        Print("All goals reached. Starting over with same transitions in 5 seconds");
-        Sleep(5);
-        first_tick = true;
-        transition = 0;
-        reached_goal.set(0);
-        start_position.copy(present_position);
-        if (!one_cycle)
-        {
-            goal_position.copy(planned_positions[transition]);
-        }
-        else
-        {
-            goal_position.copy(goal_position_in);
-        }
-    }
    }
 };
 
