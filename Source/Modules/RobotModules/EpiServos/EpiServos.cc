@@ -298,6 +298,7 @@ class EpiServos : public Module
         dxl_comm_result = groupSyncRead->txRxPacket();
         if (dxl_comm_result != COMM_SUCCESS)
         {
+            Warning("GroupSyncRead failed: ");
             groupSyncWrite->clearParam();
             groupSyncRead->clearParam();
             return false;
@@ -337,7 +338,7 @@ class EpiServos : public Module
         index = IOIndex;
         for (int i = IDMin; i <= IDMax; i++)
         {
-            param_sync_write[0] = torqueEnable[i]; // Torque on
+            param_sync_write[0] = torqueEnable(i); // Torque on
 
             if (goalPosition.connected())
             {
@@ -2675,7 +2676,7 @@ class EpiServos : public Module
         if (portHandler == NULL) // If no port handler return true. Only return false if communication went wrong.
             return true;
 
-        Notify(msg_debug, "Power on servos");
+        Debug("Power on servos");
 
         Timer t;
         const int nrOfServos = IDMax - IDMin + 1;
@@ -2685,44 +2686,71 @@ class EpiServos : public Module
         uint32_t present_postition_value[7] = {0, 0, 0, 0, 0, 0, 0};
 
         // Set torque value to 0
-        for (int i = 0; i < nrOfServos; i++)
-            if (COMM_SUCCESS != packetHandler->write1ByteTxRx(portHandler, IDMin + i, 64, 0, &dxl_error))
-                return false;
+        for (int i = 0; i < nrOfServos; i++) {
+            if (COMM_SUCCESS != packetHandler->write1ByteTxRx(portHandler, IDMin + i, 64, 0, &dxl_error)) {
+            Warning("Can not turn off torque for servo ID: " + std::to_string(IDMin + i));
+            return false;
+            }
+        }
 
         // Get P values
-        for (int i = 0; i < nrOfServos; i++)
-            if (COMM_SUCCESS != packetHandler->read2ByteTxRx(portHandler, IDMin + i, 84, &start_p_value[i], &dxl_error))
-                return false;
+        for (int i = 0; i < nrOfServos; i++) {
+            if (COMM_SUCCESS != packetHandler->read2ByteTxRx(portHandler, IDMin + i, 84, &start_p_value[i], &dxl_error)) {
+            Warning("Can not read P value for servo ID: " + std::to_string(IDMin + i));
+            return false;
+            }
+        }
 
         // Set P value to 0
-        for (int i = 0; i < nrOfServos; i++)
-            if (COMM_SUCCESS != packetHandler->write2ByteTxRx(portHandler, IDMin + i, 84, 0, &dxl_error))
-                return false;
+        for (int i = 0; i < nrOfServos; i++) {
+            if (COMM_SUCCESS != packetHandler->write2ByteTxRx(portHandler, IDMin + i, 84, 0, &dxl_error)) {
+            Warning("Can not set P value to 0 for servo ID: " + std::to_string(IDMin + i));
+            return false;
+            }
+        }
 
         // Set torque value to 1
-        for (int i = 0; i < nrOfServos; i++)
-            if (COMM_SUCCESS != packetHandler->write1ByteTxRx(portHandler, IDMin + i, 64, 1, &dxl_error))
-                return false;
-        while (t.GetTime() < TIMER_POWER_ON)
-        {
+        for (int i = 0; i < nrOfServos; i++) {
+            if (COMM_SUCCESS != packetHandler->write1ByteTxRx(portHandler, IDMin + i, 64, 1, &dxl_error)) {
+            Warning("Can not turn on torque for servo ID: " + std::to_string(IDMin + i));
+            return false;
+            }
+        }
+        
+        while (t.GetTime() < TIMER_POWER_ON) {
             // Get present position
-            for (int i = 0; i < nrOfServos; i++)
-                if (COMM_SUCCESS != packetHandler->read4ByteTxRx(portHandler, IDMin + i, 132, &present_postition_value[i], &dxl_error))
-                    return false;
+            for (int i = 0; i < nrOfServos; i++) {
+            if (COMM_SUCCESS != packetHandler->read4ByteTxRx(portHandler, IDMin + i, 132, &present_postition_value[i], &dxl_error)) {
+                Warning("Can not read present position for servo ID: " + std::to_string(IDMin + i));
+                return false;
+            }
+            }
+            
             // Set goal position to present postiion
-            for (int i = 0; i < nrOfServos; i++)
-                if (COMM_SUCCESS != packetHandler->write4ByteTxRx(portHandler, IDMin + i, 116, present_postition_value[i], &dxl_error))
-                    return false;
+            for (int i = 0; i < nrOfServos; i++) {
+            if (COMM_SUCCESS != packetHandler->write4ByteTxRx(portHandler, IDMin + i, 116, present_postition_value[i], &dxl_error)) {
+                Warning("Can not set goal position for servo ID: " + std::to_string(IDMin + i));
+                return false;
+            }
+            }
+            
+            Sleep(0.01); // Sleep for 10 ms to allow the servos to move to the goal position.
             // Ramping up P
-            for (int i = 0; i < nrOfServos; i++)
-                if (COMM_SUCCESS != packetHandler->write2ByteTxRx(portHandler, IDMin + i, 84, int(float(start_p_value[i]) / float(TIMER_POWER_ON) * t.GetTime()), &dxl_error))
-                    return false;
+            for (int i = 0; i < nrOfServos; i++) {
+            if (COMM_SUCCESS != packetHandler->write2ByteTxRx(portHandler, IDMin + i, 84, int(float(start_p_value[i]) / float(TIMER_POWER_ON) * t.GetTime()), &dxl_error)) {
+                Warning("Can not ramp up P value for servo ID: " + std::to_string(IDMin + i));
+                return false;
+            }
+            }
         }
 
         // Set P value to start value
-        for (int i = 0; i < nrOfServos; i++)
-            if (COMM_SUCCESS != packetHandler->write2ByteTxRx(portHandler, IDMin + i, 84, start_p_value[i], &dxl_error))
-                return false;
+        for (int i = 0; i < nrOfServos; i++) {
+            if (COMM_SUCCESS != packetHandler->write2ByteTxRx(portHandler, IDMin + i, 84, start_p_value[i], &dxl_error)) {
+            Warning("Can not restore P value for servo ID: " + std::to_string(IDMin + i));
+            return false;
+            }
+        }
 
         return true;
     }
@@ -2785,18 +2813,24 @@ class EpiServos : public Module
         uint32_t present_postition_value[7] = {0, 0, 0, 0, 0, 0, 0};
 
         // Get P values
-        for (int i = 0; i < nrOfServos; i++)
-            if (COMM_SUCCESS != packetHandler->read2ByteTxRx(portHandler, IDMin + i, servoControlTable["Position P Gain"]["Address"], &start_p_value[i], &dxl_error))
-                return false;
+        for (int i = 0; i < nrOfServos; i++) {
+            if (COMM_SUCCESS != packetHandler->read2ByteTxRx(portHandler, IDMin + i, servoControlTable["Position P Gain"]["Address"], &start_p_value[i], &dxl_error)) {
+            Warning("Can not read P value for servo ID: " + std::to_string(IDMin + i));
+            return false;
+            }
+        }
 
         // t.Reset();
-        Notify(msg_warning, "Power off servos. If needed, support the robot while power off the servos");
+        Warning("Power off servos. If needed, support the robot while power off the servos");
 
-       
+           
         // Turn p to zero
-        for (int i = 0; i < nrOfServos; i++)
-            if (COMM_SUCCESS != packetHandler->write2ByteTxRx(portHandler, IDMin + i, servoControlTable["Position P Gain"]["Address"], 0, &dxl_error))
-                return false;
+        for (int i = 0; i < nrOfServos; i++) {
+            if (COMM_SUCCESS != packetHandler->write2ByteTxRx(portHandler, IDMin + i, servoControlTable["Position P Gain"]["Address"], 0, &dxl_error)) {
+            Warning("Can not set P value to 0 for servo ID: " + std::to_string(IDMin + i));    
+            return false;
+            }
+        }
 
         Sleep(TIMER_POWER_OFF);
 
@@ -2811,13 +2845,19 @@ class EpiServos : public Module
 
         // Enable torque off
         Notify(msg_debug, "Enable torque off");
-        for (int i = 0; i < nrOfServos; i++)
-            if (COMM_SUCCESS != packetHandler->write1ByteTxRx(portHandler, IDMin + i, 64, 0, &dxl_error))
-                return false;
+        for (int i = 0; i < nrOfServos; i++) {
+            if (COMM_SUCCESS != packetHandler->write1ByteTxRx(portHandler, IDMin + i, 64, 0, &dxl_error)) {
+            Warning("Can not turn off torque for servo ID: " + std::to_string(IDMin + i));
+            return false;
+            }
+        }
         // Set P value to start value
-        for (int i = 0; i < nrOfServos; i++)
-            if (COMM_SUCCESS != packetHandler->write2ByteTxRx(portHandler, IDMin + i, 84, start_p_value[i], &dxl_error))
-                return false;
+        for (int i = 0; i < nrOfServos; i++) {
+            if (COMM_SUCCESS != packetHandler->write2ByteTxRx(portHandler, IDMin + i, 84, start_p_value[i], &dxl_error)) {
+            Warning("Can not set P value for servo ID: " + std::to_string(IDMin + i));
+            return false;
+            }
+        }
 
         return true;
     }

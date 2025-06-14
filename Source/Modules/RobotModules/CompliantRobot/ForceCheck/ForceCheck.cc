@@ -6,18 +6,19 @@ using namespace ikaros;
 // Base class for control modes
 class ControlMode {
 protected:
+    ikaros::Component* parent_component; // Or ForceCheck*, depending on your needs
     matrix& force_output;
     matrix& goal_position_out;
     matrix& led_intensity;
     matrix& led_color_eyes;
     matrix& led_color_mouth;
-    
+
 public:
-    ControlMode(matrix& force_out, matrix& goal_out, matrix& led_int, 
+    ControlMode(ikaros::Component* parent, matrix& force_out, matrix& goal_out, matrix& led_int,
                 matrix& led_eyes, matrix& led_mouth)
-        : force_output(force_out), goal_position_out(goal_out), 
+        : parent_component(parent), force_output(force_out), goal_position_out(goal_out),
           led_intensity(led_int), led_color_eyes(led_eyes), led_color_mouth(led_mouth) {}
-    
+
     virtual ~ControlMode() = default;
     virtual void HandleDeviation(matrix& deviation, matrix& present_position,
                                 matrix& goal_position_in, matrix& start_position,
@@ -30,19 +31,57 @@ public:
 
 // Normal pose tracking mode
 class NormalMode : public ControlMode {
+private:
+    bool obstacle_detected = false; // Flag to indicate if an obstacle is detected
+    std::chrono::steady_clock::time_point last_obstacle_time;
+    matrix halt_goal_position; // Stores the halt goal position
 public:
-    NormalMode(matrix& force_out, matrix& goal_out, matrix& led_int, 
+    NormalMode(ikaros::Component* parent, matrix& force_out, matrix& goal_out, matrix& led_int,
                matrix& led_eyes, matrix& led_mouth)
-        : ControlMode(force_out, goal_out, led_int, led_eyes, led_mouth) {}
-    
+        : ControlMode(parent, force_out, goal_out, led_int, led_eyes, led_mouth) {}
+
     void HandleDeviation(matrix& deviation, matrix& present_position,
                         matrix& goal_position_in, matrix& start_position,
                         matrix& allowed_deviance, matrix& started_transition,
                         matrix& number_deviations_per_time_window, matrix& torque,
                         double time_window, double force_change_rate) override {
 
+        if (present_position.size() == 0 || goal_position_in.size() == 0 || goal_position_out.size() == 0)
+        {
+            parent_component->Warning("Normal Mode: Empty input matrices, skipping HandleDeviation.");
+            return;
+        }
+        goal_position_out.reset(); // Initialize goal_position_out to zero
         
-        force_output.set(clip(force_output[0] + force_change_rate, 0, 100));
+        bool an_obstacle_requires_active_avoidance_this_tick = false;
+        halt_goal_position.copy(goal_position_in); // Start with the input goal position
+        // if obstacle is detected, change goal position to present position
+        for (int i = 0; i < deviation.size(); i++) {
+            if (number_deviations_per_time_window[i] > 2) {
+                an_obstacle_requires_active_avoidance_this_tick = true;
+                halt_goal_position(i) = present_position(i); // Set goal to current position
+            } 
+
+        }
+        if (an_obstacle_requires_active_avoidance_this_tick){
+            // If any motor is actively avoiding, set/refresh the general obstacle detection state.
+            obstacle_detected = true;
+            last_obstacle_time = std::chrono::steady_clock::now();
+            goal_position_out.copy(halt_goal_position); // Set the halt goal position as the output
+        } else {
+            // No motor requires active avoidance *this tick*.
+            // Check if a general obstacle state (from a previous tick) should time out.
+            if (obstacle_detected) { // obstacle_detected was true from a previous tick.
+                auto now = std::chrono::steady_clock::now();
+                if (std::chrono::steady_clock::now() - last_obstacle_time > std::chrono::milliseconds(1000)) { // 1.5 second timeout
+                    obstacle_detected = false; // Timeout the general obstacle state.
+                    goal_position_out.reset(); // Reset goal_position_out to zero
+                    parent_component->Debug("NormalMode: Obstacle detection timed out, resetting goal position.");
+                }
+            }
+            // If obstacle_detected was already false, it remains false.
+            // goal_position_out is already goal_position_in (pass-through).
+        }
     }
     
     void SetLEDColor(double deviance_ratio) override {
@@ -50,11 +89,17 @@ public:
         if (deviance_ratio < 0.3) {
             // White for normal operation
             color.set(1.0);
-        } else {
+        } else if (deviance_ratio < 0.8) {
             // Orange for medium deviances
             color(0) = 1.0; // Red
             color(1) = 0.5; // Green
             color(2) = 0.0; // Blue
+        }
+        else if (obstacle_detected) {
+            // Red for high deviation
+            color(0) = 1.0;
+            color(1) = 0.0; 
+            color(2) = 0.0;
         }
         
         // Apply to all LEDs
@@ -77,51 +122,54 @@ public:
 class AvoidantMode : public ControlMode {
 private:
     bool obstacle_detected =false;
+    matrix avoidance_goal_position; // Stores the avoidance goal position
     std::chrono::steady_clock::time_point last_avoidance_time;
 public:
     // Constructor initializes the base class with references to output matrices
-    AvoidantMode(matrix& force_out, matrix& goal_out, matrix& led_int, 
+    AvoidantMode(ikaros::Component* parent, matrix& force_out, matrix& goal_out, matrix& led_int, 
                  matrix& led_eyes, matrix& led_mouth)
-        : ControlMode(force_out, goal_out, led_int, led_eyes, led_mouth) {}
+        : ControlMode(parent, force_out, goal_out, led_int, led_eyes, led_mouth) {}
     
     void HandleDeviation( matrix& deviation,  matrix& present_position,
                         matrix& goal_position_in,  matrix& start_position,
                         matrix& allowed_deviance,  matrix& started_transition,
                         matrix& number_deviations_per_time_window, matrix& torque,  
                         double time_window, double force_change_rate) override {
-        if (present_position.size() == 0 || goal_position_in.size() == 0 || goal_position_out.size() == 0) return;
+        if (present_position.size() == 0 || goal_position_in.size() == 0 || goal_position_out.size() == 0) {
+            parent_component->Warning("AvoidantMode: Empty input matrices, skipping HandleDeviation.");
+            return;
+        }
 
-        // Default to passing through the goal_position_in from GoalSetter.
-        // This will be overridden if any specific motor needs to avoid.
-        goal_position_out.copy(goal_position_in);
-
+        goal_position_out.reset(); // Initialize goal_position_out to zero
+        
         bool an_obstacle_requires_active_avoidance_this_tick = false;
-
+        avoidance_goal_position.copy(goal_position_in); // Start with the input goal position
         // Check each motor for high deviation to determine if avoidance is needed *now*.
-        for (int i = 0; i < deviation.size() && i < started_transition.size() && i < goal_position_out.size(); i++) {
-            if (started_transition[i] == 1 && abs(deviation[i]) > allowed_deviance[i]) {
+        for (int i = 0; i < deviation.size() && i < goal_position_out.size(); i++) {
+            if (number_deviations_per_time_window[i] > 2) {
                 // This motor requires avoidance. Calculate and set its part of goal_position_out.
-                double movement_direction = ((double)present_position[i] > (double)start_position[i]) ? -5.0 : 5.0;
-                goal_position_out(i) = present_position(i) + movement_direction;
+                double movement_direction = ((double)present_position[i] > (double)start_position[i]) ? -10.0 : 10.0;
+                avoidance_goal_position(i) = present_position(i) + movement_direction;
                 an_obstacle_requires_active_avoidance_this_tick = true;
             }
+            
         }
 
         if (an_obstacle_requires_active_avoidance_this_tick) {
             // If any motor is actively avoiding, set/refresh the general obstacle detection state.
             obstacle_detected = true;
             last_avoidance_time = std::chrono::steady_clock::now();
+            goal_position_out.copy(avoidance_goal_position); // Set the avoidance goal position as the output
         } else {
             // No motor requires active avoidance *this tick*.
             // Check if a general obstacle state (from a previous tick) should time out.
             if (obstacle_detected) { // obstacle_detected was true from a previous tick.
                 auto now = std::chrono::steady_clock::now();
-                if (std::chrono::duration_cast<std::chrono::milliseconds>(now - last_avoidance_time).count() > 1000) { // 1 second timeout
+                if (std::chrono::steady_clock::now() - last_avoidance_time > std::chrono::milliseconds(1000)) { // 1 second timeout
                     obstacle_detected = false; // Timeout the general obstacle state.
+                    goal_position_out.reset(); // Reset goal_position_out to zero
+                    parent_component->Debug("AvoidantMode: Obstacle detection timed out, resetting goal position.");
                 }
-                // If obstacle_detected is still true here (timer not expired),
-                // goal_position_out is already goal_position_in (pass-through),
-                // as no motor needed specific avoidance *this tick*.
             }
             // If obstacle_detected was already false, it remains false.
             // goal_position_out is already goal_position_in (pass-through).
@@ -131,10 +179,14 @@ public:
     
     void SetLEDColor(double deviance_ratio) override {
         matrix color(3);
-        if (deviance_ratio > 0.8) {
-            // Red for high deviation
+        if (obstacle_detected) {
+            // Red when an obstacle is detected
             color(0) = 1.0; color(1) = 0.0; color(2) = 0.0;
-        } else {
+        } else if (deviance_ratio > 0.7) {
+            // Orange for high deviation
+            color(0) = 1.0; color(1) = 0.5; color(2) = 0.0;
+        }
+        else {
             // Yellow for avoidance mode
             color(0) = 1.0; color(1) = 1.0; color(2) = 0.0;
         }
@@ -159,12 +211,16 @@ public:
 class CompliantMode : public ControlMode {
 private:
     bool torque_disabled;
-    std::chrono::steady_clock::time_point torque_disable_time;
-    
+    std::chrono::steady_clock::time_point time_of_stabilisation;
+    bool get_stabilisation_time = true;
+    bool compliance_mode_active = false;
+    bool high_deviance_detected = false;
+    matrix last_position;
+
 public:
-    CompliantMode(matrix& force_out, matrix& goal_out, matrix& led_int, 
+    CompliantMode(ikaros::Component* parent, matrix& force_out, matrix& goal_out, matrix& led_int, 
                   matrix& led_eyes, matrix& led_mouth)
-        : ControlMode(force_out, goal_out, led_int, led_eyes, led_mouth), 
+        : ControlMode(parent, force_out, goal_out, led_int, led_eyes, led_mouth), 
           torque_disabled(false) {}
     
     void HandleDeviation(matrix& deviation, matrix& present_position,
@@ -173,11 +229,11 @@ public:
                         matrix& number_deviations_per_time_window, matrix& torque,
                         double time_window, double force_change_rate) override {
         if (present_position.size() == 0 || goal_position_in.size() == 0) return;
-        
+        last_position = present_position.last();
         // Check for prolonged high deviance in motors that have started transition
-        bool high_deviance_detected = false;
-        for (int i = 0; i < number_deviations_per_time_window.size() && i < started_transition.size(); i++) {
-            if (started_transition[i] == 1 && number_deviations_per_time_window[i] > time_window * 0.5) {
+        
+        for (int i = 0; i < deviation.size(); i++) {
+            if (number_deviations_per_time_window[i] > 3) {
                 high_deviance_detected = true;
                 break;
             }
@@ -185,39 +241,62 @@ public:
         
         if (high_deviance_detected && !torque_disabled) {
             torque_disabled = true;
-            torque_disable_time = std::chrono::steady_clock::now();
+            compliance_mode_active = true;
             torque.set(0); // Disable torque
-        } else if (!high_deviance_detected && torque_disabled) {
+        } else if (compliance_mode_active && torque_disabled) {
             // Check if position has stabilized to re-enable torque
-            matrix last_position;
-            int position_margin = 3; // Margin for position stabilityß
-            static auto last_check_time = std::chrono::steady_clock::now();
+            int position_margin = 3; // Margin for position stability
             static int stable_count = 0;
 
-            last_position= present_position.last(); // Store last position
-            
-            for (int i = 0; i < present_position.size(); i++) {
-                if (abs(present_position(i) - last_position(i)) < position_margin) {
-                    stable_count++;
-                } else {
-                    stable_count = 0; // Reset if any motor deviates
-                }  
+            bool all_motors_stable = true;
+            for (int i = 0; i < present_position.size(); i++)
+            {
+                if (abs(present_position(i) - last_position(i)) > position_margin)
+                {
+                    all_motors_stable = false;
+                    break;
+                }
             }
-            std::cout << "ForceCheck: Compliance motor, stability count: " << std::to_string(stable_count) << std::endl;
 
-            if (stable_count >= 150) { // 150 counts for any motor (arbitary number)
-                torque_disabled = false;
-                stable_count = 0; // Reset for next check
+            if (all_motors_stable)
+            {
+                stable_count++;
+            }
+            else
+            {
+                stable_count = 0; // Reset if any motor deviates
+            }
+            
+            parent_component->Debug("ForceCheck: Compliance motor, stability count: " + std::to_string(stable_count));
+
+            if (stable_count >= 30) { // 100 counts for any motor (arbitary number)
+                if (get_stabilisation_time)
+                {
+                    time_of_stabilisation = std::chrono::steady_clock::now();
+                    get_stabilisation_time = false; // Set to false to avoid resetting time
+                }
+                
+                parent_component->Debug("ForceCheck: Compliance motor stable duration: " + std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - time_of_stabilisation).count()));
+                if (std::chrono::steady_clock::now() - time_of_stabilisation > std::chrono::seconds(1)){
+                    parent_component->Debug("ForceCheck: Compliance motor re-enabling torque after stabilization.");
+                    torque.set(1);                  
+                    torque_disabled = false;        
+                    high_deviance_detected = false; // Reset high deviance flag
+                    stable_count = 0;
+                    get_stabilisation_time = true; // Reset to allow future stabilization checks
+                 
+                }
+            } else {
+                get_stabilisation_time = true; // Reset the flag if not stable
             }
         }
         
-        if (!torque_disabled) {
-            // Follow the external force by updating goal to current position
-            goal_position_out.copy(present_position);
-            torque.set(1); // Enable torque
-        } else {
-            goal_position_out.copy(present_position); // Follow current position
-        }
+        if (!torque_disabled && compliance_mode_active) {
+            // Follow the external force by updating goal to current position        
+            compliance_mode_active = false; // Reset compliance mode after following
+            get_stabilisation_time = true; // Reset to allow future stabilization checks
+        
+        } 
     }
     
     void SetLEDColor(double deviance_ratio) override {
@@ -256,37 +335,36 @@ class ModeController {
 private:
     std::unique_ptr<ControlMode> current_mode;
     int mode_index;
-    
+    ikaros::Component* parent_component;
+
 public:
-    ModeController(matrix& force_out, matrix& goal_out, matrix& led_int, 
-                   matrix& led_eyes, matrix& led_mouth) : mode_index(0) {
+    ModeController(ikaros::Component* parent, matrix& force_out, matrix& goal_out, matrix& led_int,
+                   matrix& led_eyes, matrix& led_mouth) : mode_index(0), parent_component(parent) {
         // Start with normal mode
-        current_mode = std::make_unique<NormalMode>(force_out, goal_out, led_int, led_eyes, led_mouth);
+        current_mode = std::make_unique<NormalMode>(parent_component, force_out, goal_out, led_int, led_eyes, led_mouth);
     }
-    
-    void SwitchMode(int new_mode, matrix& force_out, matrix& goal_out, matrix& led_int, 
+    void SwitchMode(int new_mode, matrix& force_out, matrix& goal_out, matrix& led_int,
                     matrix& led_eyes, matrix& led_mouth) {
         mode_index = new_mode % 3; // 0=Normal, 1=Avoidant, 2=Compliant
-        
+
         switch (mode_index) {
-            case 0:
-                current_mode = std::make_unique<NormalMode>(force_out, goal_out, led_int, led_eyes, led_mouth);
-                break;
-            case 1:
-                current_mode = std::make_unique<AvoidantMode>(force_out, goal_out, led_int, led_eyes, led_mouth);
-                break;
-            case 2:
-                current_mode = std::make_unique<CompliantMode>(force_out, goal_out, led_int, led_eyes, led_mouth);
-                break;
+        case 0:
+            current_mode = std::make_unique<NormalMode>(parent_component, force_out, goal_out, led_int, led_eyes, led_mouth);
+            break;
+        case 1:
+            current_mode = std::make_unique<AvoidantMode>(parent_component, force_out, goal_out, led_int, led_eyes, led_mouth);
+            break;
+        case 2:
+            current_mode = std::make_unique<CompliantMode>(parent_component, force_out, goal_out, led_int, led_eyes, led_mouth);
+            break;
         }
     }
-    
     void HandleDeviation(matrix& deviation, matrix& present_position,
                         matrix& goal_position_in, matrix& start_position,
                         matrix& allowed_deviance, matrix& started_transition,
                         matrix& number_deviations_per_time_window, matrix& torque,
                         double time_window, double force_change_rate) {
-        current_mode->HandleDeviation(deviation, present_position, goal_position_in, 
+        current_mode->HandleDeviation(deviation, present_position, goal_position_in,
                                     start_position, allowed_deviance, started_transition,
                                     number_deviations_per_time_window, torque, time_window, force_change_rate);
     }
@@ -452,8 +530,9 @@ class ForceCheck: public Module
             return matrix(0); 
         }
 
-        matrix transition_status(present_position.size());
-        for (int i = 0; i < start_position.size(); i++){
+        // using sam size as deviation because its nly relevant for motors with predicted current values
+        matrix transition_status(deviation.size());
+        for (int i = 0; i < deviation.size(); i++){
             if (abs(start_position(i) - present_position(i)) < margin || abs(present_current(i))<5)
                 transition_status(i) = 0.0; // Not started
             else
@@ -506,15 +585,12 @@ class ForceCheck: public Module
         number_deviations_per_time_window.set(0);
 
         // Initialize mode controller
-        mode_controller = std::make_unique<ModeController>(force_output, goal_position_out, 
+        mode_controller = std::make_unique<ModeController>(this, force_output, goal_position_out, 
                                                           led_intensity, led_color_eyes, led_color_mouth);
     }
 
     void Tick()
     {
-        if(goal_position_in.sum() >0)
-            goal_position_out.copy(goal_position_in);
-           
         
         // Handle mode switching
         static int last_mode = -1;
@@ -526,122 +602,89 @@ class ForceCheck: public Module
         }
         
         if (present_position.connected() && present_position.size() > 0) {
-            previous_position.copy(present_position.last());
-        } else if (present_position.connected()) { // Connected but size 0
-            previous_position.resize(0);
-        }
-        // If present_position is not connected, previous_position doesn't get updated from it.
-
-        if (firstTick){
-            // Time window to measure deviation
-            time_window_start = std::chrono::steady_clock::now();
-
-            
-            if (present_position.connected() && present_position.size() > 0) { // Ensure input is connected and valid
-                previous_position.copy(present_position); 
-            } else if (present_position.connected()) { // Connected but size 0
-                 previous_position.resize(0); // Match size if 0
+            // Check if time window has passed
+            if (std::chrono::steady_clock::now() - time_window_start > std::chrono::seconds(time_window.as_int()))
+            {
+                time_window_start = std::chrono::steady_clock::now();
+                number_deviations_per_time_window.reset();
+                Debug("ForceCheck: Time window exceeded, resetting deviation count.");
             }
-            // If not connected, previous_position remains uninitialized or as per its default constructor state.
-            // This is handled by checks like previous_position.size() > i later.
-        }
-        // Check if time window has passed
-        if (std::chrono::steady_clock::now() - time_window_start > std::chrono::seconds(time_window.as_int()))
-        {
-            time_window_start = std::chrono::steady_clock::now();
-            number_deviations_per_time_window.reset(); // Reset the count of deviations per time window
-            Debug("ForceCheck: Time window exceeded, resetting deviation count.");
-        }
 
-
-        if (!present_current.connected() || !current_prediction.connected()) {
-            Warning("ForceCheck: PresentCurrent or CurrentPrediction not connected. Skipping deviation calculation.");
-            // Decide if module should return or operate with default/no deviation
-            if (firstTick) firstTick = false; // Still advance firstTick
-            // previous_position update should still happen if present_position is connected
-            if (present_position.connected() && present_position.size() > 0) {
-                 previous_position.copy(present_position.last());
-            } else if (present_position.connected()) {
-                 previous_position.resize(0);
-            }
-            return; 
-        }
-        deviation.copy(current_prediction);      // Initialize deviation with current_prediction's values
-        deviation.subtract(present_current);     // Subtract present_current from deviation in-place
-                                                 // current_prediction should remain unmodified by this specific operation.
-        
-       
-
-
-        if (present_position.connected() && goal_position_in.connected() && !firstTick){ // current_prediction and present_current checked above
-
-            started_transition = StartedTransition(present_position, start_position, position_margin);
-            goal_reached = GoalReached(present_position, goal_position_in, position_margin);
-
-            // Debug("ForceCheck: Deviation: " + deviation.json());
-            // Debug("ForceCheck: Present current: " + present_current.json());
-            // Debug("ForceCheck: Current prediction: " + current_prediction.json());
-            // Debug("ForceCheck: Goal position: " + goal_position_in.json());
-            // Debug("ForceCheck: Start position: " + start_position.json());
-            // Debug("ForceCheck: Present position: " + present_position.json());
-            // Debug("ForceCheck: Previous position: " + previous_position.json());
-            // Debug("ForceCheck: Force output: " + force_output.json());
-            // Debug("ForceCheck: Started transition: " + started_transition.json());
-
-            
-            
-            
-            //find highest deviance
-            double highest_deviance = 0.0;
-            int highest_deviance_index = 0;
-            for (int i = 0; i < deviation.size(); i++) {
-                if (abs(deviation[i]) > highest_deviance && started_transition[i] == 1) {
-                    highest_deviance = abs(deviation[i]);
-                    highest_deviance_index = i;
+            if (!present_current.connected() || !current_prediction.connected()) {
+                Warning("ForceCheck: PresentCurrent or CurrentPrediction not connected. Skipping deviation calculation.");
+                // Decide if module should return or operate with default/no deviation
+                if (firstTick) firstTick = false; // Still advance firstTick
+                // previous_position update should still happen if present_position is connected
+                if (present_position.connected() && present_position.size() > 0) {
+                    previous_position.copy(present_position.last());
+                } else if (present_position.connected()) {
+                    previous_position.resize(0);
                 }
+                return; 
+            }
+            
+            deviation.copy(current_prediction);
+            deviation.subtract(present_current);
+            
+            // MOVE DEVIATION COUNTING HERE - outside the movement block
+            for (int i = 0; i < deviation.size(); i++) {
                 if (abs(deviation[i]) > allowed_deviance[i]) {
                     number_deviations_per_time_window[i]++;
                 }
             }
-            double deviance_ratio = highest_deviance / allowed_deviance[highest_deviance_index];
 
-            // Use the mode controller to handle the deviation
-            mode_controller->HandleDeviation(deviation, present_position, goal_position_in,
-                                             start_position, allowed_deviance, started_transition,
-                                             number_deviations_per_time_window, torque, (double)time_window,
-                                             (double)force_change_rate);
+            if (present_position.connected() && goal_position_in.connected() && !firstTick) {
+                started_transition = StartedTransition(present_position, start_position, position_margin);
+                goal_reached = GoalReached(present_position, goal_position_in, position_margin);
 
-            // Set LED colors based on current mode and deviance
-        
-            double intensity = clip(deviance_ratio, 0.5, 1.0);
-            led_intensity.set(intensity);
-            mode_controller->SetLEDColor(deviance_ratio);
-            
     
-        }
-        else
-        {
-            if (!present_position.connected())
-                Warning("ForceCheck: PresentPosition not connected.");
-            if (!goal_position_in.connected())
-                Warning("ForceCheck: GoalPositionIn not connected.");
-            if (present_position.size() == 0)
-                Warning("ForceCheck: PresentPosition is empty.");
-            if (goal_position_in.size() == 0)
-                Warning("ForceCheck: GoalPositionIn is empty.");
-        }
+                
+                //find highest deviance
+                double highest_deviance = 0.0;
+                int highest_deviance_index = 0;
+                for (int i = 0; i < deviation.size(); i++) {
+                    if (abs(deviation[i]) > highest_deviance ) {
+                        highest_deviance = abs(deviation[i]);
+                        highest_deviance_index = i;
+                    }
+                }
+                double deviance_ratio = highest_deviance / allowed_deviance[highest_deviance_index];
 
-            started_transition = StartedTransition(present_position, start_position, position_margin);
-            goal_reached = GoalReached(present_position, goal_position_in, position_margin);
+                // Use the mode controller to handle the deviation
+                mode_controller->HandleDeviation(deviation, present_position, goal_position_in,
+                                                start_position, allowed_deviance, started_transition,
+                                                number_deviations_per_time_window, torque, (double)time_window,
+                                                (double)force_change_rate);
+
+                // Set LED colors based on current mode and deviance
             
-
-       
-        firstTick=false;
-        Debug("ForceCheck: Current mode: " + std::string(mode_controller->GetCurrentModeName()) + 
-              " (Index: " + std::to_string(mode_controller->GetModeIndex()) + ")");
+                double intensity = clip(deviance_ratio, 0.5, 1.0);
+                led_intensity.set(intensity);
+                mode_controller->SetLEDColor(deviance_ratio);
+                
         
-        Debug("ForceCheck: Deviation: " + deviation.json());
-        Debug("ForceCheck: Number deviations per time window: " + number_deviations_per_time_window.json());
+            }
+            else
+            {
+                if (!present_position.connected())
+                    Warning("ForceCheck: PresentPosition not connected.");
+                if (!goal_position_in.connected())
+                    Warning("ForceCheck: GoalPositionIn not connected.");
+                if (present_position.size() == 0)
+                    Warning("ForceCheck: PresentPosition is empty.");
+                if (goal_position_in.size() == 0)
+                    Warning("ForceCheck: GoalPositionIn is empty.");
+            }
+
+            
+        
+            firstTick=false;
+            Debug("ForceCheck: Current mode: " + std::string(mode_controller->GetCurrentModeName()) + 
+                " (Index: " + std::to_string(mode_controller->GetModeIndex()) + ")");
+            
+            Debug("ForceCheck: Deviation: " + deviation.json());
+            Debug("ForceCheck: Number deviations per time window: " + number_deviations_per_time_window.json());
+        }
     }
 
 

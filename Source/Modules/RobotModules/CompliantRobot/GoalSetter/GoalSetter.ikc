@@ -19,7 +19,7 @@
    
     <input name="GOAL_POSITION_IN" optional="true" description="The goal position of the servomotors in degrees, if not provided, the goal position will be randomised. If the matrix is stacked the first row will be used as the goal position"/>
 	<input name="PRESENT_POSITION" description="The present position of the servomotors in degrees" size="19"/>
-    <input name="TRAJECTORY_MODE" optional="true" description="The trajectory mode to use" size="1"/>
+    <input name="OVERRIDE_GOAL_POSITION" optional="true" description="If true, the goal position will be overridden by the GOAL_POSITION_IN input"/>
 
 	<output name="GOAL_POSITION" size="PRESENT_POSITION.size" description="The goal position of the servomotors in degrees"/>
     <output name="START_POSITION" size="PRESENT_POSITION.size" description="The start position of the servomotors in degrees"/>
