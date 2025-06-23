@@ -319,6 +319,16 @@ namespace ikaros
         return std::string(*this);
     }
 
+
+
+    bool 
+    parameter::empty()
+    {
+        return (*this).as_string().empty();
+    }
+
+
+
     void
     parameter::print(std::string name)
     {
@@ -3255,7 +3265,9 @@ if(classes[classname].path.empty())
 
         Request request(socket->header.Get("URI"), sid, socket->body);
 
-        if (request == "network")
+        //std::cout << "Request: " << request.url << std::endl;
+
+        if(request == "network")
             DoNetwork(request);
 
         else if (request == "update")
