@@ -7,7 +7,8 @@ import sys
 import signal
 import struct  # Add struct for size calculations
 import time # Add this at the top
-import csv
+import pandas as pd  # Import pandas for DataFrame operations
+import pickle
 try:
     import posix_ipc
 except ImportError as e:
@@ -49,12 +50,96 @@ EXPECTED_TOTAL_INPUTS_FROM_CPP = EXPECTED_BASE_INPUTS + NUM_SERVOS * EXPECTED_IN
 
 
 # Define which features to use for each servo model
-TILT_FEATURES = ['GyroX', 'GyroY', 'GyroZ', 'TiltPosition', 'TiltDistToGoal', 'TiltDistToStart']
-PAN_FEATURES = ['PanPosition', 'PanDistToGoal', 'PanDistToStart', 'TiltPosition', 'TiltDistToGoal', 'TiltDistToStart']
+# TILT_FEATURES = ['GyroX', 'GyroY', 'GyroZ', 'TiltPosition', 'TiltDistToGoal', 'TiltDistToStart']
+# PAN_FEATURES = ['PanPosition', 'PanDistToGoal', 'PanDistToStart', 'TiltPosition', 'TiltDistToGoal', 'TiltDistToStart']
+
+# Global constants for file paths and model configuration
+directory = os.path.dirname(os.path.abspath(__file__))
+servos = ['tilt', 'pan'] 
+#model_name_suffix = 'L1_128_L2_64_position_control_standardised_Relu_mean_squared_error_2Output_DropOut_0.2_l2_0.001_all_data'
+#mean_stds_suffix = 'all_data_position_control_mean_std.json'
+#model_name_suffix = 'position_control_Output1'
+#mean_stds_suffix = 'mean_std_position_control_Output1.json'
+model_name_suffix = 'L1_256_L2_32_position_control_standardised_Relu_mean_squared_error_1Output_DropOut_0.15_l2_0.003_all_data_small_set'
+mean_stds_suffix = 'small_data_position_control_mean_std.json'
+if "Output1" in model_name_suffix:
+    with open(directory + f'/weights/scalers/scaler_X_pan_position_control_Output1.pkl', 'rb') as f:
+        pan_feature_scalar_object = pickle.load(f)
+    with open(directory + f'/weights/scalers/scaler_X_tilt_position_control_Output1.pkl', 'rb') as f:
+        tilt_feature_scalar_object = pickle.load(f)
+    with open(directory + f'/weights/scalers/scaler_y_pan_position_control_Output1.pkl', 'rb') as f:
+        pan_y_scalar_object = pickle.load(f)
+    with open(directory + f'/weights/scalers/scaler_y_tilt_position_control_Output1.pkl', 'rb') as f:
+        tilt_y_scalar_object = pickle.load(f)
+else:
+    pan_feature_scalar_object = None
+    tilt_feature_scalar_object = None
+    pan_y_scalar_object = None
+    tilt_y_scalar_object = None
+        
+TILT_FEATURES = []
+PAN_FEATURES = []
+
+for servo in servos:
+    if servo == 'tilt':
+        with open(directory + f'/weights/{servo}_{model_name_suffix}_config.json', 'r') as f:
+            config = json.load(f)
+            TILT_FEATURES = config['features']
+        # Load the features from the config file
+    elif servo == 'pan':
+        with open(directory + f'/weights/{servo}_{model_name_suffix}_config.json', 'r') as f:
+            config = json.load(f)
+            PAN_FEATURES = config['features']
+    else:
+        raise ValueError(f"Unknown servo: {servo}")
+print(f"Tilt features: {TILT_FEATURES}", file=sys.stderr)
+print(f"Pan features: {PAN_FEATURES}", file=sys.stderr)
 
 # Global variable for shared memory map, to be cleaned up in signal_handler
 shm_map = None
 shm_handle = None
+
+def get_feature_value(input_data, feature, servo_name):
+    """
+    Extracts the value of a specific feature from the input data dictionary.
+    Handles both servo-specific features and common IMU features.
+    """
+    # Map from feature name to input_data['servo_data'] keys
+    servo_feature_map = {
+        'Position': 'position',
+        'DistToGoal': 'goal_distance',
+        'DistToStart': 'start_distance',
+        'GoalPosition': 'goal_position',
+        'StartPosition': 'starting_position'
+    }
+
+    # Handle IMU features
+    if feature in ['GyroX', 'GyroY', 'GyroZ']:
+        return input_data['gyro'][['GyroX', 'GyroY', 'GyroZ'].index(feature)]
+    if feature in ['AccelX', 'AccelY', 'AccelZ']:
+        return input_data['accel'][['AccelX', 'AccelY', 'AccelZ'].index(feature)]
+    if feature in ['AngleX', 'AngleY', 'AngleZ']:
+        return input_data['angles'][['AngleX', 'AngleY', 'AngleZ'].index(feature)]
+
+    # Handle servo-specific features (e.g., TiltPosition, PanDistToGoal)
+    for prefix in ['Tilt', 'Pan']:
+        if feature.startswith(prefix):
+            # Determine which servo index to use
+            servo_idx = 0 if prefix == 'Tilt' else 1
+            
+            # Extract the metric from the feature name
+            # e.g., 'TiltPosition' -> 'Position'
+            metric = feature[len(prefix):]
+            
+            # Check if the metric is in our map
+            if metric in servo_feature_map:
+                # Get the key for the servo_data dictionary
+                data_key = servo_feature_map[metric]
+                # Return the value from the correct servo's data
+                return input_data['servo_data'][servo_idx][data_key]
+    
+    # If not found, raise error
+    raise ValueError(f"Unknown feature: {feature}")
 
 def parse_input_array_to_dict(flat_input_array, num_servos_expected):
     """
@@ -131,7 +216,7 @@ def set_flag(shm_map_obj, offset, value):
     shm_map_obj.write(struct.pack('<?', bool(value)))
     shm_map_obj.flush() # Ensure it's written
 
-def normalise_input(input_data, means_stds, servo_name, model_name, feature_list):
+def normalise_input(input_data, means_stds, servo_name, model_name, feature_list, scalar_object=None):
     """
     Normalize input data for a specific servo model using a custom feature list.
     """
@@ -222,25 +307,37 @@ def normalise_input(input_data, means_stds, servo_name, model_name, feature_list
             # For robustness, let's try the default from original code but with a clear warning.
             print(f"Warning: Feature '{feature}' for servo '{servo_name}' was not explicitly extracted from input_data. Attempting to use default value from means_stds.", file=sys.stderr)
             if means_stds[feature].get('default') is not None:
-                 feature_value = means_stds[feature]['default']
+                    feature_value = means_stds[feature]['default']
             elif means_stds[feature].get('mean') is not None: # Fallback to mean if default is not present
-                 feature_value = means_stds[feature]['mean']
+                    feature_value = means_stds[feature]['mean']
             else:
-                 raise ValueError(f"Feature '{feature}' for servo '{servo_name}' could not be extracted and no 'default' or 'mean' found in means_stds.")
+                    raise ValueError(f"Feature '{feature}' for servo '{servo_name}' could not be extracted and no 'default' or 'mean' found in means_stds.")
             processed = True # Mark as processed via fallback
 
         if feature_value is None and processed is False: # Should ideally not happen if logic is complete
-             raise ValueError(f"Critical: Feature '{feature}' for servo '{servo_name}' was not processed and resulted in a None value before appending to input_array.")
+                raise ValueError(f"Critical: Feature '{feature}' for servo '{servo_name}' was not processed and resulted in a None value before appending to input_array.")
 
         input_array.append(feature_value)
 
     x = np.array(input_array)
-    means = np.array([means_stds[feature]['mean'] for feature in feature_list])
-    stds = np.array([means_stds[feature]['std'] for feature in feature_list])
-    stds = np.maximum(stds, 1e-2) # Avoid division by zero or very small stds
-    
-    if 'raw' in model_name: # Check if 'raw' is part of the model name string
+
+    if scalar_object is not None:
+        if "Output1" in model_name:
+            print(f"Normalizing input with scalar object: {model_name}", file=sys.stderr)
+            # Build a DataFrame with feature names for the scaler
+            x_df = pd.DataFrame([dict(zip(feature_list, x.flatten()))])
+            if not all(feature in scalar_object.feature_names_in_ for feature in feature_list):
+                raise ValueError(f"Feature list {feature_list} does not match scalar object features {scalar_object.feature_names_in_} for servo '{servo_name}' in model '{model_name}'.")
+            x = scalar_object.transform(x_df) 
+            return x
+    else:
+        means = np.array([means_stds[feature]['mean'] for feature in feature_list])
+        stds = np.array([means_stds[feature]['std'] for feature in feature_list])
+        stds = np.maximum(stds, 1e-2) # Avoid division by zero or very small stds
+
+    if 'raw' in model_name:
         return x.reshape(1, -1) # Return raw data, but ensure it's 2D
+
     return (x.reshape(1, -1) - means) / stds
 
 
@@ -270,8 +367,9 @@ def create_model_with_weights(weights_path, model_name, num_inputs):
             
             keras_model = Sequential()
             keras_model.name = model_name
+            features = list(config['features'])
             
-            keras_model.add(Input(shape=(num_inputs,)))  
+            keras_model.add(Input(shape=(len(features),)))  
             
             for layer_config_item in config['layers']: # Renamed to avoid conflict
                 if layer_config_item['class_name'] == 'Dense':
@@ -433,9 +531,6 @@ def main():
             sys.exit(1)
         
         # --- Model Loading ---
-        directory = os.path.dirname(os.path.abspath(__file__))
-        servos = ['tilt', 'pan'] 
-        model_name_suffix = 'L1_128_L2_64_position_control_standardised_Relu_mean_squared_error_2Output_DropOut_0.2_l2_0.0001_gyro_position_distances'
         
         models = {}
         means_stds = {}
@@ -450,10 +545,9 @@ def main():
             weights_path = directory + f'/weights/{servo}_{model_name_suffix}.weights.h5'
             models[servo] = create_model_with_weights(weights_path, f'{servo}_model', num_inputs_for_this_model)
             
-            with open(directory + f'/weights/{servo}_filtered_data_position_control_mean_std.json', 'r') as f:
+            with open(directory + f'/weights/{servo}_{mean_stds_suffix}') as f:
                 means_stds[servo] = json.load(f)
         
-       
         if num_features_for_model_init > 0:
             dummy_input = np.zeros((1, num_features_for_model_init))
             for servo in servos:
@@ -498,9 +592,14 @@ def main():
                             feature_list = PAN_FEATURES
                         else:
                             raise ValueError(f"Unknown servo: {servo_name_key}")
-
-                        normalized_input = normalise_input(input_data_dict, means_stds[servo_name_key], servo_name_key, model_name_suffix, feature_list)
                         
+                        if "Output1" in model_name_suffix:
+                            # For Output1, we assume a single output per servo
+                            scalar_object = tilt_feature_scalar_object if servo_name_key == 'tilt' else pan_feature_scalar_object
+                        else:
+                            scalar_object = None
+                        normalized_input = normalise_input(input_data_dict, means_stds[servo_name_key], servo_name_key, model_name_suffix, feature_list, scalar_object)
+  
                         interpreter = models[servo_name_key]
                         input_details = interpreter.get_input_details()
                         output_details = interpreter.get_output_details()
@@ -508,16 +607,23 @@ def main():
                         interpreter.set_tensor(input_details[0]['index'], normalized_input.astype(np.float32))
                         interpreter.invoke()
                         pred_nn_output = interpreter.get_tensor(output_details[0]['index'])
+
+                      
                         
-                        # Denormalization (assuming "2Output" model structure as before)
-                        if "2Output" in model_name_suffix:
-                            target_var = f"{servo_name_key.capitalize()}Current"
+                        target_var = f"{servo_name_key.capitalize()}Current"
+                        
+                        if "Output1" in model_name_suffix:
+                            # For Output1, we assume a single output per servo
+                            scalar_object = pan_y_scalar_object if servo_name_key == 'pan' else tilt_y_scalar_object
+                            if scalar_object is None:
+                                raise ValueError(f"Scalar object for servo '{servo_name_key}' in model '{model_name_suffix}' could not be loaded. Check the scaler file path.")
+                            #pred_df = pd.DataFrame(pred_nn_output, columns=scalar_object.feature_names_in_)
+                            #pred_scalar = float(scalar_object.inverse_transform(pred_df)[0][0])
+                            pred_scalar = float(scalar_object.inverse_transform(pred_nn_output)[0][0])  # Assuming pred_nn_output is a 2D array with shape (1, 1)
+
+                        else:    
                             pred_scalar = float(pred_nn_output[0][0] * means_stds[servo_name_key][target_var]['std'] + means_stds[servo_name_key][target_var]['mean'])
-                            predictions.append(pred_scalar)
-                        else: # Single output model
-                            target_var = f"{servo_name_key.capitalize()}Current"
-                            pred_scalar = float(pred_nn_output[0][0] * means_stds[servo_name_key][target_var]['std'] + means_stds[servo_name_key][target_var]['mean'])
-                            predictions.append(pred_scalar)
+                        predictions.append(pred_scalar)
                     
                     t_start_write = time.perf_counter()
                     
