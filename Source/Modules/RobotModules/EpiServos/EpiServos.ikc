@@ -53,8 +53,8 @@
 	<parameter name="simulate" type="bool" default="False" description="Simulation mode. No connecting is made to servos. The PRESENT POSITION output is calculated using previous position, goal position, maximum velocoty (no acceleration) and the time base of the simulation." />
 	<parameter name="MinLimitPosition" type="matrix" description="The minimum limit of the position in degrees of the servos. Not including pupils"
 	control="textedit"
-	default="122,142, 161, 156, 53, 73, 87, 53, 70, 0, 53, 79, 88, 158, 70, 0, 9"
-	data="122,142, 161, 156, 53, 73, 87, 53, 70, 0, 53, 79, 88, 158, 70, 0, 9"
+	default="122, 130, 161, 156, 53, 73, 87, 53, 70, 0, 53, 79, 88, 158, 70, 0, 9"
+	data="122, 130, 161, 156, 53, 73, 87, 53, 70, 0, 53, 79, 88, 158, 70, 0, 9"
 	/>
 	<parameter name="MaxLimitPosition" type="matrix" description="The maximum limit of the position of the servos in degrees. Not including pupils "
 	control="textedit"
