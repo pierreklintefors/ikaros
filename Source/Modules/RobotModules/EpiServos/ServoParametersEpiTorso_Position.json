@@ -10,7 +10,7 @@
                 "Position D Gain": 0,
                 "Position I Gain": 0,
                 "Position P Gain": 850,
-                "Profile Acceleration": 45,
+                "Profile Acceleration": 40,
                 "Profile Velocity": 170,
                 "servoID": 2
             },

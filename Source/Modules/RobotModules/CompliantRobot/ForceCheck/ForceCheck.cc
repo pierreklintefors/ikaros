@@ -735,7 +735,7 @@ public: // Ensure INSTALL_CLASS can access constructor if it's implicitly used.
                     allowed_deviance(i) = allowed_deviance_input(i); // Use input allowed_deviance if motor is in motion
                 }
                 else {
-                    allowed_deviance(i) = allowed_deviance_input(i)/3; // If not in motion, set to 0
+                    allowed_deviance(i) = allowed_deviance_input(i)/2; // If not in motion, set to 0
                 }
                 
                 Debug("ForceCheck: Motor " + std::to_string(i) + " deviation: " + std::to_string(deviation[i]) + 
