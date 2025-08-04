@@ -396,14 +396,16 @@ namespace ikaros
     std::vector<std::vector<Task *>>        tasks;                  // Sorted tasks in groups
     ThreadPool *                            thread_pool = nullptr;
 
-        long session_id;
-        bool needs_reload;
-        // bool                                  is_running;
-        std::atomic<bool> tick_is_running;
-        std::atomic<bool> sending_ui_data;
-        std::atomic<bool> handling_request;
-        std::atomic<bool> shutdown;
-        int run_mode;
+    long                                    session_id;
+    bool                                    needs_reload;
+
+    std::recursive_mutex                    kernelLock; // TODO: Consider: std::recursive_mutex 
+
+    std::atomic<bool>                       tick_is_running;
+    std::atomic<bool>                       sending_ui_data;
+    std::atomic<bool>                       handling_request;
+    std::atomic<bool>                       shutdown;
+    int                                     run_mode;
 
         dictionary current_component_info; // Implivit parameters to create Component
         std::string current_component_path;

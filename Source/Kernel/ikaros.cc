@@ -1539,7 +1539,8 @@ namespace ikaros
     void
     Kernel::Tick()
     {
-        tick_is_running = true; // Flag that state changes are not allowed
+
+        tick_is_running = true;
         tick++;
 
         RunTasks();
@@ -1549,7 +1550,8 @@ namespace ikaros
         Propagate();
 
         CalculateCPUUsage();
-        tick_is_running = false; // Flag that state changes are allowed again
+
+        tick_is_running = false; 
     }
 
     bool
@@ -1816,7 +1818,9 @@ namespace ikaros
                        needs_reload(true)
     {
         cpu_cores = std::thread::hardware_concurrency();
-        thread_pool = new ThreadPool(cpu_cores > 1 ? cpu_cores - 1 : 1); // FIXME: optionally use ikg parameters
+        thread_pool = new ThreadPool(cpu_cores > 1 ? cpu_cores-1 : 1); // FIXME: optionally use ikg parameters
+        //thread_pool = new ThreadPool(1); // FIXME: optionally use ikg parameters
+
     }
 
     // Functions for creating the network
@@ -1937,7 +1941,7 @@ if(classes[classname].path.empty())
         try
         {
             if(std::string(d["_tag"]) != "group")
-                throw setup_error("Main element is <"+std::string(d["_tag"])+"> but must be <group> for ikg-file.");
+                throw setup_error("Main element is '"+std::string(d["_tag"])+"' but must be 'group' for ikg-file.");
 
             if(!d.contains("name"))
                 throw setup_error("Groups must have a name.", path);
@@ -2015,6 +2019,7 @@ if(classes[classname].path.empty())
     void
     Kernel::LoadFile()
     {
+        std::lock_guard<std::recursive_mutex> lock(kernelLock);
         try
         {
             if(components.size() > 0)
@@ -2033,7 +2038,7 @@ if(classes[classname].path.empty())
                     Notify(msg_print, u8"Loaded "s+options_.full_path());
 
                     CalculateCheckSum();
-                    //ListBuffers();
+                    //ListBuffers();  // FIXME: remove
                     //ListConnections();
                     needs_reload = false;
                 }
@@ -2449,7 +2454,7 @@ if(classes[classname].path.empty())
             // ListParameters();
             CalculateDelays();
             CalculateSizes();
-            //ListConnections();
+            //ListConnections(); // FIXME: Add flags for this
             //ListInputs();
             ListOutputs();
 
@@ -2460,9 +2465,9 @@ if(classes[classname].path.empty())
             {
                 ListParameters();
                 //ListComponents();
-                //ListConnections();
-                //ListInputs();
-                //ListOutputs();
+                ListConnections();
+                ListInputs();
+                ListOutputs();
                 //ListBuffers();
                 //ListCircularBuffers();
                 //ListTasks();
@@ -2490,16 +2495,9 @@ if(classes[classname].path.empty())
         {
             while (!Terminate() && run_mode > run_mode_quit)
             {
-                while (sending_ui_data)
-                {
-                }
-                while (handling_request)
-                {
-                }
-
-                if (run_mode == run_mode_realtime)
-                    lag = timer.WaitUntil(double(tick + 1) * tick_duration);
-                else if (run_mode == run_mode_play)
+                if(run_mode == run_mode_realtime)
+                    lag = timer.WaitUntil(double(tick+1)*tick_duration);
+                else if(run_mode == run_mode_play)
                 {
                     timer.SetTime(double(tick + 1) * tick_duration); // Fake time increase // FIXME: remove sleep in batch mode
                     Sleep(0.01);
@@ -2515,6 +2513,7 @@ if(classes[classname].path.empty())
                     intra_tick_timer.Restart();
                     try
                     {
+                        std::lock_guard<std::recursive_mutex> lock(kernelLock);
                         Tick();
                     }
                     catch (std::exception &e)
@@ -2532,12 +2531,11 @@ if(classes[classname].path.empty())
         }
     }
 
-    bool
-    Kernel::Notify(int msg, std::string message, std::string path)
-    {
-
-        static std::mutex mtx;
-        std::lock_guard<std::mutex> lock(mtx); // Lock the mutex
+        bool
+        Kernel::Notify(int msg, std::string message, std::string path)
+        {
+            static std::mutex mtx;
+            std::lock_guard<std::mutex> lock(mtx); // Lock the mutex
 
         log.push_back(Message(msg, message, path));
 
@@ -2619,10 +2617,6 @@ if(classes[classname].path.empty())
     void
     Kernel::Stop()
     {
-        while (tick_is_running)
-        {
-        }
-
         run_mode = std::min(run_mode_stop, run_mode);
         tick = -1;
         timer.Pause();
@@ -2635,11 +2629,7 @@ if(classes[classname].path.empty())
     void
     Kernel::Pause()
     {
-        while (tick_is_running)
-        {
-        }
-
-        if (needs_reload)
+        if(needs_reload)
         {
             LoadFile();
             run_mode = run_mode_pause;
@@ -2655,43 +2645,22 @@ if(classes[classname].path.empty())
     void
     Kernel::Realtime()
     {
-        while (tick_is_running)
-        {
-        }
-
-        if (needs_reload)
-        {
-            // Clear();
+        if(needs_reload)
             LoadFile();
-            run_mode = run_mode_realtime;
-        }
-        else
-        {
-
-            Pause();
-            timer.Continue();
-            run_mode = run_mode_realtime;
-        }
+     
+        Pause();
+        timer.Continue(); 
+        run_mode = run_mode_realtime;
     }
 
     void
     Kernel::Play()
     {
-        while (tick_is_running)
-        {
-        }
-
-        if (needs_reload)
-        {
-            // Clear();
+        if(needs_reload)
             LoadFile();
-            run_mode = run_mode_play;
-        }
-        else
-        {
-            run_mode = run_mode_play;
-            timer.Continue();
-        }
+  
+        run_mode = run_mode_play;
+        timer.Continue();
     }
 
     void
@@ -2797,9 +2766,7 @@ if(classes[classname].path.empty())
     Kernel::DoSendData(Request &request)
     {
         sending_ui_data = true; // must be set while main thread is still running
-        while (tick_is_running)
-        {
-        }
+
 
         DoSendDataHeader();
 
@@ -2817,7 +2784,7 @@ if(classes[classname].path.empty())
         std::string sep = "";
         bool sent = false;
 
-        while(!data.empty())
+        while(!data.empty()) // FIXME: CHeck the we do not run out of time here and break if next tick is about to start.
         {
             std::string source = head(data, ",");
             std::string key = source;
@@ -2857,7 +2824,7 @@ if(classes[classname].path.empty())
 
             else
             {
-                sent = socket->Send(sep + "\t\t\"" + key + "\": \""+source+"\"");
+                // sent = socket->Send(sep + "\t\t\"" + key + "\": \""+source+"\""); // ERROR: Does not exist, do not send
             }
 
             if(sent)
@@ -2866,7 +2833,7 @@ if(classes[classname].path.empty())
 
         socket->Send("\n\t}");
         DoSendLog(request);
-        socket->Send(",\n\t\"has_data\": " + std::to_string(!tick_is_running) + "\n"); // new tick has started during sending; there may be data but it cannot be trusted
+        socket->Send(",\n\t\"has_data\": "+std::to_string(!tick_is_running)+"\n"); // new tick has started during sending; there may be data but it cannot be trusted // FIXME: Never happens
         socket->Send("}\n");
 
         sending_ui_data = false;
@@ -3266,7 +3233,6 @@ if(classes[classname].path.empty())
         Request request(socket->header.Get("URI"), sid, socket->body);
 
         //std::cout << "Request: " << request.url << std::endl;
-
         if(request == "network")
             DoNetwork(request);
 
@@ -3352,25 +3318,24 @@ if(classes[classname].path.empty())
         {
             if (socket != nullptr && socket->GetRequest(true))
             {
-                if (equal_strings(socket->header.Get("Method"), "GET"))
+
+                std::lock_guard<std::recursive_mutex> lock(kernelLock); // Lock the mutex to ensure thread safety
+
+
+                if(equal_strings(socket->header.Get("Method"), "GET"))
                 {
-                    while (tick_is_running)
-                    {
-                    }
-                    handling_request = true;
+                     handling_request = true;
                     HandleHTTPRequest();
-                    handling_request = false;
-                }
-                else if (equal_strings(socket->header.Get("Method"), "PUT")) // JSON Data
-                {
-                    while (tick_is_running)
-                    {
+                        handling_request = false;
                     }
-                    handling_request = true;
-                    HandleHTTPRequest();
-                    handling_request = false;
-                }
-                socket->Close();
+                    else if(equal_strings(socket->header.Get("Method"), "PUT")) // JSON Data
+                    {
+                        handling_request = true;
+                        HandleHTTPRequest();
+                        handling_request = false;
+                    }
+                    socket->Close();
+    
             }
         }
     }
@@ -3388,10 +3353,7 @@ Kernel::~Kernel()
 {
     if (socket)
     {
-        shutdown = true;
-        while (handling_request)
-        {
-        }
+        shutdown=true;
         Sleep(0.1);
         delete socket;
         delete thread_pool;

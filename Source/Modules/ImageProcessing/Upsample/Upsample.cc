@@ -2,7 +2,7 @@
 
 using namespace ikaros;
 
-class Downsample : public Module 
+class Upsample : public Module 
 {
     matrix input;
     matrix output;
@@ -16,12 +16,11 @@ class Downsample : public Module
     void Tick()
     {
         if (input.rank() == 2) 
-            output.downsample(input);
+            output.upsample(input);
         else
             for (int i = 0; i < input.size_z(); i++)
-                output[i].downsample(input[i]);
+                output[i].upsample(input[i]);
     }
 };
 
-INSTALL_CLASS(Downsample)
-
+INSTALL_CLASS(Upsample)
