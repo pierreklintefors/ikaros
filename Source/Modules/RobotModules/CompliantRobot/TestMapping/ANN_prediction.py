@@ -58,8 +58,10 @@ directory = os.path.dirname(os.path.abspath(__file__))
 servos = ['tilt', 'pan'] 
 #model_name_suffix = 'L1_128_L2_64_position_control_standardised_Relu_mean_squared_error_2Output_DropOut_0.2_l2_0.001_all_data'
 #mean_stds_suffix = 'all_data_position_control_mean_std.json'
+
 #model_name_suffix = 'position_control_Output1'
 #mean_stds_suffix = 'mean_std_position_control_Output1.json'
+
 model_name_suffix = 'L1_256_L2_32_position_control_standardised_Relu_mean_squared_error_1Output_DropOut_0.15_l2_0.003_all_data_small_set'
 mean_stds_suffix = 'small_data_position_control_mean_std.json'
 if "Output1" in model_name_suffix:
@@ -121,25 +123,34 @@ def get_feature_value(input_data, feature, servo_name):
     if feature in ['AngleX', 'AngleY', 'AngleZ']:
         return input_data['angles'][['AngleX', 'AngleY', 'AngleZ'].index(feature)]
 
-    # Handle servo-specific features (e.g., TiltPosition, PanDistToGoal)
-    for prefix in ['Tilt', 'Pan']:
-        if feature.startswith(prefix):
-            # Determine which servo index to use
-            servo_idx = 0 if prefix == 'Tilt' else 1
-            
-            # Extract the metric from the feature name
-            # e.g., 'TiltPosition' -> 'Position'
-            metric = feature[len(prefix):]
-            
-            # Check if the metric is in our map
-            if metric in servo_feature_map:
-                # Get the key for the servo_data dictionary
-                data_key = servo_feature_map[metric]
-                # Return the value from the correct servo's data
-                return input_data['servo_data'][servo_idx][data_key]
+    # --- BUG FIX ---
+    # The original logic incorrectly looped through prefixes, which could cause a feature
+    # for one servo (e.g., 'TiltPosition') to be incorrectly claimed by another servo's
+    # model if not handled carefully.
+    # The corrected logic determines the target servo and metric from the feature name
+    # itself, ensuring the correct value is always retrieved.
     
-    # If not found, raise error
-    raise ValueError(f"Unknown feature: {feature}")
+    target_servo_prefix = None
+    if feature.startswith('Tilt'):
+        target_servo_prefix = 'Tilt'
+        servo_idx = 0
+    elif feature.startswith('Pan'):
+        target_servo_prefix = 'Pan'
+        servo_idx = 1
+    else:
+        # If the feature does not start with a known servo prefix and wasn't an IMU feature,
+        # it's an unknown feature.
+        raise ValueError(f"Unknown feature: {feature}")
+
+    # Extract the metric from the feature name (e.g., 'TiltPosition' -> 'Position')
+    metric = feature[len(target_servo_prefix):]
+    
+    if metric in servo_feature_map:
+        data_key = servo_feature_map[metric]
+        return input_data['servo_data'][servo_idx][data_key]
+    
+    # If the metric is not in the map, the feature name is invalid.
+    raise ValueError(f"Unknown feature metric '{metric}' in feature '{feature}'")
 
 def parse_input_array_to_dict(flat_input_array, num_servos_expected):
     """
@@ -218,122 +229,40 @@ def set_flag(shm_map_obj, offset, value):
 
 def normalise_input(input_data, means_stds, servo_name, model_name, feature_list, scalar_object=None):
     """
-    Normalize input data for a specific servo model using a custom feature list.
+    Normalise input data for a specific servo model using a custom feature list.
     """
-    input_array = []
-    for feature in feature_list:
-        if feature not in means_stds:
-            # It's possible for a feature to be in the feature_list (e.g. common features like GyroX for Pan model)
-            # but not have its own entry in means_stds[servo_name] if it's meant to use global or another servo's stats.
-            # However, the current structure implies means_stds[servo_name] should contain all needed stats for that servo's model.
-            raise ValueError(f"Feature '{feature}' not found in means_stds for servo '{servo_name}', model '{model_name}'. Check your mean_std.json files and feature lists.")
+    # --- BUG FIX ---
+    # The previous implementation had complex, error-prone logic for extracting feature values.
+    # This is simplified by using the `get_feature_value` helper function, which correctly
+    # retrieves any feature (IMU or servo-specific) from the input data dictionary. This
+    # ensures the correct raw values are collected before normalization/scaling.
+    input_array = [get_feature_value(input_data, feature, servo_name) for feature in feature_list]
 
-        feature_value = None
-        processed = False # Flag to track if feature_value was set by specific logic
 
-        # Servo-specific features (e.g., TiltPosition, PanDistToGoal)
-        # These features combine the servo name with the metric.
-        current_servo_prefix = servo_name.capitalize() # "Tilt" or "Pan"
-        
-        if feature.startswith(current_servo_prefix):
-            servo_idx_in_data = 0 if servo_name == 'tilt' else 1 # 0 for tilt, 1 for pan in input_data['servo_data']
-            
-            if feature == f"{current_servo_prefix}Position":
-                feature_value = input_data['servo_data'][servo_idx_in_data]['position']
-                processed = True
-            elif feature == f"{current_servo_prefix}DistToGoal":
-                feature_value = input_data['servo_data'][servo_idx_in_data]['goal_distance']
-                processed = True
-            elif feature == f"{current_servo_prefix}DistToStart":
-                feature_value = input_data['servo_data'][servo_idx_in_data]['start_distance']
-                processed = True
-            elif feature == f"{current_servo_prefix}GoalPosition":
-                feature_value = input_data['servo_data'][servo_idx_in_data]['goal_position']
-                processed = True
-            elif feature == f"{current_servo_prefix}StartPosition":
-                feature_value = input_data['servo_data'][servo_idx_in_data]['starting_position']
-                processed = True
-
-        # Handling for features that might be from the OTHER servo (e.g., Pan model using TiltPosition)
-        # This is relevant for PAN_FEATURES which includes TiltPosition, TiltDistToGoal, TiltDistToStart
-        elif servo_name == 'pan' and feature.startswith('Tilt'):
-            other_servo_idx_in_data = 0 # Tilt is always index 0 in input_data['servo_data']
-            if feature == 'TiltPosition':
-                feature_value = input_data['servo_data'][other_servo_idx_in_data]['position']
-                processed = True
-            elif feature == 'TiltDistToGoal':
-                feature_value = input_data['servo_data'][other_servo_idx_in_data]['goal_distance']
-                processed = True
-            elif feature == 'TiltDistToStart':
-                feature_value = input_data['servo_data'][other_servo_idx_in_data]['start_distance']
-                processed = True
-        
-        # IMU features (common to both models or general)
-        if not processed:
-            if feature == 'GyroX':
-                feature_value = input_data['gyro'][0]
-                processed = True
-            elif feature == 'GyroY':
-                feature_value = input_data['gyro'][1]
-                processed = True
-            elif feature == 'GyroZ':
-                feature_value = input_data['gyro'][2]
-                processed = True
-            elif feature == 'AccelX':
-                feature_value = input_data['accel'][0]
-                processed = True
-            elif feature == 'AccelY':
-                feature_value = input_data['accel'][1]
-                processed = True
-            elif feature == 'AccelZ':
-                feature_value = input_data['accel'][2]
-                processed = True
-            elif feature == 'AngleX':
-                feature_value = input_data['angles'][0]
-                processed = True
-            elif feature == 'AngleY':
-                feature_value = input_data['angles'][1]
-                processed = True
-            elif feature == 'AngleZ':
-                feature_value = input_data['angles'][2]
-                processed = True
-
-        if not processed:
-            # If feature_value is still None, it means the feature in feature_list
-            # was not handled by any of the specific extraction logic above.
-            # This indicates a mismatch between feature_list and extraction logic.
-            # The original code had a fallback to mean/default, but it's safer to error out
-            # or at least be very explicit if a feature is expected but not found.
-            # For robustness, let's try the default from original code but with a clear warning.
-            print(f"Warning: Feature '{feature}' for servo '{servo_name}' was not explicitly extracted from input_data. Attempting to use default value from means_stds.", file=sys.stderr)
-            if means_stds[feature].get('default') is not None:
-                    feature_value = means_stds[feature]['default']
-            elif means_stds[feature].get('mean') is not None: # Fallback to mean if default is not present
-                    feature_value = means_stds[feature]['mean']
-            else:
-                    raise ValueError(f"Feature '{feature}' for servo '{servo_name}' could not be extracted and no 'default' or 'mean' found in means_stds.")
-            processed = True # Mark as processed via fallback
-
-        if feature_value is None and processed is False: # Should ideally not happen if logic is complete
-                raise ValueError(f"Critical: Feature '{feature}' for servo '{servo_name}' was not processed and resulted in a None value before appending to input_array.")
-
-        input_array.append(feature_value)
 
     x = np.array(input_array)
 
+    
+
     if scalar_object is not None:
         if "Output1" in model_name:
-            print(f"Normalizing input with scalar object: {model_name}", file=sys.stderr)
             # Build a DataFrame with feature names for the scaler
-            x_df = pd.DataFrame([dict(zip(feature_list, x.flatten()))])
-            if not all(feature in scalar_object.feature_names_in_ for feature in feature_list):
-                raise ValueError(f"Feature list {feature_list} does not match scalar object features {scalar_object.feature_names_in_} for servo '{servo_name}' in model '{model_name}'.")
-            x = scalar_object.transform(x_df) 
+            x_df = pd.DataFrame([dict(zip(feature_list, x.flatten()))], dtype=np.float32)
+            # The scaler's `transform` method expects the DataFrame columns to be in the exact
+            # same order as the features it was trained on. We must reorder our DataFrame
+            # to match the scaler's expected feature order before transforming.
+            expected_feature_order = scalar_object.feature_names_in_
+            if not set(feature_list) == set(expected_feature_order):
+                raise ValueError(f"Feature mismatch for servo '{servo_name}'. Model expects {set(feature_list)} but scaler was trained on {set(expected_feature_order)}.")
+            
+            # Reorder DataFrame columns to match the scaler's expected order
+            x_df_ordered = x_df[expected_feature_order]
+            x = scalar_object.transform(x_df_ordered) 
             return x
     else:
         means = np.array([means_stds[feature]['mean'] for feature in feature_list])
         stds = np.array([means_stds[feature]['std'] for feature in feature_list])
-        stds = np.maximum(stds, 1e-2) # Avoid division by zero or very small stds
+        #stds = np.maximum(stds, 1e-2) # Avoid division by zero or very small stds
 
     if 'raw' in model_name:
         return x.reshape(1, -1) # Return raw data, but ensure it's 2D
@@ -539,26 +468,24 @@ def main():
         for servo in servos:
             feature_list_for_servo = TILT_FEATURES if servo == 'tilt' else PAN_FEATURES
             num_inputs_for_this_model = len(feature_list_for_servo)
-            if num_features_for_model_init == 0: # Store for dummy input
-                 num_features_for_model_init = num_inputs_for_this_model
-
+       
             weights_path = directory + f'/weights/{servo}_{model_name_suffix}.weights.h5'
             models[servo] = create_model_with_weights(weights_path, f'{servo}_model', num_inputs_for_this_model)
             
             with open(directory + f'/weights/{servo}_{mean_stds_suffix}') as f:
                 means_stds[servo] = json.load(f)
         
-        if num_features_for_model_init > 0:
-            dummy_input = np.zeros((1, num_features_for_model_init))
-            for servo in servos:
+            if num_inputs_for_this_model > 0:
+                dummy_input = np.zeros((1, num_inputs_for_this_model), dtype=np.float32)
                 interpreter = models[servo]
                 input_details = interpreter.get_input_details()
                 interpreter.set_tensor(input_details[0]['index'], dummy_input.astype(np.float32))
                 interpreter.invoke()
                 _ = interpreter.get_tensor(interpreter.get_output_details()[0]['index'])
-            print("Models warmed up.", file=sys.stderr)
-        else:
-            print("Warning: No features found for model warm-up. Skipping.", file=sys.stderr)
+        
+                print("Models warmed up.", file=sys.stderr)
+            else:
+                print("Warning: No features found for model warm-up. Skipping.", file=sys.stderr)
 
         print(f"Python script '{shm_name}' initialized and waiting for data.", file=sys.stderr)
 
@@ -598,13 +525,14 @@ def main():
                             scalar_object = tilt_feature_scalar_object if servo_name_key == 'tilt' else pan_feature_scalar_object
                         else:
                             scalar_object = None
-                        normalized_input = normalise_input(input_data_dict, means_stds[servo_name_key], servo_name_key, model_name_suffix, feature_list, scalar_object)
-  
+                        normalised_input = normalise_input(input_data_dict, means_stds[servo_name_key], servo_name_key, model_name_suffix, feature_list, scalar_object)
+
+                        #print(f"Normalised input for servo '{servo_name_key}': {normalised_input}", file=sys.stderr)
                         interpreter = models[servo_name_key]
                         input_details = interpreter.get_input_details()
                         output_details = interpreter.get_output_details()
                         
-                        interpreter.set_tensor(input_details[0]['index'], normalized_input.astype(np.float32))
+                        interpreter.set_tensor(input_details[0]['index'], normalised_input.astype(np.float32))
                         interpreter.invoke()
                         pred_nn_output = interpreter.get_tensor(output_details[0]['index'])
 
@@ -649,9 +577,7 @@ def main():
                     set_flag(shm_map, PYTHON_WROTE_OUTPUT_OFFSET, True) # Python has written
 
                     t_total = time.perf_counter() - t_start_read
-                    # print(f"Total Python time: {t_total:.6f}s (Read={t_end_read-t_start_read:.6f}s, PredictLoop={t_start_write-t_start_predict_loop:.6f}s, Write={t_end_write-t_start_write:.6f}s)", file=sys.stderr)
-                    # print("Predictions sent: ", predictions, file=sys.stderr)
-
+               
                 except Exception as e:
                     print(f"Error during prediction generation: {e}", file=sys.stderr)
                     # Reset flags defensively if an error occurs
