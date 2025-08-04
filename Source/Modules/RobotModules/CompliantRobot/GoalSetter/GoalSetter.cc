@@ -188,10 +188,11 @@ class GoalSetter: public Module
             {
                 Debug("GoalSetter: Transitioning to next goal position");
                 // Reset reached_goal for the next transition
-                transition++;
+                
                 start_position.copy(present_position);
                 goal_position.copy(planned_positions[transition]);
                 reached_goal.set(0);
+                transition++;
             }
             else if (one_cycle && goal_position_in.connected())
             {
