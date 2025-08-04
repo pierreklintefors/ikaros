@@ -543,7 +543,7 @@ public: // Ensure INSTALL_CLASS can access constructor if it's implicitly used.
         matrix transition_status(deviation.size()); // Assuming deviation is correctly sized
         transition_status.set(0.0); // Initialize to not started
 
-        for (int i = 0; i < deviation.size() && i < present_position.size() && i < start_position.size() && i < present_current.size(); i++){
+        for (int i = 0; i < deviation.size() ; i++){
             if (abs( (double)start_position(i) - (double)present_position(i)) < margin || abs( (double)present_current(i))<5)
                 transition_status(i) = 0.0; // Not started
             else
