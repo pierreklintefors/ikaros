@@ -8,7 +8,7 @@
 	<parameter name="MaxMovementDegreesWhenHeld" type="int" default="2" description="The maximum degrees the robot can move when held in a position"/>
 	<parameter name="ObstacleDetectionDeviationCount" type="int" default="3" description="The number of deviations to detect an obstacle"/>
 	<parameter name="CompliantTriggerMinDeviationRatio" type="number" default="0.7" description="The minimum ratio of deviation to trigger compliant mode"/>
-	<parameter name="AutomaticModeSwitchingEnabled" type="bool" default="true" description="Enable automatic switching between control modes based on conditions"/>
+	<parameter name="AutomaticModeSwitchingEnabled" type="bool" default="false" description="Enable automatic switching between control modes based on conditions"/>
 	
 	<input name="GoalPositionIn" description="The goal position of the servomotors in degrees" size="19"/>
 	<input name="StartPosition" description="The start position of the servomotors in degrees"/>

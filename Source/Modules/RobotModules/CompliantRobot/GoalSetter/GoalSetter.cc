@@ -73,7 +73,7 @@ class GoalSetter: public Module
         return generated_positions;
     }
 
-    void ReachedGoal(matrix present_position, matrix goal_positions, matrix reached_goal, int margin)
+    void ReachedGoalCheck(matrix present_position, matrix goal_positions, matrix reached_goal, int margin)
     {
         
         for (int i = 0; i < num_servos; i++)
@@ -116,9 +116,11 @@ class GoalSetter: public Module
     //Bind override goal position
     Bind(override_goal_position, "OVERRIDE_GOAL_POSITION");
 
+    planned_positions = RandomisePositions(num_transitions, min_limit_position, max_limit_position, robot_type);
+
     if (!goal_position_in.connected() || !one_cycle)
     {
-        planned_positions = RandomisePositions(num_transitions, min_limit_position, max_limit_position, robot_type);
+        
         goal_position.copy(planned_positions[0]);
     }
     else if (one_cycle)
@@ -161,7 +163,7 @@ class GoalSetter: public Module
     }
 
     if (goal_position.sum() > 0)
-        ReachedGoal(present_position, goal_position, reached_goal, position_margin);
+        ReachedGoalCheck(present_position, goal_position, reached_goal, position_margin);
 
    
     if (reached_goal.sum() == num_servos && transition < num_transitions && goal_position.sum() > 0)
