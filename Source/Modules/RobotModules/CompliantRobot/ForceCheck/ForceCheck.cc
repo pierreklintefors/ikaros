@@ -100,12 +100,6 @@ public:
             color(1) = 0.0; 
             color(2) = 0.0;
         }
-        else if (deviance_ratio > 0.85) {
-            // Orange for medium deviances
-            color(0) = 1.0; // Red
-            color(1) = 0.5; // Green
-            color(2) = 0.0; // Blue
-        }
         else 
         {
             // White for normal operation
@@ -202,10 +196,7 @@ public:
         if (obstacle_detected) { // If actively avoiding
             // Red when an obstacle is detected / actively avoiding
             color(0) = 1.0; color(1) = 0.0; color(2) = 0.0;
-        } else if (deviance_ratio > 0.7) {
-            // Orange for high deviation (but not actively avoiding)
-            color(0) = 1.0; color(1) = 0.5; color(2) = 0.0;
-        }
+        } 
         else {
             // Yellow for base avoidance mode color (when not actively avoiding but still in this mode)
             color(0) = 1.0; color(1) = 1.0; color(2) = 0.0;
@@ -498,10 +489,8 @@ public: // Ensure INSTALL_CLASS can access constructor if it's implicitly used.
     matrix number_deviations_per_time_window;
     matrix motor_in_motion;
     matrix allowed_deviance;
-   
     bool firstTick;
-    // bool obstacle; // Managed within modes or by new logic
-    // double obstacle_time; // Managed within modes or by new logic
+
     bool goal_reached;
     double start_time;
     int goal_time_out;
@@ -509,13 +498,19 @@ public: // Ensure INSTALL_CLASS can access constructor if it's implicitly used.
     std::chrono::steady_clock::time_point force_output_tapped_time_point;
     std::chrono::steady_clock::time_point time_window_start;
 
+    // Variables for auto mode switching
+    std::chrono::steady_clock::time_point sustained_high_dev_start_time;
+    bool refractory_period = false;                      // Avoid rapid mode switching
+    bool fast_push_detected = false;                     // True if a fast push was detected
+    bool automatic_mode_switching_enabled_value = false; // Value of the parameter
+    bool evaluating_sustained_hold = false;              // True if currently evaluating sustained hold
+
+    
+
     // Add mode controller
     std::unique_ptr<ModeController> mode_controller;
 
-    // New internal variables for auto mode switching
-    std::chrono::steady_clock::time_point sustained_high_dev_start_time;
-    bool evaluating_sustained_hold;
-    bool refractory_period= false; // Avoid rapid mode switching
+   
     std::chrono::steady_clock::time_point refractory_start_time;
 
 
@@ -705,6 +700,7 @@ public: // Ensure INSTALL_CLASS can access constructor if it's implicitly used.
         //Check refractory period for automatic mode switching
         if (std::chrono::steady_clock::now() - refractory_start_time > std::chrono::seconds(2)) {
             refractory_period = false; // Reset refractory period after 2 seconds
+
         }
 
         if (!present_current.connected() || !current_prediction.connected() || 
@@ -760,92 +756,153 @@ public: // Ensure INSTALL_CLASS can access constructor if it's implicitly used.
             {
                 mode_controller->SetLEDColor(0.0);
             }
-            
-           
 
             // Automatic Mode Switching Logic
-            if (automatic_mode_switching_enabled && !refractory_period) {
+            if (automatic_mode_switching_enabled && !refractory_period)
+            {
                 bool fast_push_detected_this_tick = false;
                 bool being_held_detected_this_tick = false;
-                bool obstacle_inferred_this_tick = false;
+                bool should_return_to_normal = true;
 
-                // 1. Detect Fast Push
-               
-                for (int i = 0; i < deviation.size(); i++) {
-                    double dev_change = abs(deviation[i]) - abs(deviation.last()[i]); // Assuming deviation.last(i) gives the previous tick's deviation
-                    if (dev_change > fast_push_deviation_increase.as_int()) {
+                if (torque.sum() == 0)
+                {
+                    should_return_to_normal = false; // If torque is disabled, compliant mode is active
+                    return;
+                }
+
+                // 1. Detect Fast Push (quick spike in deviation)
+                for (int i = 0; i < deviation.size(); i++)
+                {
+                    double dev_change = abs(deviation[i]) - abs(deviation.last()[i]);
+                    double current_deviation = abs(deviation[i]);
+
+                    // Fast push: sudden large increase in deviation AND current deviation is significant
+                    if (dev_change > fast_push_deviation_increase.as_int() &&
+                        current_deviation > allowed_deviance(i))
+                    {
                         fast_push_detected_this_tick = true;
-                        Debug("ForceCheck: Fast push detected for motor " + std::to_string(i) + ", dev_change: " + std::to_string(dev_change));
+                        Debug("ForceCheck: Fast push detected for motor " + std::to_string(i) +
+                              ", dev_change: " + std::to_string(dev_change) +
+                              ", current_dev: " + std::to_string(current_deviation));
                         break;
                     }
                 }
-                
 
-                // 2. Detect Sustained Hold
-                bool high_dev_and_low_movement_this_tick = false;
-                for (int i = 0; i < deviation.size(); i++) {
-                    if (abs(deviation(i)) > allowed_deviance(i) &&
-                        abs( (double)present_position(i) - present_position.last()[i]) < max_movement_degrees_when_held.as_int()) {
-                        high_dev_and_low_movement_this_tick = true;
-                        Debug("ForceCheck: Motor " + std::to_string(i) + " has high dev and low movement.");
+                // 2. Detect Sustained Non-Decreasing Deviation (compliant mode trigger)
+                bool sustained_non_decreasing_deviation_this_tick = false;
+                for (int i = 0; i < deviation.size(); i++)
+                {
+                    double current_deviation = abs(deviation(i));
+                    double previous_deviation = abs(deviation.last()[i]);
+                    
+                    // Check if deviation is significant and not decreasing
+                    bool high_deviation = current_deviation > allowed_deviance(i);
+                    bool deviation_not_decreasing = current_deviation >= previous_deviation * 0.95; // Allow 5% decrease tolerance
+                    bool minimal_movement = abs((double)present_position(i) - present_position.last()[i]) < max_movement_degrees_when_held.as_int();
+
+                    if (high_deviation && deviation_not_decreasing && minimal_movement)
+                    {
+                        sustained_non_decreasing_deviation_this_tick = true;
+                        Debug("ForceCheck: Sustained non-decreasing deviation detected for motor " + std::to_string(i) +
+                              ", current_dev: " + std::to_string(current_deviation) +
+                              ", previous_dev: " + std::to_string(previous_deviation) +
+                              ", movement: " + std::to_string(abs((double)present_position(i) - present_position.last()[i])));
                         break;
                     }
                 }
-                
 
-                if (high_dev_and_low_movement_this_tick) {
-                    if (!evaluating_sustained_hold) {
+                // Handle sustained force timing for compliant mode
+                if (sustained_non_decreasing_deviation_this_tick)
+                {
+                    if (!evaluating_sustained_hold)
+                    {
                         evaluating_sustained_hold = true;
                         sustained_high_dev_start_time = std::chrono::steady_clock::now();
-                        Debug("ForceCheck: Started evaluating sustained hold.");
-                    } else {
+                        Debug("ForceCheck: Started evaluating sustained non-decreasing deviation.");
+                    }
+                    else
+                    {
                         auto hold_duration = std::chrono::duration_cast<std::chrono::milliseconds>(
                             std::chrono::steady_clock::now() - sustained_high_dev_start_time);
-                        if (hold_duration.count() > sustained_hold_duration_ms.as_int()) {
+                        if (hold_duration.count() > sustained_hold_duration_ms.as_int())
+                        {
                             being_held_detected_this_tick = true;
-                            Debug("ForceCheck: Sustained hold detected. Duration: " + std::to_string(hold_duration.count()) + "ms");
+                            Debug("ForceCheck: Sustained non-decreasing deviation confirmed. Duration: " + std::to_string(hold_duration.count()) + "ms");
                         }
                     }
-                } else {
-                    if (evaluating_sustained_hold) Debug("ForceCheck: High dev and low movement condition ended. Resetting sustained hold eval.");
+                }
+                else
+                {
+                    if (evaluating_sustained_hold)
+                    {
+                        Debug("ForceCheck: Sustained non-decreasing deviation condition ended.");
+                    }
                     evaluating_sustained_hold = false;
                 }
 
-                // 3. Detect Obstacle Inference
-                for (int i = 0; i < number_deviations_per_time_window.size(); i++) {
-                    if (number_deviations_per_time_window[i] > obstacle_detection_deviation_count.as_int()) {
-                        obstacle_inferred_this_tick = true;
-                        Debug("ForceCheck: Obstacle inferred for motor " + std::to_string(i) + ", num_devs: " + std::to_string(number_deviations_per_time_window[i]));
+                // 3. Check if we should stay in current non-normal mode or return to normal
+                bool significant_deviation_present = false;
+                for (int i = 0; i < deviation.size(); i++)
+                {
+                    if (abs(deviation(i)) > allowed_deviance(i) * 0.7)
+                    { // 70% of threshold
+                        significant_deviation_present = true;
+                        should_return_to_normal = false;
                         break;
                     }
                 }
 
-                // Determine Desired Mode based on priority
+                // 4. Check for ongoing obstacle conditions that should maintain avoidant mode
+                bool obstacle_conditions_present = false;
+                for (int i = 0; i < deviation.size(); i++)
+                {
+                    if (number_deviations_per_time_window[i] > 1)
+                    { // Lower threshold for maintaining mode
+                        obstacle_conditions_present = true;
+                        should_return_to_normal = false;
+                        break;
+                    }
+                }
+
+                // Determine desired mode based on priority and conditions
                 int current_mode_idx = mode_controller->GetModeIndex();
                 int desired_mode_idx = current_mode_idx;
 
-                if (fast_push_detected_this_tick) {
-                    desired_mode_idx = 1; // AvoidantMode
-                } else if (being_held_detected_this_tick) {
-                    desired_mode_idx = 2; // CompliantMode
-                } else if (obstacle_inferred_this_tick) {
-                    desired_mode_idx = 0; // NormalMode
+                if (fast_push_detected_this_tick)
+                {
+                    desired_mode_idx = 1; // AvoidantMode - highest priority
+                    Debug("ForceCheck: Fast push detected - switching to Avoidant mode");
+                }
+                else if (being_held_detected_this_tick)
+                {
+                    desired_mode_idx = 2; // CompliantMode - second priority
+                    Debug("ForceCheck: Sustained non-decreasing deviation detected - switching to Compliant mode");
+                }
+                else if (should_return_to_normal && current_mode_idx != 0 &&
+                         !significant_deviation_present && !obstacle_conditions_present)
+                {
+                    desired_mode_idx = 0; // Return to Normal mode when conditions are calm
+                    Debug("ForceCheck: Conditions calm - returning to Normal mode");
+                }
+                else if (current_mode_idx != 0)
+                {
+                    // Stay in current non-normal mode if there's still significant deviation or obstacles
+                    Debug("ForceCheck: Staying in " + std::string(mode_controller->GetCurrentModeName()) +
+                          " mode due to ongoing conditions");
                 }
 
-               
-              
-                if (desired_mode_idx != current_mode_idx) {
-                    Debug("ForceCheck: Auto switching: Current '" + std::string(mode_controller->GetCurrentModeName()) + 
-                          "' to Desired '" + GetModeNameByIndex(desired_mode_idx) + "'.");
-                    control_mode = desired_mode_idx; // This will be picked up by the manual switch logic at the start of next tick
-                    mode_controller->SwitchMode(desired_mode_idx); // Switch immediately
-                    last_manual_mode_setting = desired_mode_idx; // Update to prevent immediate manual revert if param was different
-                    refractory_period = true;                    // Set refractory period to prevent rapid switching
+                // Apply mode switch if needed
+                if (desired_mode_idx != current_mode_idx)
+                {
+                    Debug("ForceCheck: Auto switching from '" + std::string(mode_controller->GetCurrentModeName()) +
+                          "' to '" + GetModeNameByIndex(desired_mode_idx) + "'");
+                    control_mode = desired_mode_idx;
+                    mode_controller->SwitchMode(desired_mode_idx);
+                    last_manual_mode_setting = desired_mode_idx;
+                    refractory_period = true;
                     refractory_start_time = std::chrono::steady_clock::now();
                 }
             }
-       
-
 
             // Find highest deviance for LED intensity and color calculation
             double highest_deviance_abs = 0.0;
@@ -888,10 +945,7 @@ public: // Ensure INSTALL_CLASS can access constructor if it's implicitly used.
             } else { // Not first tick, but some other condition failed
                 if (!goal_position_in.connected()) Warning("ForceCheck: GoalPositionIn not connected.");
                 if (!allowed_deviance.connected() || allowed_deviance.size() == 0) Warning("ForceCheck: AllowedDeviance not connected or empty.");
-                // Potentially set outputs to a safe default state
-                // goal_position_out.copy(goal_position_in); // Pass through if possible
-                // torque.set(1); // Ensure torque is on
-                // led_intensity.set(0.5); led_color_eyes.set(1); led_color_mouth.set(1); // Default LEDs
+               
             }
         }
         
