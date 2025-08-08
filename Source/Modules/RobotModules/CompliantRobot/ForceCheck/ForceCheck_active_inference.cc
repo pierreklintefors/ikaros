@@ -6,6 +6,7 @@ using namespace ikaros;
 class ActiveInferenceController
 {
 private:
+    // Matrices for active inference
     matrix precision_weights;    // Precision for each motor based on context
     matrix expected_free_energy; // EFE for each possible action/mode
     matrix epistemic_value;      // Information gain from each action
@@ -14,13 +15,32 @@ private:
     matrix entropy_states;       // Uncertainty in hidden states
     matrix allowed_deviance;     // Reference to allowed deviance for calculations
     matrix deviation_history; // Stores recent deviations for each motor
+    ikaros::Component *parent_component;
 
     // Model parameters
     double temperature;             // Softmax temperature for action selection
     double precision_learning_rate; // How fast precision adapts
+    
+    // Temporal dynamics detection
+    matrix deviation_velocity;      // Rate of change in deviations
+    matrix force_duration_count;    // How long each motor has been experiencing force
+    matrix sharp_peak_detected;     // Boolean flags for sharp peaks per motor
+    matrix prolonged_force_detected; // Boolean flags for prolonged force per motor
+    
+    // Adaptive hyperparameters
+    struct ModeWeights {
+        double risk_weight;
+        double ambiguity_weight; 
+        double epistemic_weight;
+    };
+    
+    ModeWeights normal_weights;
+    ModeWeights avoidant_weights;
+    ModeWeights compliant_weights;
 
 public:
-    ActiveInferenceController() : 
+    ActiveInferenceController(ikaros::Component *parent) : 
+        parent_component(parent),
         temperature(1.0), 
         precision_learning_rate(0.1),
         expected_free_energy(3),          // 3 modes
@@ -30,95 +50,166 @@ public:
         entropy_observations(2),          // Will be resized in Initialize()
         entropy_states(2),                // Will be resized in Initialize()
         allowed_deviance(2),              // Will be resized in Initialize()
-        deviation_history(10,2)           // Will be resized in Initialize()
+        deviation_history(10,2),          // Will be resized in Initialize()
+        deviation_velocity(2),            // Will be resized in Initialize()
+        force_duration_count(2),          // Will be resized in Initialize()
+        sharp_peak_detected(2),           // Will be resized in Initialize()
+        prolonged_force_detected(2)       // Will be resized in Initialize()
     {
         // Initialize matrices to zero
         expected_free_energy.reset();
         epistemic_value.reset();
         pragmatic_value.reset();
+        
+        // Initialize default hyperparameters
+        normal_weights = {1.0, 0.2, 0.5};      // Balanced
+        avoidant_weights = {1.0, 0.2, 0.3};    // Lower epistemic drive 
+        compliant_weights = {1.0, 0.1, 0.4};   // REDUCED epistemic drive to prevent over-selection
     }
     
     void Initialize(int num_motors) {
+        // Resize matrices to correct size
+        precision_weights.resize(num_motors);
+        allowed_deviance.resize(num_motors);
+        entropy_observations.resize(num_motors);
+        entropy_states.resize(num_motors);
+        deviation_history.resize(10, num_motors); // 10 time steps, num_motors columns
+        
+        // Resize temporal detection matrices
+        deviation_velocity.resize(num_motors);
+        force_duration_count.resize(num_motors);
+        sharp_peak_detected.resize(num_motors);
+        prolonged_force_detected.resize(num_motors);
         
         precision_weights.set(1.0); // Default precision
-        allowed_deviance.reset(); // Initialize to zero
+        allowed_deviance.reset(); // Initialize to zero (will be set properly later)
         
         // Initialize other matrices
+        entropy_observations.reset();
+        entropy_states.reset();
         
-        // Initialize deviation history as 2D matrix: [motor_index, time_step]
+        // Initialize deviation history as 2D matrix: [time_step, motor_index]
         deviation_history.reset(); // Initialize to zero
+        
+        // Initialize temporal detection matrices
+        deviation_velocity.reset();
+        force_duration_count.reset();
+        sharp_peak_detected.reset();
+        prolonged_force_detected.reset();
     }
     
-    void SetAllowedDeviance(const matrix& deviance) {
-        allowed_deviance.copy(deviance);
+    void SetAllowedDeviance(const matrix& input_deviance) {
+        allowed_deviance.copy(input_deviance);
     }
     
     double CalculateRecentErrorVariance(int motor_index, matrix& deviance_history) {
         // Calculate variance of recent deviations for a motor
-        if (deviance_history.size() == 0 || deviance_history.size(0) <= motor_index) {
-            return 0.1; // Default fallback
+        if (deviance_history.size() == 0 ) {
+            return 1; // Default fallback
         }
         
-        int history_length = deviance_history.size(1); // Number of time steps stored
+        int history_length = deviance_history.rows(); // Number of time steps stored
         if (history_length <= 1) {
-            return 0.1; // Not enough history
+            parent_component ->Warning("Not enough history to calculate variance for motor " + std::to_string(motor_index));
+            return 1; // Not enough history
         }
         
-        double mean = 0.0;
-        int count = 0;
+        double column_sum = 0.0;
+
         
         // Calculate mean (only count non-zero entries)
         for (int t = 0; t < history_length; t++) {
-            double val = deviance_history(motor_index, t);
+            double val = deviance_history(t, motor_index);
             if (val != 0.0) { // Only include actual data points
-                mean += val;
-                count++;
+                column_sum += val;
+
             }
+            
         }
         
-        if (count <= 1) return 0.1;
-        mean /= count;
+        if (history_length <= 1) return 1;
+        double mean = column_sum/ history_length;
         
         // Calculate variance
         double variance = 0.0;
         for (int t = 0; t < history_length; t++) {
-            double val = deviance_history(motor_index, t);
+            double val = deviance_history(t, motor_index);
             if (val != 0.0) {
                 double diff = val - mean;
                 variance += diff * diff;
             }
         }
         
-        variance /= (count - 1); // Use sample variance
+        variance /= history_length; 
         return std::max(0.01, variance); // Ensure minimum variance
     }
     
     matrix& GetExpectedFreeEnergy() { return expected_free_energy; }
+    
+    // Detect temporal patterns in deviations
+    void UpdateTemporalPatterns(matrix &deviation, matrix &number_deviations_per_time_window) {
+        for (int i = 0; i < deviation.size(); i++) {
+            double current_dev = std::abs(deviation(i));
+            double allowed_dev = (i < allowed_deviance.size()) ? allowed_deviance(i) : 1.0;
+            double excess_deviation = std::max(0.0, current_dev - allowed_dev);
+            
+            // Calculate deviation velocity (rate of change)
+            if (deviation_history.rows() >= 2) {
+                double prev_dev = std::abs(deviation_history(deviation_history.rows()-2, i));
+                deviation_velocity(i) = current_dev - prev_dev;
+            }
+            
+            // Sharp peak detection: high deviation velocity AND high current deviation
+            double velocity_threshold = allowed_dev * 0.5; // 50% of allowed deviation per tick
+            double peak_threshold = allowed_dev * 2.0;     // 200% of allowed deviation
+            
+            if (std::abs(deviation_velocity(i)) > velocity_threshold && current_dev > peak_threshold) {
+                sharp_peak_detected(i) = 1.0;
+                parent_component->Debug("Sharp peak detected on motor " + std::to_string(i) + 
+                                      " (velocity: " + std::to_string(deviation_velocity(i)) + 
+                                      ", deviation: " + std::to_string(current_dev) + ")");
+            } else {
+                sharp_peak_detected(i) = std::max(0.0, sharp_peak_detected(i) - 0.1); // Decay flag
+            }
+            
+            // Prolonged force detection: sustained high deviation count
+            if (number_deviations_per_time_window(i) > 2) {
+                force_duration_count(i)++;
+                if (force_duration_count(i) > 10) { // 15 ticks of sustained force
+                    prolonged_force_detected(i) = 1.0;
+                    parent_component->Debug("Prolonged force detected on motor " + std::to_string(i) + 
+                                          " (duration: " + std::to_string(force_duration_count(i)) + " ticks)");
+                }
+            } else {
+                force_duration_count(i) = std::max(0.0, force_duration_count(i) - 1.0); // Decay count
+                if (force_duration_count(i) <= 5) {
+                    prolonged_force_detected(i) = 0.0; // Reset flag when force subsides
+                }
+            }
+        }
+    }
     // Calculate precision weights based on motor state and recent prediction errors
     void UpdatePrecisionWeights(matrix &deviation, matrix &motor_in_motion,
                                 matrix &number_deviations_per_time_window, matrix &deviation_history)
     {
         for (int i = 0; i < deviation.size(); i++)
         {
-            double prediction_reliability = 1.0;
-
-            // Lower precision when motor is stationary (less reliable predictions)
-            if (motor_in_motion[i] < 0.5)
-            {
-                prediction_reliability *= 0.5;
-            }
-
-            // Lower precision with high recent deviation count (noisy environment)
-            if (number_deviations_per_time_window[i] > 2)
-            {
-                prediction_reliability *= (1.0 / (1.0 + number_deviations_per_time_window[i] * 0.1));
-            }
-
-            // Adaptive precision based on recent prediction error variance
+            // Core Free Energy Principle: Precision = Inverse Variance
             double recent_error_variance = CalculateRecentErrorVariance(i, deviation_history);
-            prediction_reliability *= (1.0 / (1.0 + recent_error_variance));
-
-            precision_weights[i] = prediction_reliability;
+            double base_precision = 1.0 / (recent_error_variance + 0.01); // Add small epsilon to avoid division by zero
+            
+            // Optional: Context-dependent precision modulation
+            // Increse precision when motor is stationary as an anttention mechanism
+            if (motor_in_motion[i] ==0)
+            {
+                base_precision *= 2.0; // Increase precision when stationary
+            }
+         
+            
+            // Normalize precision to reasonable range (0.1 to 2.0)
+            precision_weights[i] = std::min(2.0, std::max(0.1, base_precision));
+            parent_component->Debug("Motor " + std::to_string(i) + " precision: " + std::to_string(precision_weights[i]) +
+                                      ", recent error variance: " + std::to_string(recent_error_variance));
         }
     }
 
@@ -127,69 +218,155 @@ public:
                                      matrix &goal_position_in)
     {
         // Mode 0: Normal - minimize prediction error while achieving goals
-        expected_free_energy[0] = CalculateEFE_Normal(deviation, present_position, goal_position_in);
+        expected_free_energy(0) = CalculateEFE_Normal(deviation, present_position, goal_position_in);
 
-        // Mode 1: Retraction - minimize surprise from external forces
-        expected_free_energy[1] = CalculateEFE_Retraction(deviation, present_position);
+        // Mode 1: Retraction - minimize surprise from external forces while considering goals
+        expected_free_energy(1) = CalculateEFE_Retraction(deviation, present_position, goal_position_in);
 
-        // Mode 2: Compliant - minimize control effort, maximize information gain
-        expected_free_energy[2] = CalculateEFE_Compliant(deviation, present_position);
+        // Mode 2: Compliant - minimize control effort, maximize information gain while considering goals
+        expected_free_energy(2) = CalculateEFE_Compliant(deviation, present_position, goal_position_in);
     }
 
     double CalculateEFE_Normal(matrix &deviation, matrix &present_position, matrix &goal_position_in)
     {
-        double pragmatic_cost = 0.0; // Cost of not achieving goals
-        double epistemic_cost = 0.0; // Cost of prediction error
+        double risk = 0.0;              // Preference violation (pragmatic)
+        double ambiguity = 0.0;         // Uncertainty in sensory mapping
+        double epistemic_value = 0.0;   // Information gain
 
         for (int i = 0; i < deviation.size(); i++)
         {
-            // Pragmatic value: distance to goal
-            double goal_distance = abs(goal_position_in(i) - present_position(i));
-            pragmatic_cost += goal_distance * 0.1;
+            double goal_distance = goal_position_in(i) - present_position(i);
+            double prediction_error = deviation(i);
+            double precision = precision_weights(i);
+            double variance = 1.0 / (precision + 1e-6); // Implied variance
+            
+            // Calculate excess deviation - only deviations beyond allowed threshold indicate problems
+            double allowed_dev = (i < allowed_deviance.size()) ? allowed_deviance(i) : 1.0; // Fallback to 1.0
+            double excess_deviation = std::max(0.0, std::abs(prediction_error) - allowed_dev);
 
-            // Epistemic value: weighted prediction error
-            double weighted_error = abs(deviation[i]) * precision_weights[i];
-            epistemic_cost += weighted_error;
+            // Risk: squared goal distance weighted by precision (encourages goal reaching)
+            // Only penalize excess deviations that indicate actual problems
+            risk += precision * (goal_distance * goal_distance + 0.1 * excess_deviation * excess_deviation);
+
+            // Ambiguity: log variance term (uncertainty in observations)
+            ambiguity += std::log(variance + 1e-6);
+
+            // Epistemic value: reward high precision (information already gained)
+            epistemic_value += precision;
         }
 
-        return pragmatic_cost + epistemic_cost;
+        // Use default weights for normal mode
+        return (normal_weights.risk_weight * risk) + (normal_weights.ambiguity_weight * ambiguity) - (normal_weights.epistemic_weight * epistemic_value);
     }
 
-    double CalculateEFE_Retraction(matrix &deviation, matrix &present_position)
+    double CalculateEFE_Retraction(matrix &deviation, matrix &present_position, matrix &goal_position_in)
     {
-        double safety_cost = 0.0;
-        double prediction_cost = 0.0;
+        double risk = 0.0;              // Preference violation (safety priority)
+        double ambiguity = 0.0;         // Uncertainty in sensory mapping
+        double epistemic_value = 0.0;   // Information gain
 
-        for (int i = 0; i < deviation.size(); i++)
-        {
-            // High cost for large prediction errors (unexpected forces)
-            if (abs(deviation[i]) > allowed_deviance[i])
-            {
-                safety_cost += pow(abs(deviation[i]) / allowed_deviance[i], 2);
+        // Check if sharp peaks are detected - this should favor avoidant mode
+        bool sharp_peaks_present = false;
+        for (int i = 0; i < deviation.size(); i++) {
+            if (sharp_peak_detected(i) > 0.5) {
+                sharp_peaks_present = true;
+                break;
             }
-
-            // Epistemic cost of high uncertainty
-            prediction_cost += abs(deviation[i]) * precision_weights[i] * 0.5;
         }
-
-        return safety_cost + prediction_cost;
-    }
-
-    double CalculateEFE_Compliant(matrix &deviation, matrix &present_position)
-    {
-        double information_gain = 0.0;
-        double control_cost = 0.0;
 
         for (int i = 0; i < deviation.size(); i++)
         {
-            // Information gain from exploring force interactions
-            information_gain -= abs(deviation[i]) * 0.1; // Negative because we want information
+            double goal_distance = goal_position_in(i) - present_position(i);
+            double prediction_error = deviation(i);
+            double precision = precision_weights(i);
+            double variance = 1.0 / (precision + 1e-6);
+            
+            // Calculate excess deviation - only deviations beyond allowed threshold indicate external forces
+            double allowed_dev = (i < allowed_deviance.size()) ? allowed_deviance(i) : 1.0; // Fallback to 1.0
+            double excess_deviation = std::max(0.0, std::abs(prediction_error) - allowed_dev);
+          
+            // Risk: Combined safety cost and goal distance cost
+            // Safety: heavily penalize excess deviations that indicate external forces/obstacles
+            double safety_weight = sharp_peaks_present ? 4.0 : 3.0; // Increase weight for sharp peaks
+            double safety_cost = safety_weight * precision * excess_deviation * excess_deviation;
+            
+            // Goal cost: moderate penalty for being far from goal (safety mode still cares about goals)
+            double goal_weight = 0.8; // Reduced compared to normal mode but still present
+            double goal_cost = goal_weight * precision * goal_distance * goal_distance;
+            
+            risk += safety_cost + goal_cost;
 
-            // Low control cost (passive mode)
-            control_cost += 0.1; // Small constant cost
+            // Ambiguity: log variance term
+            ambiguity += std::log(variance + 1e-6);
+
+            // Epistemic value: reduced in retraction mode (safety over exploration)
+            epistemic_value += 0.25 * precision;
         }
 
-        return -information_gain + control_cost; // We want to maximize info gain
+        // Adaptive weights based on temporal patterns
+        ModeWeights weights = avoidant_weights;
+        if (sharp_peaks_present) {
+            weights.epistemic_weight *= 0.5; // Even lower epistemic drive for sharp peaks
+        }
+
+        return (weights.risk_weight * risk) + (weights.ambiguity_weight * ambiguity) - (weights.epistemic_weight * epistemic_value);
+    }
+
+    double CalculateEFE_Compliant(matrix &deviation, matrix &present_position, matrix &goal_position_in)
+    {
+        double risk = 0.0;              // Preference violation (minimal in compliant mode)
+        double ambiguity = 0.0;         // Uncertainty in sensory mapping
+        double epistemic_value = 0.0;   // Information gain (high in compliant mode)
+
+        // Check if prolonged force is detected - this should favor compliant mode
+        bool prolonged_forces_present = false;
+        for (int i = 0; i < deviation.size(); i++) {
+            if (prolonged_force_detected(i) > 0.5) {
+                prolonged_forces_present = true;
+                break;
+            }
+        }
+
+        for (int i = 0; i < deviation.size(); i++)
+        {
+            double goal_distance = goal_position_in(i) - present_position(i);
+            double prediction_error = deviation(i);
+            double precision = precision_weights(i);
+            double variance = 1.0 / (precision + 1e-6);
+            
+            // Calculate excess deviation - only deviations beyond allowed threshold matter
+            double allowed_dev = (i < allowed_deviance.size()) ? allowed_deviance(i) : 1.0; // Fallback to 1.0
+            double excess_deviation = std::max(0.0, std::abs(prediction_error) - allowed_dev);
+
+            // Risk: Combined compliance tolerance and goal distance cost
+            // Compliance: minimal cost for excess deviations (tolerates external forces)
+            double compliance_weight = 0.8; // Even lower weight for excess deviations
+            double compliance_cost = compliance_weight * precision * excess_deviation * excess_deviation;
+            
+            // Goal cost: still care about reaching goals even in compliant mode
+            double goal_weight = 0.6; // Moderate goal pursuit while being compliant
+            double goal_cost = goal_weight * precision * goal_distance * goal_distance;
+            
+            risk += compliance_cost + goal_cost;
+
+            // Ambiguity: Reduced penalty for uncertainty (exploration mode)
+            ambiguity += 0.5 * std::log(variance + 1e-6);
+
+            // Epistemic value: Information gain through compliance - but more selective
+            double exploration_gain = prolonged_forces_present ? (1.0 + 0.3 * excess_deviation) : 1.0;
+            epistemic_value += exploration_gain * precision;
+        }
+
+        // Adaptive weights based on temporal patterns
+        ModeWeights weights = compliant_weights;
+        if (prolonged_forces_present) {
+            weights.epistemic_weight = 0.8; // Increase epistemic drive for prolonged forces
+            weights.risk_weight = 0.8;      // Reduce risk penalty for prolonged forces
+        } else {
+            weights.epistemic_weight = 0.2; // Much lower epistemic drive without prolonged force
+        }
+
+        return (weights.risk_weight * risk) + (weights.ambiguity_weight * ambiguity) - (weights.epistemic_weight * epistemic_value);
     }
 
     // Select mode based on minimum expected free energy
@@ -463,11 +640,13 @@ private:
     bool torque_disabled =false; // True if torque is currently set to 0
     bool high_deviance_detected = false; // True if high deviance was detected in this mode
     std::chrono::steady_clock::time_point time_of_stabilisation; // Managed internally
+    std::chrono::steady_clock::time_point torque_disabled_time; // Track when torque was disabled
     bool get_stabilisation_time = true; // Managed internally
     bool compliance_mode_active; // True if conditions for compliance were met and torque was disabled
     bool high_deviance_detected_internally = false; // Internal flag for this mode's logic
     matrix last_stable_position; // Used for stabilization check
     matrix previous_position; // Used to track last position for stability checks
+    int stable_count = 0; // Instance variable for stability counting
 
 public:
     CompliantMode(ikaros::Component* parent, matrix& force_out, matrix& goal_out, matrix& led_int, 
@@ -504,13 +683,34 @@ public:
         {
             torque_disabled = true;
             compliance_mode_active = true;
+            torque_disabled_time = std::chrono::steady_clock::now(); // Record when torque was disabled
             torque.set(0); // Disable torque
+            parent_component->Debug("ForceCheck: CompliantMode - Torque disabled due to high deviance");
         }
         else if (compliance_mode_active && torque_disabled)
         {
-            // Check if position has stabilized to re-enable torque
+            // Check if external force has stopped by monitoring deviations
+            bool external_force_present = false;
+            for (int i = 0; i < deviation.size(); i++)
+            {
+                if (number_deviations_per_time_window[i] > 1) // Lower threshold to detect ongoing external force
+                {
+                    external_force_present = true;
+                    break;
+                }
+            }
+            
+            // If external force is still present, reset stability counting
+            if (external_force_present)
+            {
+                stable_count = 0;
+                get_stabilisation_time = true;
+                parent_component->Debug("ForceCheck: CompliantMode - External force still detected, maintaining compliance");
+                return; // Keep torque disabled while force is present
+            }
+            
+            // External force has stopped, now check if position has stabilized to re-enable torque
             int position_margin = 2; // Margin for position stability
-            static int stable_count = 0;
 
             bool all_motors_stable = true;
             for (int i = 0; i < present_position.size(); i++)
@@ -542,13 +742,13 @@ public:
                 }
 
                 parent_component->Debug("ForceCheck: Compliance motor stable duration: " + std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - time_of_stabilisation).count()));
-                if (std::chrono::steady_clock::now() - time_of_stabilisation > std::chrono::seconds(1))
+                if (std::chrono::steady_clock::now() - time_of_stabilisation > std::chrono::milliseconds(1200)) // Increased delay from 800ms to 1200ms
                 {
-                    parent_component->Debug("ForceCheck: Compliance motor re-enabling torque after stabilization.");
+                    parent_component->Debug("ForceCheck: Compliance motor re-enabling torque after stabilization and delay.");
                     torque.set(1);
                     torque_disabled = false;
                     high_deviance_detected = false; // Reset high deviance flag
-                    stable_count = 0;
+                    stable_count = 0; // Reset stable count
                     get_stabilisation_time = true; // Reset to allow future stabilization checks
                     goal_position_out.reset(); // Resume normal operation
                 }
@@ -886,13 +1086,13 @@ public: // Ensure INSTALL_CLASS can access constructor if it's implicitly used.
                            // Initialize to zero
         deviation_history.set_name("DeviationHistory");
         // Note: deviation_history will be properly initialized in first tick when deviation size is known
-        deviation_history.info(); // Print info about the matrix
+        
         // Initialize mode controller
         mode_controller = std::make_unique<ModeController>(this, force_output, goal_position_out, 
                                                           led_intensity, led_color_eyes, led_color_mouth);
         
         // Initialize active inference controller
-        active_inference_controller = std::make_unique<ActiveInferenceController>();
+        active_inference_controller = std::make_unique<ActiveInferenceController>(this);
 
         // Initialize deviation history matrix to store last 10 deviations for each motor
         // Will be properly sized when deviation matrix is available in first tick
@@ -913,7 +1113,7 @@ public: // Ensure INSTALL_CLASS can access constructor if it's implicitly used.
         deviation.copy(current_prediction);
         deviation.subtract(present_current);
 
-        if (deviation_history.size() == 10)
+        if (deviation_history.rows() == 10)
         {                              // Every 10 ticks, reset
             deviation_history.resize(0, 2);
         }
@@ -938,9 +1138,8 @@ public: // Ensure INSTALL_CLASS can access constructor if it's implicitly used.
         }
         if (deviation_history.size() >0)
         {   
-            deviation_history.info();
-
             deviation_history.push(deviation, true); // Store current deviation in history
+            deviation_history.print(); // Debug print of deviation history
         }
         
         
@@ -964,6 +1163,7 @@ public: // Ensure INSTALL_CLASS can access constructor if it's implicitly used.
 
         //Check refractory period for automatic mode switching
         if (std::chrono::steady_clock::now() - refractory_start_time > std::chrono::seconds(2)) {
+            Debug("ForceCheck: Refractory period ended, allowing mode switching again.");
             refractory_period = false; // Reset refractory period after 2 seconds
 
         }
@@ -994,26 +1194,19 @@ public: // Ensure INSTALL_CLASS can access constructor if it's implicitly used.
             // Update number_deviations_per_time_window
             for (int i = 0; i < allowed_deviance_input.size(); i++) {
                 
-                if (motor_in_motion[i] == 1) {
-                    allowed_deviance(i) = allowed_deviance_input(i); // Use input allowed_deviance if motor is in motion
-                }
-                else {
-                    allowed_deviance(i) = allowed_deviance_input(i)/2; // If not in motion, set to 0
-                }
-                
-                Debug("ForceCheck: Motor " + std::to_string(i) + " deviation: " + std::to_string(deviation[i]) + 
-                      ", threshold: " + std::to_string(allowed_deviance(i)) + 
-                      ", Motor moving: " + std::to_string(motor_in_motion[i]));
-                if (abs(deviation[i]) > allowed_deviance(i)) {
+                if (abs(deviation[i]) > allowed_deviance_input(i)) {
                     number_deviations_per_time_window[i]++;
                 }
+                Debug("ForceCheck: Motor " + std::to_string(i) + " deviation: " + std::to_string(deviation[i]) +
+                      ", dev within TW: " + std::to_string(number_deviations_per_time_window[i]) +
+                      ", moving: " + std::to_string(motor_in_motion[i]));
             }
             
             mode_controller->HandleDeviation(deviation, present_position, goal_position_in,
-                                                start_position, allowed_deviance, started_transition, // started_transition might be empty
+                                                start_position, allowed_deviance_input, started_transition, // started_transition might be empty
                                                 number_deviations_per_time_window, torque, (double)time_window,
                                                 (double)pullback_amount);
-            if (allowed_deviance.size() > 0 && allowed_deviance[0] > 0)
+            if (allowed_deviance_input.size() > 0 && allowed_deviance_input[0] > 0)
             {                                      // Avoid div by zero
                 mode_controller->SetLEDColor(0.0); // No real deviation, so 0 ratio
             }
@@ -1022,32 +1215,48 @@ public: // Ensure INSTALL_CLASS can access constructor if it's implicitly used.
                 mode_controller->SetLEDColor(0.0);
             }
 
+            active_inference_controller->SetAllowedDeviance(allowed_deviance_input);
+            active_inference_controller->UpdatePrecisionWeights(deviation, motor_in_motion,
+                                                                number_deviations_per_time_window, deviation_history);
+            
+            // Update temporal patterns BEFORE calculating EFE
+            active_inference_controller->UpdateTemporalPatterns(deviation, number_deviations_per_time_window);
+            
+            active_inference_controller->CalculateExpectedFreeEnergy(deviation, present_position,
+                                                                     goal_position_in);
+
             if (automatic_mode_switching_enabled && !refractory_period)
             {
-                // Update active inference controller
-                active_inference_controller->SetAllowedDeviance(allowed_deviance);
-                active_inference_controller->UpdatePrecisionWeights(deviation, motor_in_motion,
-                                                                    number_deviations_per_time_window, deviation_history);
-
-                active_inference_controller->CalculateExpectedFreeEnergy(deviation, present_position,
-                                                                         goal_position_in);
-
-                int desired_mode_idx = active_inference_controller->SelectMode();
-                int current_mode_idx = mode_controller->GetModeIndex();
-
-                if (desired_mode_idx != current_mode_idx)
+                
+                
+                if (torque.sum() > 0)
                 {
-                    matrix& efe = active_inference_controller->GetExpectedFreeEnergy();
-                    Debug("ForceCheck: Active inference switching from '" +
-                          std::string(mode_controller->GetCurrentModeName()) +
-                          "' to '" + GetModeNameByIndex(desired_mode_idx) +
-                          "' (EFE: " + std::to_string(efe[desired_mode_idx]) + ")");
+                    
 
-                    control_mode = desired_mode_idx;
-                    mode_controller->SwitchMode(desired_mode_idx);
-                    last_manual_mode_setting = desired_mode_idx;
-                    refractory_period = true;
-                    refractory_start_time = std::chrono::steady_clock::now();
+                    int desired_mode_idx = active_inference_controller->SelectMode();
+                        int current_mode_idx = mode_controller->GetModeIndex();
+
+                    if (desired_mode_idx != current_mode_idx)
+                    {
+                        matrix& efe = active_inference_controller->GetExpectedFreeEnergy();
+                        Debug("ForceCheck: Active inference switching from '" +
+                            std::string(mode_controller->GetCurrentModeName()) +
+                            "' to '" + GetModeNameByIndex(desired_mode_idx) +
+                            "' (EFE: " + efe.json() + ")");
+
+                        control_mode = desired_mode_idx;
+                        mode_controller->SwitchMode(desired_mode_idx);
+                        last_manual_mode_setting = desired_mode_idx;
+                        refractory_period = true;
+                        refractory_start_time = std::chrono::steady_clock::now();
+                    }
+                    else
+                    {
+                        // Debug EFE values even when not switching
+                        matrix& efe = active_inference_controller->GetExpectedFreeEnergy();
+                        Debug("ForceCheck: Mode selection - Current: " + std::string(mode_controller->GetCurrentModeName()) + 
+                              " (EFE: " + efe.json() + ")");
+                    }
                 }
             }
             // Find highest deviance for LED intensity and color calculation
@@ -1063,23 +1272,25 @@ public: // Ensure INSTALL_CLASS can access constructor if it's implicitly used.
             }
             
             double deviance_ratio = 0.0;
-            if (allowed_deviance.size() > highest_deviance_index && allowed_deviance[highest_deviance_index] > 0) {
-                 deviance_ratio = highest_deviance_abs / allowed_deviance[highest_deviance_index];
-            } else if (allowed_deviance.size() > 0 && allowed_deviance[0] > 0) { // Fallback if index is bad but allowed_deviance exists
-                 deviance_ratio = highest_deviance_abs / allowed_deviance[0];
+            if (allowed_deviance_input.size() > highest_deviance_index && allowed_deviance_input[highest_deviance_index] > 0)
+            {
+                deviance_ratio = highest_deviance_abs / allowed_deviance_input[highest_deviance_index];
+            }
+            else if (allowed_deviance_input.size() > 0 && allowed_deviance_input[0] > 0)
+            { // Fallback if index is bad but allowed_deviance exists
+                deviance_ratio = highest_deviance_abs / allowed_deviance_input[0];
             }
 
+            // // Use the mode controller to handle the deviation
+            // mode_controller->HandleDeviation(deviation, present_position, goal_position_in,
+            //                                 start_position, allowed_deviance, started_transition,
+            //                                 number_deviations_per_time_window, torque, (double)time_window,
+            //                                 (double)pullback_amount);
 
-            // Use the mode controller to handle the deviation
-            mode_controller->HandleDeviation(deviation, present_position, goal_position_in,
-                                            start_position, allowed_deviance, started_transition,
-                                            number_deviations_per_time_window, torque, (double)time_window,
-                                            (double)pullback_amount);
-
-            // Set LED colors based on current mode and deviance
-            double intensity = clip(deviance_ratio * 0.5 + 0.5, 0.5, 1.0); // Scale ratio so 0 -> 0.5 intensity, 1 -> 1.0 intensity
-            led_intensity.set(intensity);
-            mode_controller->SetLEDColor(deviance_ratio);
+            // // Set LED colors based on current mode and deviance
+            // double intensity = clip(deviance_ratio * 0.5 + 0.5, 0.5, 1.0); // Scale ratio so 0 -> 0.5 intensity, 1 -> 1.0 intensity
+            // led_intensity.set(intensity);
+            // mode_controller->SetLEDColor(deviance_ratio);
         }
         else // Conditions for full operation not met (e.g. firstTick, missing connections)
         {
@@ -1090,8 +1301,8 @@ public: // Ensure INSTALL_CLASS can access constructor if it's implicitly used.
                 }
             } else { // Not first tick, but some other condition failed
                 if (!goal_position_in.connected()) Warning("ForceCheck: GoalPositionIn not connected.");
-                if (!allowed_deviance.connected() || allowed_deviance.size() == 0) Warning("ForceCheck: AllowedDeviance not connected or empty.");
-               
+                if (!allowed_deviance_input.connected() || allowed_deviance_input.size() == 0)
+                    Warning("ForceCheck: AllowedDeviance not connected or empty.");
             }
         }
         
