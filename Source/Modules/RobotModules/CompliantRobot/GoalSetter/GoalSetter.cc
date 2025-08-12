@@ -1,6 +1,5 @@
 #include "ikaros.h"
 #include <random>
-#include <chrono>
 
 using namespace ikaros;
 
@@ -38,8 +37,8 @@ class GoalSetter: public Module
     bool going_to_neutral;
     bool get_time_after_transition;
     bool get_time_after_all_transitions;
-    std::chrono::steady_clock::time_point reached_goal_time_point;
-    std::chrono::steady_clock::time_point final_transition_time_point;
+    double reached_goal_time_point;
+    double final_transition_time_point;
 
     int time_before_restart = 5; // seconds before restarting transitions
     
@@ -142,19 +141,40 @@ class GoalSetter: public Module
 
    void Tick()
    {
+    // Helper function to check if override is meaningful (any non-zero value)
+    auto has_override = [this]() -> bool {
+        if (!override_goal_position.connected() || override_goal_position.size() == 0) {
+            Debug("GoalSetter: Override not connected or empty");
+            return false;
+        }
+        for (int i = 0; i < override_goal_position.size(); i++) {
+            if (std::abs(override_goal_position[i]) > 0.1) { // Small threshold to avoid floating point issues
+                Debug("GoalSetter: Override detected - motor " + std::to_string(i) + " = " + std::to_string(override_goal_position[i]));
+                return true;
+            }
+        }
+        Debug("GoalSetter: Override all values below threshold");
+        return false;
+    };
+
     Debug("GoalSetter: Goal pos in: " + goal_position_in.json());
     Debug("GoalSetter: Override goal pos: " + override_goal_position.json());
+    
     if (initialising_tick && present_position.sum() > 0)
     {
         initialising_tick = false;
         start_position.copy(present_position);   
-        
     }
-    if (override_goal_position.sum() > 0)
+    
+    bool override_active = has_override();
+    
+    // Handle override goal position first (highest priority)
+    if (override_active)
     {
         Debug("GoalSetter: Override goal position set, using it for next transition");
         goal_position.copy(override_goal_position);
         reached_goal.set(0); // Reset reached_goal for override transition
+        return; // Exit early when override is active
     }
     // For one_cycle mode, ensure we have a valid goal position
     else if (one_cycle && goal_position_in.connected() && !going_to_neutral)
@@ -162,31 +182,25 @@ class GoalSetter: public Module
         goal_position.copy(goal_position_in);
     }
 
-    if (goal_position.sum() > 0)
+    // Always check if goal is reached when we have valid goal and present positions
+    if (goal_position.size() > 0 && present_position.size() > 0)
         ReachedGoalCheck(present_position, goal_position, reached_goal, position_margin);
 
    
-    if (reached_goal.sum() == num_servos && transition < num_transitions && goal_position.sum() > 0)
+    if (reached_goal.sum() == num_servos && transition < num_transitions && goal_position.size() > 0)
     {
         Debug("GoalSetter: Reached goal starting new transition");
         // Take time to wait for transition delay
-        if (get_time_after_transition && goal_position.sum() > 0)
+        if (get_time_after_transition && goal_position.size() > 0)
         {
-            reached_goal_time_point = std::chrono::steady_clock::now();
+            reached_goal_time_point = GetTime();
             get_time_after_transition = false;
         }
 
 
-        if (std::chrono::steady_clock::now() - reached_goal_time_point > std::chrono::seconds(transition_delay.as_int()) || override_goal_position.sum() > 0)
+        if (GetTime() - reached_goal_time_point > transition_delay.as_int())
         {
-            if (override_goal_position.sum() > 0)
-            {
-                Debug("GoalSetter: Transitioning to override goal position");
-                goal_position.copy(override_goal_position);
-                reached_goal.set(0); // Reset reached_goal for override transition
-                
-            }  
-            else if (transition < num_transitions && !one_cycle)
+            if (transition < num_transitions && !one_cycle)
             {
                 Debug("GoalSetter: Transitioning to next goal position");
                 // Reset reached_goal for the next transition
@@ -221,12 +235,12 @@ class GoalSetter: public Module
             get_time_after_transition = true; // TO get the time for when next transition is finished
         }
     }
-    //This does not work yet. Needs somthing like this for avoidance mode
-    else if (override_goal_position.connected() && override_goal_position.sum() > 0)
-    {
-            Debug("GoalSetter: Goal position overriden, updating goal position");
-            goal_position.copy(override_goal_position);
-    }
+    //This section is now handled at the top with early return
+    // else if (override_goal_position.connected() && has_override())
+    // {
+    //         Debug("GoalSetter: Goal position overriden, updating goal position");
+    //         goal_position.copy(override_goal_position);
+    // }
     
     
 
@@ -235,23 +249,14 @@ class GoalSetter: public Module
         Print("All goals reached. Starting over with same transitions in " + std::to_string(time_before_restart) + " seconds");
         if (get_time_after_all_transitions)
         {
-            final_transition_time_point = std::chrono::steady_clock::now();
+            final_transition_time_point = GetTime();
             get_time_after_all_transitions = false;
         }
-        auto now = std::chrono::steady_clock::now();
 
-        if (std::chrono::steady_clock::now() - final_transition_time_point > std::chrono::seconds(time_before_restart) || override_goal_position.sum() > 0)
+        if (GetTime() - final_transition_time_point > time_before_restart)
         {
-            if (override_goal_position.sum() > 0)
-            {
-                Debug("GoalSetter: Restarting with override goal position");
-                goal_position.copy(override_goal_position);
-            }
-            else
-            {
-                Debug("GoalSetter: Restarting with planned positions");
-                goal_position.copy(planned_positions[0]);
-            }
+            Debug("GoalSetter: Restarting with planned positions");
+            goal_position.copy(planned_positions[0]);
 
             get_time_after_all_transitions = true; // Reset for next cycle
             initialising_tick = true;
@@ -265,9 +270,11 @@ class GoalSetter: public Module
           
         }
     }
-    Debug("GoalSetter: Time since last transition: " + std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - reached_goal_time_point).count() / 1000.0) + " seconds");
+    Debug("GoalSetter: Time since last transition: " + std::to_string(GetTime() - reached_goal_time_point) + " seconds");
 
+    goal_position.print();
    }
+
 };
 
 INSTALL_CLASS(GoalSetter);
