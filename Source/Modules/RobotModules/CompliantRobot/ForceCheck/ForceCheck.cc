@@ -1,7 +1,43 @@
 #include "ikaros.h"
 #include <chrono>
+#include <algorithm>
+#include <cmath>
 
 using namespace ikaros;
+
+// Helper struct for deviation statistics
+struct DeviationStats {
+    double mean = 0.0;
+    double stddev = 0.0;
+    double exceed_ratio = 0.0;
+    int exceed_count = 0;
+    int total_samples = 0;
+    
+    DeviationStats(const matrix& deviation_history, int motor_idx, double threshold, int rows = -1) {
+        if (deviation_history.rows() == 0) return;
+        
+        int actual_rows = (rows < 0) ? deviation_history.rows() : std::min(rows, deviation_history.rows());
+        double sum = 0.0, sum2 = 0.0;
+        
+        for (int r = 0; r < actual_rows; ++r) {
+            double v = std::abs((double)deviation_history(r, motor_idx));
+            sum += v;
+            sum2 += v * v;
+            total_samples++;
+            if (v > threshold) exceed_count++;
+        }
+        
+        if (total_samples > 0) {
+            mean = sum / total_samples;
+            exceed_ratio = (double)exceed_count / total_samples;
+            
+            if (total_samples > 1) {
+                double variance = std::max(0.0, (sum2 / total_samples - mean * mean));
+                stddev = std::sqrt(variance);
+            }
+        }
+    }
+};
 
 // Base class for control modes
 class ControlMode {
@@ -23,18 +59,36 @@ public:
     virtual void HandleDeviation(matrix& deviation, matrix& present_position,
                                 matrix& goal_position_in, matrix& start_position,
                                 matrix& allowed_deviance, matrix& started_transition,
-                                matrix& number_deviations_per_time_window, matrix& torque,
-                                double time_window, double pullback_amount) = 0;
+                                matrix& deviation_history, matrix& torque,
+                                double pullback_amount, double peak_width_tolerance,
+                                double current_time) = 0;
     virtual void SetLEDColor(double deviance_ratio) = 0;
     virtual const char* GetModeName() const = 0;
+    
+protected:
+    // Helper method to apply color to all LEDs
+    void ApplyColorToAllLEDs(const matrix& color) {
+        for (int i = 0; i < 12; i++) {
+            led_color_eyes(0, i) = color(0);
+            led_color_eyes(1, i) = color(1);
+            led_color_eyes(2, i) = color(2);
+        }
+        for (int i = 0; i < 8; i++) {
+            led_color_mouth(0, i) = color(0);
+            led_color_mouth(1, i) = color(1);
+            led_color_mouth(2, i) = color(2);
+        }
+    }
 };
 
 // Normal pose tracking mode
 class NormalMode : public ControlMode {
 private:
-    bool obstacle_detected = false; // Flag to indicate if an obstacle is detected
-    std::chrono::steady_clock::time_point last_obstacle_time;
-    matrix halt_goal_position; // Stores the halt goal position
+    bool obstacle_detected = false;
+    double last_obstacle_time;
+    matrix halt_goal_position;
+    bool should_override = false; // Clear state indicator
+    
 public:
     NormalMode(ikaros::Component* parent, matrix& force_out, matrix& goal_out, matrix& led_int,
                matrix& led_eyes, matrix& led_mouth)
@@ -43,8 +97,9 @@ public:
     void HandleDeviation(matrix& deviation, matrix& present_position,
                         matrix& goal_position_in, matrix& start_position,
                         matrix& allowed_deviance, matrix& started_transition,
-                        matrix& number_deviations_per_time_window, matrix& torque,
-                        double time_window, double pullback_amount) override {
+                        matrix& deviation_history, matrix& torque,
+                        double pullback_amount, double peak_width_tolerance,
+                        double current_time) override {
 
         if (present_position.size() == 0 || goal_position_in.size() == 0 || goal_position_out.size() == 0)
         {
@@ -57,69 +112,55 @@ public:
         
         bool an_obstacle_requires_active_avoidance_this_tick = false;
       
-        for (int i = 0; i < deviation.size(); i++)
-        {
-            if (number_deviations_per_time_window(i) > 4 && !obstacle_detected)
-            { // This threshold could be a parameter
-                an_obstacle_requires_active_avoidance_this_tick = true;
-                halt_goal_position.copy(present_position);
-
+        // Compute exceedance ratio over recent history per motor
+        int rows = deviation_history.rows();
+        if (rows > 0) {
+            for (int i = 0; i < deviation.size(); i++) {
+                DeviationStats stats(deviation_history, i, allowed_deviance(i), rows);
+                if (stats.exceed_ratio > 0.7 && !obstacle_detected) {
+                    an_obstacle_requires_active_avoidance_this_tick = true;
+                    halt_goal_position.copy(present_position);
+                    break;
+                }
             }
         }
 
         if (an_obstacle_requires_active_avoidance_this_tick){
             obstacle_detected = true;
-            last_obstacle_time = std::chrono::steady_clock::now();
-            goal_position_out.copy(halt_goal_position); // Set goal position to halt position
+            last_obstacle_time = current_time;
+            should_override = true;
             parent_component->Debug("NormalMode: Obstacle detected, halting affected motors.");
-
-            
-        } else {
-            if (obstacle_detected) { 
-                if (std::chrono::steady_clock::now() - last_obstacle_time > std::chrono::milliseconds(1000)) { 
-                    obstacle_detected = false; 
-                    // goal_position_out is already goal_position_in (pass-through by default)
-                    parent_component->Debug("NormalMode: Obstacle detection timed out, resuming normal goal tracking.");
-                    goal_position_out.reset(); // Reset to allow normal goal tracking
-                } else {
-                    // Still in timeout period, maintain halt if it was set
-                    parent_component->Debug("NormalMode: Still in obstacle avoidance timeout, maintaining halt at position " + halt_goal_position.json());
-                }
-            }
-            
+        }  
+        
+        // Handle obstacle timeout
+        if (obstacle_detected && (current_time - last_obstacle_time > 1.0)) { 
+            obstacle_detected = false;
+            should_override = false;
+            parent_component->Debug("NormalMode: Obstacle detection timed out, resuming normal goal tracking.");
         }
-        parent_component->Debug("NormalModeL: Present tilt position: " + std::to_string(present_position(0)));
+        
+        // Set output based on current state
+        if (should_override) {
+            goal_position_out.copy(halt_goal_position);
+            parent_component->Debug("NormalMode: Override active, goal_position_out = " + goal_position_out.json());
+        } else {
+            goal_position_out.reset(); // Let GoalSetter handle normal operation
+            parent_component->Debug("NormalMode: No override, goal_position_out after reset = " + goal_position_out.json());
+        }
+        parent_component->Debug("NormalMode: Present tilt position: " + std::to_string(present_position(0)));
     }
     
     void SetLEDColor(double deviance_ratio) override {
         matrix color(3);
         
-        if (obstacle_detected) { // Prioritize red if obstacle is actively being handled
-            // Red for high deviation/obstacle
-            color(0) = 1.0;
-            color(1) = 0.0; 
-            color(2) = 0.0;
+        if (obstacle_detected) {
+            color(0) = 1.0; color(1) = 0.0; color(2) = 0.0; // Red for obstacle
+        } else {
+            color.set(1.0); // White for normal operation
         }
-        else 
-        {
-            // White for normal operation
-            color.set(1.0);
-        }
-
-            // Apply to all LEDs
-            for (int i = 0; i < 12; i++)
-            {
-                led_color_eyes(0, i) = color(0);
-                led_color_eyes(1, i) = color(1);
-                led_color_eyes(2, i) = color(2);
-            }
-            for (int i = 0; i < 8; i++)
-            {
-                led_color_mouth(0, i) = color(0);
-                led_color_mouth(1, i) = color(1);
-                led_color_mouth(2, i) = color(2);
-            }
-        }
+        
+        ApplyColorToAllLEDs(color);
+    }
 
     const char* GetModeName() const override { return "Normal"; }
 };
@@ -129,17 +170,18 @@ class AvoidantMode : public ControlMode {
 private:
     bool obstacle_detected = false; // Renamed for consistency, represents active avoidance state
     matrix avoidance_goal_position; 
-    std::chrono::steady_clock::time_point last_avoidance_trigger_time;
+    double last_avoidance_trigger_time;
 public:
     AvoidantMode(ikaros::Component* parent, matrix& force_out, matrix& goal_out, matrix& led_int, 
                  matrix& led_eyes, matrix& led_mouth)
         : ControlMode(parent, force_out, goal_out, led_int, led_eyes, led_mouth) {}
     
-    void HandleDeviation( matrix& deviation,  matrix& present_position,
-                        matrix& goal_position_in,  matrix& start_position,
-                        matrix& allowed_deviance,  matrix& started_transition,
-                        matrix& number_deviations_per_time_window, matrix& torque,  
-                        double time_window, double pullback_amount) override {
+    void HandleDeviation(matrix& deviation, matrix& present_position,
+                        matrix& goal_position_in, matrix& start_position,
+                        matrix& allowed_deviance, matrix& started_transition,
+                        matrix& deviation_history, matrix& torque,
+                        double pullback_amount, double peak_width_tolerance,
+                        double current_time) override {
         if (present_position.size() == 0 || goal_position_in.size() == 0 || goal_position_out.size() == 0) {
             parent_component->Warning("AvoidantMode: Empty input matrices, skipping HandleDeviation.");
             return;
@@ -151,21 +193,30 @@ public:
         
         bool an_obstacle_requires_active_avoidance_this_tick = false;
         
+        int rows = deviation_history.rows();
         
         if (!obstacle_detected) {
             avoidance_goal_position.copy(goal_position_in); // Start with the input goal position
-            for (int i = 0; i < deviation.size(); i++)
-            {
-                // Condition for active avoidance: high deviation count OR if obstacle_detected is already true (meaning a fast push likely triggered this mode)
-                if (number_deviations_per_time_window[i] > 2)
-                { // This threshold could be a parameter
-                    double movement_direction = (deviation(i) - deviation.last()[i] > 0) ? pullback_amount : -pullback_amount;
+            for (int i = 0; i < deviation.size(); i++) {
+                double lastAbs = std::abs((double)deviation(i));
+                double prevAbs = std::abs((double)deviation.last()[i]);
+                
+                DeviationStats stats(deviation_history, i, allowed_deviance(i), rows);
+                
+                // Sharp peak not sustained => trigger retract
+                bool sharp_peak = (lastAbs > stats.mean + 2 * stats.stddev) && 
+                                (prevAbs <= (double)allowed_deviance(i)) && 
+                                (stats.exceed_ratio <= peak_width_tolerance);
+                // Also avoid if frequent exceedances (obstacle-like)
+                bool frequent_exceed = stats.exceed_ratio > 0.5;
 
-                    
-                    
+                if (sharp_peak || frequent_exceed) { 
+                    double movement_direction = (deviation(i) > 0.0) ? pullback_amount : -pullback_amount;
                     avoidance_goal_position(i) = present_position(i) + movement_direction;
                     an_obstacle_requires_active_avoidance_this_tick = true;
-                    parent_component->Debug("AvoidantMode: Motor " + std::to_string(i) + " actively avoiding, goal changed by " + std::to_string(movement_direction) + " degrees.");
+                    parent_component->Debug("AvoidantMode: Motor " + std::to_string(i) +
+                        (sharp_peak ? " sharp peak" : " frequent exceed") +
+                        ", goal changed by " + std::to_string(movement_direction) + " degrees.");
                 }
             }
         }
@@ -173,21 +224,23 @@ public:
 
         if (an_obstacle_requires_active_avoidance_this_tick) {
             obstacle_detected = true;
-            last_avoidance_trigger_time = std::chrono::steady_clock::now();
+            last_avoidance_trigger_time = current_time;
             goal_position_out.copy(avoidance_goal_position); 
 
         } else {
             if (obstacle_detected) { 
-                if (std::chrono::steady_clock::now() - last_avoidance_trigger_time > std::chrono::milliseconds(1500)) { // Timeout for avoidance state
+                if (current_time - last_avoidance_trigger_time > 1.5) { // Timeout for avoidance state
                     obstacle_detected = false; 
                     parent_component->Debug("AvoidantMode: Avoidance state timed out, resuming normal goal tracking.");
-                    // goal_position_out is already goal_position_in (pass-through by default)
+                    goal_position_out.reset(); // Clear override to allow GoalSetter normal operation
                 } else {
                     // Still in avoidance timeout, maintain avoidance goal
                     goal_position_out.copy(avoidance_goal_position);
                 }
+            } else {
+                // No obstacle detected and not in avoidance state - let GoalSetter handle goal setting
+                goal_position_out.reset(); // Keep output clear for normal operation
             }
-            // If obstacle_detected was false, goal_position_out remains goal_position_in (pass-through).
         }
     }
     
@@ -202,17 +255,7 @@ public:
             color(0) = 1.0; color(1) = 1.0; color(2) = 0.0;
         }
         
-        // Apply to all LEDs
-        for (int i = 0; i < 12; i++) {
-            led_color_eyes(0, i) = color(0);
-            led_color_eyes(1, i) = color(1);
-            led_color_eyes(2, i) = color(2);
-        }
-        for (int i = 0; i < 8; i++) {
-            led_color_mouth(0, i) = color(0);
-            led_color_mouth(1, i) = color(1);
-            led_color_mouth(2, i) = color(2);
-        }
+        ApplyColorToAllLEDs(color);
     }
     
     const char* GetModeName() const override { return "Avoidant"; }
@@ -223,7 +266,7 @@ class CompliantMode : public ControlMode {
 private:
     bool torque_disabled =false; // True if torque is currently set to 0
     bool high_deviance_detected = false; // True if high deviance was detected in this mode
-    std::chrono::steady_clock::time_point time_of_stabilisation; // Managed internally
+    double time_of_stabilisation; // Managed internally
     bool get_stabilisation_time = true; // Managed internally
     bool compliance_mode_active; // True if conditions for compliance were met and torque was disabled
     bool high_deviance_detected_internally = false; // Internal flag for this mode's logic
@@ -239,25 +282,28 @@ public:
     void HandleDeviation(matrix& deviation, matrix& present_position,
                         matrix& goal_position_in, matrix& start_position,
                         matrix& allowed_deviance, matrix& started_transition,
-                        matrix& number_deviations_per_time_window, matrix& torque,
-                        double time_window, double pullback_amount) override {
+                        matrix& deviation_history, matrix& torque,
+                        double pullback_amount, double peak_width_tolerance,
+                        double current_time) override {
         if (present_position.size() == 0 || goal_position_in.size() == 0) {
              parent_component->Warning("CompliantMode: Empty input matrices, skipping HandleDeviation.");
             return;
         }
 
-
-
         // This mode is entered if "being held" is detected by ForceCheck's main Tick.
         // Its primary job here is to manage torque disable/re-enable.
-        // It can also use number_deviations_per_time_window as an additional trigger for torque disable.
         previous_position.copy(present_position.last());
-        for (int i = 0; i < deviation.size(); i++)
-        {
-            if (number_deviations_per_time_window[i] > 3)
-            {
-                high_deviance_detected = true;
-                break;
+
+        // Determine if high deviance sustained based on deviation_history statistics
+        int rows = deviation_history.rows();
+        high_deviance_detected = false;
+        if (rows > 0) {
+            for (int i = 0; i < deviation.size(); i++) {
+                DeviationStats stats(deviation_history, i, allowed_deviance(i), rows);
+                if (stats.mean > (double)allowed_deviance(i) * 0.8 || stats.exceed_ratio > 0.5) {
+                    high_deviance_detected = true; 
+                    break;
+                }
             }
         }
 
@@ -295,15 +341,15 @@ public:
             parent_component->Debug("ForceCheck: Compliance motor, stability count: " + std::to_string(stable_count));
 
             if (stable_count >= 30)
-            { // 100 counts for any motor (arbitary number)
+            { // 30 counts for any motor (arbitary number)
                 if (get_stabilisation_time)
                 {
-                    time_of_stabilisation = std::chrono::steady_clock::now();
+                    time_of_stabilisation = current_time;
                     get_stabilisation_time = false; // Set to false to avoid resetting time
                 }
 
-                parent_component->Debug("ForceCheck: Compliance motor stable duration: " + std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - time_of_stabilisation).count()));
-                if (std::chrono::steady_clock::now() - time_of_stabilisation > std::chrono::seconds(1))
+                parent_component->Debug("ForceCheck: Compliance motor stable duration: " + std::to_string((current_time - time_of_stabilisation) * 1000.0));
+                if (current_time - time_of_stabilisation > 1.0)
                 {
                     parent_component->Debug("ForceCheck: Compliance motor re-enabling torque after stabilization.");
                     torque.set(1);
@@ -344,17 +390,7 @@ public:
             color(2) = 0.5; // Blue
         }
         
-        // Apply to all LEDs
-        for (int i = 0; i < 12; i++) {
-            led_color_eyes(0, i) = color(0);
-            led_color_eyes(1, i) = color(1);
-            led_color_eyes(2, i) = color(2);
-        }
-        for (int i = 0; i < 8; i++) {
-            led_color_mouth(0, i) = color(0);
-            led_color_mouth(1, i) = color(1);
-            led_color_mouth(2, i) = color(2);
-        }
+        ApplyColorToAllLEDs(color);
     }
     
     const char* GetModeName() const override { return "Compliant"; }
@@ -411,19 +447,20 @@ public:
             break;
         }
         parent_component->Debug("ModeController: Switched to mode: " + std::string(current_mode->GetModeName()));
-    }
+   }
     void HandleDeviation(matrix& deviation, matrix& present_position,
                         matrix& goal_position_in, matrix& start_position,
                         matrix& allowed_deviance, matrix& started_transition,
-                        matrix& number_deviations_per_time_window, matrix& torque,
-                        double time_window, double pullback_amount) {
+                        matrix& deviation_history, matrix& torque,
+                        double pullback_amount, double peak_width_tolerance = 0.1,
+                        double current_time = 0.0) {
         if (!current_mode) {
             parent_component->Error("ModeController: current_mode is null in HandleDeviation!");
             SwitchMode(0); // Attempt to recover by switching to NormalMode
         }
         current_mode->HandleDeviation(deviation, present_position, goal_position_in,
                                     start_position, allowed_deviance, started_transition,
-                                    number_deviations_per_time_window, torque, time_window, pullback_amount);
+                                    deviation_history, torque, pullback_amount, peak_width_tolerance, current_time);
     }
     
     void SetLEDColor(double deviance_ratio) {
@@ -447,7 +484,7 @@ class ForceCheck: public Module
 public: // Ensure INSTALL_CLASS can access constructor if it's implicitly used.
     //parameters
     parameter pullback_amount;
-    parameter time_window;
+    parameter history_lenght;
     parameter control_mode; 
     
     // New parameters for automatic mode switching
@@ -457,6 +494,8 @@ public: // Ensure INSTALL_CLASS can access constructor if it's implicitly used.
     parameter max_movement_degrees_when_held;
     parameter obstacle_detection_deviation_count;
     parameter compliant_trigger_min_deviation_ratio;
+    parameter movement_threshold_scalar;
+    parameter peak_width_tolerance; // Width of the peak for sharp peak detection in percentage of devaiance history
 
     //inputs
     matrix present_current;
@@ -486,20 +525,22 @@ public: // Ensure INSTALL_CLASS can access constructor if it's implicitly used.
     int position_margin;
     int current_margin;
     int minimum_current;
-    matrix number_deviations_per_time_window;
+    // Removed number_deviations_per_time_window (replaced by deviation_history dynamics)
     matrix motor_in_motion;
     matrix allowed_deviance;
     bool firstTick;
+    matrix deviation_history; // Stores recent deviations for each motor
+
 
     bool goal_reached;
     double start_time;
     int goal_time_out;
     bool force_output_tapped;
-    std::chrono::steady_clock::time_point force_output_tapped_time_point;
-    std::chrono::steady_clock::time_point time_window_start;
+    double force_output_tapped_time_point;
+    // Removed time_window_start (no time-window logic anymore)
 
     // Variables for auto mode switching
-    std::chrono::steady_clock::time_point sustained_high_dev_start_time;
+    double sustained_high_dev_start_time;
     bool refractory_period = false;                      // Avoid rapid mode switching
     bool fast_push_detected = false;                     // True if a fast push was detected
     bool automatic_mode_switching_enabled_value = false; // Value of the parameter
@@ -511,7 +552,7 @@ public: // Ensure INSTALL_CLASS can access constructor if it's implicitly used.
     std::unique_ptr<ModeController> mode_controller;
 
    
-    std::chrono::steady_clock::time_point refractory_start_time;
+    double refractory_start_time;
 
 
         double
@@ -599,10 +640,10 @@ public: // Ensure INSTALL_CLASS can access constructor if it's implicitly used.
         Bind(led_intensity, "LedIntensity");
         Bind(led_color_eyes, "LedColorEyes");
         Bind(led_color_mouth, "LedColorMouth");
-        Bind(time_window, "TimeWindow");
+        Bind(history_lenght, "HistoryLength");
         Bind(torque, "Torque");
         Bind(control_mode, "ControlMode"); 
-        
+        Bind(peak_width_tolerance, "PeakWidthTolerance"); // Width of the peak for sharp peak detection in percentage of deviance history
         // Mode switching parameters
         Bind(automatic_mode_switching_enabled, "AutomaticModeSwitchingEnabled");
         Bind(sustained_hold_duration_ms, "SustainedHoldDurationMs");
@@ -610,15 +651,13 @@ public: // Ensure INSTALL_CLASS can access constructor if it's implicitly used.
         Bind(max_movement_degrees_when_held, "MaxMovementDegreesWhenHeld"); // Degrees per tick
         Bind(obstacle_detection_deviation_count, "ObstacleDetectionDeviationCount"); // (e.g. >2)
         Bind(compliant_trigger_min_deviation_ratio, "CompliantTriggerMinDeviationRatio");
-
+        Bind(movement_threshold_scalar, "MovementThresholdScalar"); // Scalar for movement threshold
 
         torque.set(1); // Enable torque by default
 
         start_time = std::time(nullptr); // Using C time, consider chrono if more precision needed elsewhere
         goal_time_out = 5; // Seconds
         firstTick = true;
-        // obstacle = false; // Handled by mode logic or new auto-switch logic
-        // obstacle_time = 0; // Handled by mode logic
         goal_reached = false;
         previous_position.set_name("PreviousPosition");
   
@@ -629,28 +668,24 @@ public: // Ensure INSTALL_CLASS can access constructor if it's implicitly used.
 
         red_color_RGB = {1,0.3,0.3}; // Example, not directly used if SetLEDColor in modes handles all
         force_output_tapped = false; // Unused?
-        force_output_tapped_time_point = std::chrono::steady_clock::now(); // Unused?
+        force_output_tapped_time_point = GetTime(); // Unused?
 
-        number_deviations_per_time_window.set_name("NumberDeviationsPerTimeWindow");
-        number_deviations_per_time_window.copy(deviation); // Ensure size matches present_position
-        number_deviations_per_time_window.reset(); // Initialize to zero
+        // Removed number_deviations_per_time_window init and time_window_start since we're using deviation_history
+        
+        deviation_history = matrix(0, deviation.size()); // Store recent deviations for each motor
+        deviation_history.set_name("DeviationHistory");
+
 
         evaluating_sustained_hold = false;
-        time_window_start = std::chrono::steady_clock::now();
         allowed_deviance.copy(allowed_deviance_input); // Initialize allowed_deviance with input
 
         // Initialize mode controller
-        // Ensure output matrices are valid before passing if their size depends on inputs
-        // For now, assume they are or will be handled by ModeController/Modes
         mode_controller = std::make_unique<ModeController>(this, force_output, goal_position_out, 
                                                           led_intensity, led_color_eyes, led_color_mouth);
         
         // Ensure torque is initialized with correct size and default value
         // This might need to happen after first Tick or when present_position is sized
         // For now, let's assume a fixed size or handle resize in Tick.
-        // If using a typical robot setup, you might know the number of servos.
-        // Example: if 19 servos:
-        // torque.resize(19); torque.set(1);
     }
     
     const char* GetModeNameByIndex(int index) {
@@ -665,8 +700,23 @@ public: // Ensure INSTALL_CLASS can access constructor if it's implicitly used.
 
     void Tick()
     {
+        // Print("Time: " + std::to_string(GetTime()));
+        // Print("Nominal Time: " + std::to_string(GetNominalTime()));
+        // Print("Real Time: " + std::to_string(GetRealTime()));
         deviation.copy(current_prediction);
         deviation.subtract(present_current);
+
+        // Maintain deviation history as an ever-growing buffer; we will compute stats over the last HistoryLength samples
+        if (deviation_history.cols() != deviation.size() || deviation_history.rows() >= history_lenght.as_int())
+        {
+            deviation_history.resize(0, deviation.size());
+        }
+
+        if (deviation.size() > 0)
+        {
+            deviation_history.push(deviation, true); // Append current deviation snapshot
+            //deviation_history.print();               // Debug print of deviation history
+        }
 
         if (present_current.size() == 0 || present_position.size() == 0 || goal_position_in.size() == 0 ||
             start_position.size() == 0 || allowed_deviance.size() == 0) {
@@ -678,7 +728,6 @@ public: // Ensure INSTALL_CLASS can access constructor if it's implicitly used.
             firstTick = false; // Set to false after first initialization
         }
 
-
         // Handle manual mode switching via parameter
         static int last_manual_mode_setting = -1;
         if (control_mode.as_int() != last_manual_mode_setting) {
@@ -689,16 +738,10 @@ public: // Ensure INSTALL_CLASS can access constructor if it's implicitly used.
             last_manual_mode_setting = control_mode.as_int();
         }
         
-        // Check if time window has passed for deviation counting
-        if (std::chrono::steady_clock::now() - time_window_start > std::chrono::seconds(time_window.as_int()))
-        {
-            time_window_start = std::chrono::steady_clock::now();
-            if (number_deviations_per_time_window.size() > 0) number_deviations_per_time_window.reset();
-            Debug("ForceCheck: Time window exceeded, resetting deviation count.");
-        }
+        // Remove time-window based reset, we rely on deviation_history dynamics now
 
         //Check refractory period for automatic mode switching
-        if (std::chrono::steady_clock::now() - refractory_start_time > std::chrono::seconds(2)) {
+        if (GetTime() - refractory_start_time > 2.0) {
             refractory_period = false; // Reset refractory period after 2 seconds
 
         }
@@ -715,39 +758,34 @@ public: // Ensure INSTALL_CLASS can access constructor if it's implicitly used.
     
         }
         
-
-
-        
-        
         if (goal_position_in.connected() && !firstTick && allowed_deviance.connected() && allowed_deviance.size() > 0 && start_position.connected()) {
             started_transition = StartedTransition(present_position, start_position, position_margin);
             goal_reached = GoalReached(present_position, goal_position_in, position_margin);
             motor_in_motion = MotorInMotion(present_position, goal_position_in, position_margin);
 
-
-
-            // Update number_deviations_per_time_window
+            // Dynamically adapt allowed deviance for motors in motion
             for (int i = 0; i < allowed_deviance_input.size(); i++) {
-                
                 if (motor_in_motion[i] == 1) {
-                    allowed_deviance(i) = allowed_deviance_input(i); // Use input allowed_deviance if motor is in motion
+                    allowed_deviance(i) = allowed_deviance_input(i) * movement_threshold_scalar;
+                    // Check if motor is within 5 degrees of start position
+                    if (abs((double)present_position(i) - (double)start_position(i)) <= 10.0) {
+                        allowed_deviance(i) = allowed_deviance_input(i) * 1.5; // Increase by 50%
+                    }
                 }
                 else {
-                    allowed_deviance(i) = allowed_deviance_input(i)/2; // If not in motion, set to 0
+                    allowed_deviance(i) = allowed_deviance_input(i); // More sensitive when not in motion
                 }
-                
+               
                 Debug("ForceCheck: Motor " + std::to_string(i) + " deviation: " + std::to_string(deviation[i]) + 
                       ", threshold: " + std::to_string(allowed_deviance(i)) + 
                       ", Motor moving: " + std::to_string(motor_in_motion[i]));
-                if (abs(deviation[i]) > allowed_deviance(i)) {
-                    number_deviations_per_time_window[i]++;
-                }
             }
             
+            // Use the mode controller to handle the deviation with history-driven dynamics
+            double current_time = GetTime();
             mode_controller->HandleDeviation(deviation, present_position, goal_position_in,
-                                                start_position, allowed_deviance, started_transition, // started_transition might be empty
-                                                number_deviations_per_time_window, torque, (double)time_window,
-                                                (double)pullback_amount);
+                                             start_position, allowed_deviance, started_transition,
+                                             deviation_history, torque, (double)pullback_amount, (double) peak_width_tolerance, current_time);
             if (allowed_deviance.size() > 0 && allowed_deviance[0] > 0)
             {                                      // Avoid div by zero
                 mode_controller->SetLEDColor(0.0); // No real deviation, so 0 ratio
@@ -758,7 +796,7 @@ public: // Ensure INSTALL_CLASS can access constructor if it's implicitly used.
             }
 
             // Automatic Mode Switching Logic
-            if (automatic_mode_switching_enabled && !refractory_period)
+            if (automatic_mode_switching_enabled && !refractory_period && deviation_history.rows() > 5)
             {
                 bool fast_push_detected_this_tick = false;
                 bool being_held_detected_this_tick = false;
@@ -767,67 +805,82 @@ public: // Ensure INSTALL_CLASS can access constructor if it's implicitly used.
                 if (torque.sum() == 0)
                 {
                     should_return_to_normal = false; // If torque is disabled, compliant mode is active
-                    return;
+                    // Don't early-return; still update LEDs and state below
                 }
 
-                // 1. Detect Fast Push (quick spike in deviation)
-                for (int i = 0; i < deviation.size(); i++)
-                {
-                    double dev_change = abs(deviation[i]) - abs(deviation.last()[i]);
-                    double current_deviation = abs(deviation[i]);
+                // Compute stats per motor over the last HistoryLength samples
+                int rows = deviation_history.rows();
+                
 
-                    // Fast push: sudden large increase in deviation AND current deviation is significant
-                    if (dev_change > fast_push_deviation_increase.as_int() &&
-                        current_deviation > allowed_deviance(i))
-                    {
+                // 1. Detect Fast Push (sharp peak not sustained)
+                for (int i = 0; i < deviation.size(); i++) {
+                    double lastAbs = std::abs((double)deviation(i));
+                    double prevAbs = std::abs((double)deviation.last()[i]);
+                    DeviationStats stats(deviation_history, i, allowed_deviance(i), rows);
+                    
+                    double dev_change = lastAbs - prevAbs;
+                    bool sharp_peak = (lastAbs > stats.mean + 2 * stats.stddev) && 
+                                    (stats.exceed_ratio <= peak_width_tolerance);
+
+                    if ((dev_change > fast_push_deviation_increase.as_int() || sharp_peak) &&
+                        lastAbs > (double)allowed_deviance(i)) {
                         fast_push_detected_this_tick = true;
                         Debug("ForceCheck: Fast push detected for motor " + std::to_string(i) +
                               ", dev_change: " + std::to_string(dev_change) +
-                              ", current_dev: " + std::to_string(current_deviation));
+                              ", lastAbs: " + std::to_string(lastAbs) +
+                              ", mean+2std: " + std::to_string(stats.mean + 2.0 * stats.stddev));
                         break;
                     }
                 }
 
-                // 2. Detect Sustained Non-Decreasing Deviation (compliant mode trigger)
+                // 2. Detect Sustained Non-Decreasing Deviation (being held) via elevated mean and minimal movement
                 bool sustained_non_decreasing_deviation_this_tick = false;
                 for (int i = 0; i < deviation.size(); i++)
                 {
-                    double current_deviation = abs(deviation(i));
-                    double previous_deviation = abs(deviation.last()[i]);
-                    
-                    // Check if deviation is significant and not decreasing
-                    bool high_deviation = current_deviation > allowed_deviance(i);
-                    bool deviation_not_decreasing = current_deviation >= previous_deviation * 0.95; // Allow 5% decrease tolerance
-                    bool minimal_movement = abs((double)present_position(i) - present_position.last()[i]) < max_movement_degrees_when_held.as_int();
+                    double lastAbs = std::abs((double)deviation(i));
+                    double prevAbs = std::abs((double)deviation.last()[i]);
+                    // Check if deviation is not decreasing over last 5 samples
+                    bool deviation_not_decreasing = false;
+                    if (rows >= 5) {
+                        double earliest_abs = std::abs((double)deviation_history(rows-5, i));
+                        bool generally_not_decreasing = lastAbs >= earliest_abs * 0.95; // Allow 5% decrease tolerance over 5 samples
+                        deviation_not_decreasing = generally_not_decreasing;
+                    } else {
+                        deviation_not_decreasing = lastAbs >= prevAbs * 0.95; // Fallback to previous comparison if insufficient history
+                    }
+
+                    double sum = 0.0; int n = 0;
+                    for (int r = 0; r < rows; ++r) { sum += std::abs((double)deviation_history(r, i)); n++; }
+                    double meanAbs = n>0 ? sum/n : 0.0;
+
+                    bool high_deviation = meanAbs > (double)allowed_deviance(i) * (double)compliant_trigger_min_deviation_ratio;
+                    bool minimal_movement = std::abs((double)present_position(i) - (double)present_position.last()[i]) < (double)max_movement_degrees_when_held.as_int();
 
                     if (high_deviation && deviation_not_decreasing && minimal_movement)
                     {
                         sustained_non_decreasing_deviation_this_tick = true;
-                        Debug("ForceCheck: Sustained non-decreasing deviation detected for motor " + std::to_string(i) +
-                              ", current_dev: " + std::to_string(current_deviation) +
-                              ", previous_dev: " + std::to_string(previous_deviation) +
-                              ", movement: " + std::to_string(abs((double)present_position(i) - present_position.last()[i])));
+                        Debug("ForceCheck: Sustained non-decreasing deviation candidate motor " + std::to_string(i) +
+                              ", meanAbs: " + std::to_string(meanAbs) +
+                              ", lastAbs: " + std::to_string(lastAbs));
                         break;
                     }
                 }
 
-                // Handle sustained force timing for compliant mode
                 if (sustained_non_decreasing_deviation_this_tick)
                 {
                     if (!evaluating_sustained_hold)
                     {
                         evaluating_sustained_hold = true;
-                        sustained_high_dev_start_time = std::chrono::steady_clock::now();
+                        sustained_high_dev_start_time = GetTime();
                         Debug("ForceCheck: Started evaluating sustained non-decreasing deviation.");
                     }
                     else
                     {
-                        auto hold_duration = std::chrono::duration_cast<std::chrono::milliseconds>(
-                            std::chrono::steady_clock::now() - sustained_high_dev_start_time);
-                        if (hold_duration.count() > sustained_hold_duration_ms.as_int())
+                        double hold_duration = (GetTime() - sustained_high_dev_start_time) * 1000.0; // Convert to milliseconds
+                        if (hold_duration > sustained_hold_duration_ms.as_int())
                         {
                             being_held_detected_this_tick = true;
-                            Debug("ForceCheck: Sustained non-decreasing deviation confirmed. Duration: " + std::to_string(hold_duration.count()) + "ms");
+                            Debug("ForceCheck: Sustained non-decreasing deviation confirmed. Duration: " + std::to_string(hold_duration) + "ms");
                         }
                     }
                 }
@@ -840,29 +893,27 @@ public: // Ensure INSTALL_CLASS can access constructor if it's implicitly used.
                     evaluating_sustained_hold = false;
                 }
 
-                // 3. Check if we should stay in current non-normal mode or return to normal
+                // 3. Assess calm conditions to return to Normal
                 bool significant_deviation_present = false;
-                for (int i = 0; i < deviation.size(); i++)
-                {
-                    if (abs(deviation(i)) > allowed_deviance(i) * 0.7)
-                    { // 70% of threshold
-                        significant_deviation_present = true;
-                        should_return_to_normal = false;
-                        break;
-                    }
-                }
-
-                // 4. Check for ongoing obstacle conditions that should maintain avoidant mode
                 bool obstacle_conditions_present = false;
                 for (int i = 0; i < deviation.size(); i++)
                 {
-                    if (number_deviations_per_time_window[i] > 1)
-                    { // Lower threshold for maintaining mode
+                    double sum = 0.0; int n = 0; int exceed = 0;
+                    for (int r = 0; r < rows; ++r) {
+                        double v = std::abs((double)deviation_history(r, i));
+                        sum += v; n++; if (v > (double)allowed_deviance(i) * 0.7) exceed++;
+                    }
+                    double meanAbs = n>0 ? sum/n : 0.0;
+                    double exceedRatio = n>0 ? (double)exceed/(double)n : 0.0;
+                    if (meanAbs > (double)allowed_deviance(i) * 0.7) {
+                        significant_deviation_present = true;
+                    }
+                    if (exceedRatio > peak_width_tolerance) {
                         obstacle_conditions_present = true;
-                        should_return_to_normal = false;
-                        break;
                     }
                 }
+                if (significant_deviation_present || obstacle_conditions_present)
+                    should_return_to_normal = false;
 
                 // Determine desired mode based on priority and conditions
                 int current_mode_idx = mode_controller->GetModeIndex();
@@ -878,8 +929,7 @@ public: // Ensure INSTALL_CLASS can access constructor if it's implicitly used.
                     desired_mode_idx = 2; // CompliantMode - second priority
                     Debug("ForceCheck: Sustained non-decreasing deviation detected - switching to Compliant mode");
                 }
-                else if (should_return_to_normal && current_mode_idx != 0 &&
-                         !significant_deviation_present && !obstacle_conditions_present)
+                else if (should_return_to_normal && current_mode_idx != 0)
                 {
                     desired_mode_idx = 0; // Return to Normal mode when conditions are calm
                     Debug("ForceCheck: Conditions calm - returning to Normal mode");
@@ -900,7 +950,7 @@ public: // Ensure INSTALL_CLASS can access constructor if it's implicitly used.
                     mode_controller->SwitchMode(desired_mode_idx);
                     last_manual_mode_setting = desired_mode_idx;
                     refractory_period = true;
-                    refractory_start_time = std::chrono::steady_clock::now();
+                    refractory_start_time = GetTime();
                 }
             }
 
@@ -923,12 +973,6 @@ public: // Ensure INSTALL_CLASS can access constructor if it's implicitly used.
                  deviance_ratio = highest_deviance_abs / allowed_deviance[0];
             }
 
-
-            // Use the mode controller to handle the deviation
-            mode_controller->HandleDeviation(deviation, present_position, goal_position_in,
-                                            start_position, allowed_deviance, started_transition,
-                                            number_deviations_per_time_window, torque, (double)time_window,
-                                            (double)pullback_amount);
 
             // Set LED colors based on current mode and deviance
             double intensity = clip(deviance_ratio * 0.5 + 0.5, 0.5, 1.0); // Scale ratio so 0 -> 0.5 intensity, 1 -> 1.0 intensity
@@ -953,13 +997,9 @@ public: // Ensure INSTALL_CLASS can access constructor if it's implicitly used.
             previous_position.copy(present_position); // Update for next tick's "held" detection
         }
         firstTick=false;
+        //allowed_deviance.print(); // Debug print of allowed deviance
 
-        // Debug("ForceCheck: Current mode: " + std::string(mode_controller->GetCurrentModeName()) + 
-        //       " (Index: " + std::to_string(mode_controller->GetModeIndex()) + ")");
-        // Debug("ForceCheck: Deviation: " + deviation.json()); // Can be very noisy
-        // Debug("ForceCheck: NumDevs: " + number_deviations_per_time_window.json()); // Can be very noisy
-        // Debug("ForceCheck: Torque: " + torque.json());
-        // Debug("ForceCheck: GoalOut: " + goal_position_out.json());
+        // Debug prints can be enabled as needed
     }
 };
 
