@@ -1,0 +1,54 @@
+<class name="ForceCheckActiveInference" description="Advanced force regulation system with Active Inference and Variational Free Energy. Uses prediction errors to automatically switch between control modes (Normal/Avoidant/Compliant) while incorporating uncertainty estimation for adaptive thresholds and online learning for improved discrimination between self-movement and external forces">
+	
+	<parameter name="PullBackAmount" type="int" default="10" description="Number of degrees motor should pullback in the event of an obstacle in avoidance mode"/>
+	<parameter name="TimeWindow" type="int" default="5" description="Time window in seconds for deviation counting"/>
+	<parameter name="ControlMode" type="int" options="0,1,2" default="0" description="The control mode for how the robot handles deviations from predicted current, 0=Normal, 1=Avoidant, 2=Compliant"/>
+	<parameter name="AutomaticModeSwitchingEnabled" type="bool" default="true" description="Enable automatic switching between control modes based on active inference"/>
+	
+	<!-- Variational Free Energy Parameters -->
+	<parameter name="UseUncertaintyEstimation" type="bool" default="true" description="Enable variational free energy uncertainty estimation and adaptive thresholds"/>
+	<parameter name="VFELearningRate" type="number" default="0.01" description="Learning rate for precision parameter updates (0.001-0.1)"/>
+	<parameter name="UncertaintyThresholdScale" type="number" default="2.0" description="How much uncertainty increases thresholds (0.5-5.0)"/>
+	<parameter name="PrecisionUpdateRate" type="number" default="1.0" description="How often precision parameters update in seconds (0.5-5.0)"/>
+	<parameter name="OnlineLearningEnabled" type="bool" default="true" description="Enable continuous learning from prediction errors"/>
+	
+	<!-- Active Inference Parameters -->
+	<parameter name="Temperature" type="number" default="1.0" description="Temperature for softmax action selection in active inference"/>
+	<parameter name="PrecisionLearningRate" type="number" default="0.1" description="Learning rate for active inference precision weights"/>
+
+	<input name="GoalPositionIn" description="The goal position of the servomotors in degrees" size="19"/>
+	<input name="StartPosition" description="The start position of the servomotors in degrees"/>
+	<input name="PresentPosition" description="The present position of the servomotors in degrees"/>
+	<input name="PresentCurrent" description="The present current from the servomotors in mA" />
+	<input name="CurrentPrediction" description="The current prediction from the servomotors in mA" />
+	<input name="AllowedDeviance" optional="true" default= "700, 200" description="Allowed deviance of the current from the current prediction"/>
+
+	<output name="GoalPositionOut" size="19" description="The goal position of the servomotors in degrees"/>
+	<output name="ForceOutput" size="CurrentPrediction.size" description="The force output of the servomotors in PWM percentage"/>
+	<output name="Deviation" size="CurrentPrediction.size" description="The deviation of the current from the current prediction in mA"/>
+	<output name="LedIntensity" size="3" default="0.5, 0.5, 0.5" description="The intensity of the leds in percentage, left eye, right eye, mouth"/>
+	<output name="LedColorEyes" size="3,12"  description="The color of the leds in RGB, 0-1 "/>
+	<output name="LedColorMouth" size="3,8"  description="The color of the leds in RGB, 0-1 "/>
+	<output name="Torque" size="19" description="The torque off status of the servos, 0 if torque is off, 1 if torque is on"/>
+	
+	<!-- VFE and Active Inference Outputs -->
+	<output name="EpistemicUncertainty" size="CurrentPrediction.size" description="Epistemic uncertainty (model uncertainty) for each motor"/>
+	<output name="PrecisionWeights" size="CurrentPrediction.size" description="Learned precision parameters for each motor"/>
+	<output name="AdaptiveThresholds" size="CurrentPrediction.size" description="VFE-computed adaptive thresholds for each motor"/>
+	<output name="ExpectedFreeEnergy" size="3" description="Expected free energy for each mode (Normal, Avoidant, Compliant)"/>
+	<output name="MovementContext" size="16" description="Enhanced movement context features (8 features per motor)"/>
+
+	
+	<author>
+		<name>Pierre Klintefors</name>
+		<email>Pierre.Klintefors@lucs.lu.se</email>
+		<affiliation>Lund University Cognitive Science</affiliation>
+	</author>
+	<files>
+   		<file>ForceCheck_active_inference.cc</file>
+   		<file>ForceCheckActiveInference.ikc</file>
+   </files>
+
+   
+</class>
+
