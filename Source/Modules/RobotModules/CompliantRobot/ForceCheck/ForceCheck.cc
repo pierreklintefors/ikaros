@@ -14,9 +14,11 @@ struct DeviationStats {
     int total_samples = 0;
     
     DeviationStats(const matrix& deviation_history, int motor_idx, double threshold, int rows = -1) {
-        if (deviation_history.rows() == 0) return;
+        if (deviation_history.rows() == 0 || motor_idx >= deviation_history.cols()) return;
         
-        int actual_rows = (rows < 0) ? deviation_history.rows() : std::min(rows, deviation_history.rows());
+        // Use actual matrix rows if rows parameter is -1 or invalid
+        int actual_rows = (rows == -1 || rows > deviation_history.rows()) ? deviation_history.rows() : rows;
+        
         double sum = 0.0, sum2 = 0.0;
         
         for (int r = 0; r < actual_rows; ++r) {
@@ -199,14 +201,30 @@ public:
             avoidance_goal_position.copy(goal_position_in); // Start with the input goal position
             for (int i = 0; i < deviation.size(); i++) {
                 double lastAbs = std::abs((double)deviation(i));
-                double prevAbs = std::abs((double)deviation.last()[i]);
+                
+                // Get previous deviation safely - only check sharp peak if previous data exists
+                bool has_previous = false;
+                double prevAbs = lastAbs; // Default to current value
+                try {
+                    matrix prev_dev = deviation.last();
+                    if (prev_dev.size() > i) {
+                        prevAbs = std::abs((double)prev_dev[i]);
+                        has_previous = true;
+                    }
+                } catch (...) {
+                    has_previous = false;
+                }
                 
                 DeviationStats stats(deviation_history, i, allowed_deviance(i), rows);
                 
-                // Sharp peak not sustained => trigger retract
-                bool sharp_peak = (lastAbs > stats.mean + 2 * stats.stddev) && 
-                                (prevAbs <= (double)allowed_deviance(i)) && 
-                                (stats.exceed_ratio <= peak_width_tolerance);
+                // Sharp peak detection - only if we have valid previous data
+                bool sharp_peak = false;
+                if (has_previous) {
+                    sharp_peak = (lastAbs > stats.mean + 2 * stats.stddev) && 
+                               (prevAbs <= (double)allowed_deviance(i)) && 
+                               (stats.exceed_ratio <= peak_width_tolerance);
+                }
+                
                 // Also avoid if frequent exceedances (obstacle-like)
                 bool frequent_exceed = stats.exceed_ratio > 0.5;
 
@@ -610,13 +628,25 @@ public: // Ensure INSTALL_CLASS can access constructor if it's implicitly used.
 
         matrix in_motion(deviation.size()); // Assuming deviation is correctly sized
       
-        matrix previous_position = present_position.last(); // Get the last position for comparison
+        // Check if we have previous position data available
+        try {
+            matrix previous_position = present_position.last();
+            if (previous_position.size() != present_position.size()) {
+                // Previous position size mismatch, assume all motors are not in motion
+                in_motion.set(0.0);
+                return in_motion;
+            }
 
-        for (int i = 0; i < deviation.size(); i++) {
-            if (abs( (double)present_position(i) - (double)previous_position(i)) > 0.6)
-                in_motion(i) = 1.0; // In motion
-            else
-                in_motion(i) = 0.0; // Not in motion
+            for (int i = 0; i < deviation.size(); i++) {
+                if (abs( (double)present_position(i) - (double)previous_position(i)) > 0.6)
+                    in_motion(i) = 1.0; // In motion
+                else
+                    in_motion(i) = 0.0; // Not in motion
+            }
+        } catch (...) {
+            // No history available - we can't determine motion without previous data
+            // Return all zeros to indicate we can't determine motion status
+            in_motion.set(0.0);
         }
         
         return in_motion;
@@ -703,17 +733,29 @@ public: // Ensure INSTALL_CLASS can access constructor if it's implicitly used.
         // Print("Time: " + std::to_string(GetTime()));
         // Print("Nominal Time: " + std::to_string(GetNominalTime()));
         // Print("Real Time: " + std::to_string(GetRealTime()));
+        
+        // Safely compute deviation
+        if (current_prediction.size() == 0 || present_current.size() == 0 ||
+            current_prediction.size() != present_current.size()) {
+            Warning("ForceCheck: current_prediction or present_current not available or size mismatch, skipping deviation calculation.");
+            return;
+        }
+        
         deviation.copy(current_prediction);
         deviation.subtract(present_current);
 
         // Maintain deviation history as an ever-growing buffer; we will compute stats over the last HistoryLength samples
-        if (deviation_history.cols() != deviation.size() || deviation_history.rows() >= history_lenght.as_int())
-        {
-            deviation_history.resize(0, deviation.size());
-        }
-
-        if (deviation.size() > 0)
-        {
+        if (deviation.size() > 0) {
+            // Only resize if necessary and ensure safe bounds
+            if (deviation_history.cols() != deviation.size()) {
+                deviation_history.resize(0, deviation.size());
+            }
+            
+            // Limit history size to prevent memory issues
+            if (deviation_history.rows() >= history_lenght.as_int()) {
+                deviation_history.resize(0, deviation.size());
+            }
+            
             deviation_history.push(deviation, true); // Append current deviation snapshot
             //deviation_history.print();               // Debug print of deviation history
         }
@@ -815,14 +857,31 @@ public: // Ensure INSTALL_CLASS can access constructor if it's implicitly used.
                 // 1. Detect Fast Push (sharp peak not sustained)
                 for (int i = 0; i < deviation.size(); i++) {
                     double lastAbs = std::abs((double)deviation(i));
-                    double prevAbs = std::abs((double)deviation.last()[i]);
+                    
+                    // Get previous deviation safely - skip dev_change check if not available
+                    bool has_previous = false;
+                    double prevAbs = lastAbs; // Default to current value
+                    try {
+                        matrix prev_dev = deviation.last();
+                        if (prev_dev.size() > i) {
+                            prevAbs = std::abs((double)prev_dev[i]);
+                            has_previous = true;
+                        }
+                    } catch (...) {
+                        // No previous deviation available, skip dev_change based detection
+                        has_previous = false;
+                    }
+                    
                     DeviationStats stats(deviation_history, i, allowed_deviance(i), rows);
                     
-                    double dev_change = lastAbs - prevAbs;
+                    double dev_change = has_previous ? (lastAbs - prevAbs) : 0.0;
                     bool sharp_peak = (lastAbs > stats.mean + 2 * stats.stddev) && 
                                     (stats.exceed_ratio <= peak_width_tolerance);
 
-                    if ((dev_change > fast_push_deviation_increase.as_int() || sharp_peak) &&
+                    // Only check dev_change if we have valid previous data
+                    bool fast_push_by_change = has_previous && (dev_change > fast_push_deviation_increase.as_int());
+                    
+                    if ((fast_push_by_change || sharp_peak) &&
                         lastAbs > (double)allowed_deviance(i)) {
                         fast_push_detected_this_tick = true;
                         Debug("ForceCheck: Fast push detected for motor " + std::to_string(i) +
@@ -838,15 +897,27 @@ public: // Ensure INSTALL_CLASS can access constructor if it's implicitly used.
                 for (int i = 0; i < deviation.size(); i++)
                 {
                     double lastAbs = std::abs((double)deviation(i));
-                    double prevAbs = std::abs((double)deviation.last()[i]);
+                    
+                    // Get previous deviation safely - only check trend if previous data exists
+                    bool has_previous = false;
+                    double prevAbs = lastAbs; // Default to current value
+                    try {
+                        matrix prev_dev = deviation.last();
+                        if (prev_dev.size() > i) {
+                            prevAbs = std::abs((double)prev_dev[i]);
+                            has_previous = true;
+                        }
+                    } catch (...) {
+                        has_previous = false;
+                    }
+                    
                     // Check if deviation is not decreasing over last 5 samples
-                    bool deviation_not_decreasing = false;
+                    bool deviation_not_decreasing = true; // Default to true if no history
                     if (rows >= 5) {
                         double earliest_abs = std::abs((double)deviation_history(rows-5, i));
-                        bool generally_not_decreasing = lastAbs >= earliest_abs * 0.95; // Allow 5% decrease tolerance over 5 samples
-                        deviation_not_decreasing = generally_not_decreasing;
-                    } else {
-                        deviation_not_decreasing = lastAbs >= prevAbs * 0.95; // Fallback to previous comparison if insufficient history
+                        deviation_not_decreasing = lastAbs >= earliest_abs * 0.95; // Allow 5% decrease tolerance over 5 samples
+                    } else if (has_previous) {
+                        deviation_not_decreasing = lastAbs >= prevAbs * 0.95; // Only check if we have valid previous data
                     }
 
                     double sum = 0.0; int n = 0;
@@ -854,7 +925,18 @@ public: // Ensure INSTALL_CLASS can access constructor if it's implicitly used.
                     double meanAbs = n>0 ? sum/n : 0.0;
 
                     bool high_deviation = meanAbs > (double)allowed_deviance(i) * (double)compliant_trigger_min_deviation_ratio;
-                    bool minimal_movement = std::abs((double)present_position(i) - (double)present_position.last()[i]) < (double)max_movement_degrees_when_held.as_int();
+                    
+                    // Check minimal movement - only if we have previous position data
+                    bool minimal_movement = true; // Default to true if no history
+                    try {
+                        matrix prev_pos = present_position.last();
+                        if (prev_pos.size() > i) {
+                            minimal_movement = std::abs((double)present_position(i) - (double)prev_pos[i]) < (double)max_movement_degrees_when_held.as_int();
+                        }
+                    } catch (...) {
+                        // If no previous position, we can't evaluate movement, so skip this condition
+                        continue; // Skip this motor's evaluation
+                    }
 
                     if (high_deviation && deviation_not_decreasing && minimal_movement)
                     {
