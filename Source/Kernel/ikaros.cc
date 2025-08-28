@@ -268,7 +268,7 @@ namespace ikaros
         else if (matrix_value)
             return 0; // FIXME check 1x1 matrix ************
         else
-            throw exception("Type conversion error. Parameter does not have a type. Bind?");
+            throw exception("Type conversion error. Parameter does not have a type Check spelling IKC and cc file.");
     }
 
     int
@@ -534,15 +534,15 @@ namespace ikaros
             return original.substr(0, pos);
     }
 
-    //
-    // GetComponent
-    //
-    // sensitive to variables and indirection
-    // does local substitution of vaiables unlike GetValue() / FIXME: is this correct?
-    //
-
-    Component *
-    Component::GetComponent(const std::string &s)
+//
+// GetComponent
+//
+// sensitive to variables and indirection
+// does local substitution of vaiables unlike GetValue() / FIXME: is this correct?
+//
+ 
+    Component * 
+    Component::GetComponent(const std::string & s) 
     {
         std::string path = SubstituteVariables(s);
         try
@@ -979,8 +979,9 @@ namespace ikaros
 
     Kernel &kernel()
     {
-        static Kernel *kernelInstance = new Kernel();
-        return *kernelInstance;
+        //static Kernel * kernelInstance = new Kernel();
+        static Kernel kernelInstance;  // Guaranteed to be thread-safe in C++11 and later
+        return kernelInstance;
     }
 
 
@@ -1254,6 +1255,7 @@ namespace ikaros
         return 0;
     }
 
+
     int
     Module::SetSizes(input_map ingoing_connections)
     {
@@ -1496,8 +1498,8 @@ namespace ikaros
         clear_matrix_states();  // if(NOT PERSISTENT)
 
         tick = -1;
-        // run_mode = run_mode_pause;
-        tick_is_running = false;
+        //run_mode = run_mode_pause;
+        //tick_is_running = false;
         tick_time_usage = 0;
         tick_duration = 1; // default value
         actual_tick_duration = tick_duration;
@@ -1539,19 +1541,16 @@ namespace ikaros
     void
     Kernel::Tick()
     {
-
-        tick_is_running = true;
         tick++;
 
         RunTasks();
+        //RunTasksInSingleThread();
 
         save_matrix_states();
         RotateBuffers();
         Propagate();
 
         CalculateCPUUsage();
-
-        tick_is_running = false; 
     }
 
     bool
@@ -1805,17 +1804,19 @@ namespace ikaros
         log.clear();
     }
 
-    Kernel::Kernel() : tick(0),
-                       run_mode(run_mode_pause),
-                       tick_is_running(false),
-                       tick_time_usage(0),
-                       actual_tick_duration(0), // FIME: Use desired tick duration here
-                       idle_time(0),
-                       stop_after(-1),
-                       tick_duration(1),
-                       shutdown(false),
-                       session_id(new_session_id()),
-                       needs_reload(true)
+
+    Kernel::Kernel():
+        tick(0),
+        run_mode(run_mode_pause),
+        //(false),
+        tick_time_usage(0),
+        actual_tick_duration(0), // FIME: Use desired tick duration here
+        idle_time(0),
+        stop_after(-1),
+        tick_duration(1),
+        shutdown(false),
+        session_id(new_session_id()),
+        needs_reload(true)
     {
         cpu_cores = std::thread::hardware_concurrency();
         thread_pool = new ThreadPool(cpu_cores > 1 ? cpu_cores-1 : 1); // FIXME: optionally use ikg parameters
@@ -2384,21 +2385,24 @@ if(classes[classname].path.empty())
 
     void Kernel::RunTasks()
     {
-        std::vector<std::unique_ptr<TaskSequence>> sequences;
+        std::vector<std::shared_ptr<TaskSequence>> sequences;
     
-        try {
-            // Create and submit tasks
-            for (auto &task_sequence : tasks) {
-                auto ts = std::make_unique<TaskSequence>(task_sequence);
-                thread_pool->submit(ts.get());
-                sequences.push_back(std::move(ts));
+        try 
+        {
+            // Create and submit tasks using shared_ptr
+            for (auto &task_sequence : tasks) 
+            {
+                auto ts = std::make_shared<TaskSequence>(task_sequence);
+                thread_pool->submit(ts);
+                sequences.push_back(ts);
             }
     
-            // Wait for completion using the blocking wait method
-            for (auto &ts : sequences) {
-                ts->waitForCompletion();
-            }
-        } catch (const std::exception &e) {
+            // Wait for completion
+            for (auto &ts : sequences) 
+                if(!ts->waitForCompletion(5)) // Timeout after 5 seconds
+                    Notify(msg_fatal_error, "Task sequence did not complete successfully during the timeout period."); 
+        } 
+        catch (const std::exception &e) {
             Notify(msg_fatal_error, "Error during task execution: " + std::string(e.what()));
         }
     }
@@ -2763,9 +2767,9 @@ if(classes[classname].path.empty())
     }
 
     void
-    Kernel::DoSendData(Request &request)
-    {
-        sending_ui_data = true; // must be set while main thread is still running
+    Kernel::DoSendData(Request & request)
+    {    
+        //sending_ui_data = true; // must be set while main thread is still running
 
 
         DoSendDataHeader();
@@ -2833,10 +2837,10 @@ if(classes[classname].path.empty())
 
         socket->Send("\n\t}");
         DoSendLog(request);
-        socket->Send(",\n\t\"has_data\": "+std::to_string(!tick_is_running)+"\n"); // new tick has started during sending; there may be data but it cannot be trusted // FIXME: Never happens
+        socket->Send(",\n\t\"has_data\": 1\n"); // "+std::to_string(!tick_is_running)+" new tick has started during sending; there may be data but it cannot be trusted // FIXME: Never happens
         socket->Send("}\n");
 
-        sending_ui_data = false;
+        //sending_ui_data = false;
     }
 
     void
@@ -3318,24 +3322,16 @@ if(classes[classname].path.empty())
         {
             if (socket != nullptr && socket->GetRequest(true))
             {
-
                 std::lock_guard<std::recursive_mutex> lock(kernelLock); // Lock the mutex to ensure thread safety
-
-
                 if(equal_strings(socket->header.Get("Method"), "GET"))
                 {
-                     handling_request = true;
                     HandleHTTPRequest();
-                        handling_request = false;
                     }
                     else if(equal_strings(socket->header.Get("Method"), "PUT")) // JSON Data
                     {
-                        handling_request = true;
                         HandleHTTPRequest();
-                        handling_request = false;
                     }
                     socket->Close();
-    
             }
         }
     }
@@ -3347,16 +3343,24 @@ if(classes[classname].path.empty())
         return nullptr;
     }
 
-}; // namespace ikaros
-
-Kernel::~Kernel()
+    Kernel::~Kernel()
 {
-    if (socket)
+    if(socket && httpThread)
     {
-        shutdown=true;
-        Sleep(0.1);
+        shutdown.store(true, std::memory_order_release);
+        httpThread->join();
+        delete httpThread;
         delete socket;
         delete thread_pool;
-        delete httpThread;
+        
+        httpThread = nullptr;
+        socket = nullptr;
+        thread_pool = nullptr;
     }
 }
+
+}; // namespace ikaros
+
+
+
+

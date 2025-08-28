@@ -20,8 +20,8 @@ public:
 class TaskSequence 
 {
 public:
-    TaskSequence(std::vector<Task *> &tasks)
-        : tasks_(tasks), running(false), completed(false) {}
+    TaskSequence(const std::vector<Task *> &tasks)
+        : tasks_(tasks), running(false), completed(false), error_(false) {}
 
     virtual ~TaskSequence() = default;
 
@@ -30,13 +30,27 @@ public:
         {
             std::lock_guard<std::mutex> lock(mutex_);
             running = true;
+            error_ = false;
         }
-        Tick();
+        try {
+            Tick();
+        }
+        catch(...) {
+            std::lock_guard<std::mutex> lock(mutex_);
+            error_ = true;
+            throw;
+        }
         {
             std::lock_guard<std::mutex> lock(mutex_);
             completed = true;
         }
         condition_.notify_all();
+    }
+
+    bool hasError() const 
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        return error_;
     }
 
     bool isRunning() const 
@@ -51,10 +65,21 @@ public:
         return completed;
     }
 
-    void waitForCompletion() 
+    bool waitForCompletion(double seconds = -1.0) 
     {
         std::unique_lock<std::mutex> lock(mutex_);
-        condition_.wait(lock, [this]() { return completed; });
+        
+        if (seconds < 0.0) {
+            // Infinite wait
+            condition_.wait(lock, [this]() { return completed; });
+            return true;
+        } else {
+            // Wait with timeout
+            auto timeout = std::chrono::milliseconds(
+                static_cast<long>(seconds * 1000)
+            );
+            return condition_.wait_for(lock, timeout, [this]() { return completed; });
+        }
     }
 
 protected:
@@ -65,11 +90,12 @@ protected:
     }
 
 private:
-    std::vector<Task *> &tasks_;
+    std::vector<Task *> tasks_;  // Changed from reference to value
     mutable std::mutex mutex_;
     std::condition_variable condition_;
     bool running;
     bool completed;
+    bool error_;
 };
 
 class ThreadPool 
@@ -78,15 +104,16 @@ public:
     ThreadPool(size_t numThreads);
     ~ThreadPool();
 
-    void submit(TaskSequence *task_sequence);
+    void submit(std::shared_ptr<TaskSequence> task_sequence);
     bool working();
 
 private:
     void worker();
 
     std::vector<std::thread> workers;
-    std::queue<TaskSequence *> task_sequences;
+    std::queue<std::shared_ptr<TaskSequence>> task_sequences;
     std::mutex queueMutex;
     std::condition_variable condition;
     std::atomic<bool> stop;
+    std::atomic<size_t> active_tasks{0};
 };
