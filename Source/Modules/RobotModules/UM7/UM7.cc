@@ -137,6 +137,9 @@ class UM7 : public Module
         }
         Debug(std::string("Serial port for UM7 opened on ") + std::string(port).c_str() + " with baudrate " + std::to_string(baudrate) + "\n");
 
+        // Reserve buffer space to avoid frequent reallocations
+        rx_buffer.reserve(MAX_BUFFER_SIZE);
+
         DisableBroadcast();
         sendConfig(0x05); // Enable Euler angles at 255 Hz
         sendConfig(0x03); // Enable processed accelerometer and gyro data at 255 Hz
@@ -145,20 +148,23 @@ class UM7 : public Module
 
     void Tick()
     {
-        rx_length = s->ReceiveBytes(rx_data, 255, 1);
+        // Read available data with short timeout for responsive operation
+        rx_length = s->ReceiveBytes(rx_data, 256, 5);
         if (rx_length <= 0)
         {
-            Notify(msg_warning, "No data received from UM7.");
             return;
         }
 
         rx_buffer.append(rx_data, rx_length);
 
-        int parse_result = parsePacket();
-        while (parse_result == 0)
-        { // Keep parsing while packets are available
+        // Parse all available packets
+        int parse_result;
+        int packets_processed = 0;
+        do {
+            parse_result = parsePacket();
             if (parse_result == 0)
             {
+                packets_processed++;
                 // Process the valid packet
                 switch (packet.Address)
                 {
@@ -174,29 +180,24 @@ class UM7 : public Module
                     break;
                 }
             }
-            parse_result = parsePacket(); // Continue parsing if more packets are present
-        }
+        } while (parse_result == 0 && packets_processed < 10); // Limit to prevent infinite loops
 
-        if (parse_result == 2)
+        // Only log errors occasionally to prevent spam
+        static int error_count = 0;
+        if (parse_result > 1 && ++error_count % 100 == 0)
         {
-            Debug( "No header found in buffer.");
-        }
-        if (parse_result == 3)
-        {
-
-            Debug( "Not enough data for a full packet.");
-        }
-        if (parse_result == 4)
-        {
-
-            Debug( "Checksum mismatch, invalid packet discarded.");
+            switch(parse_result)
+            {
+            case 2: Debug("No header found (logged every 100 errors)"); break;
+            case 3: Debug("Incomplete packets (logged every 100 errors)"); break;
+            case 4: Debug("Checksum errors (logged every 100 errors)"); break;
+            }
         }
 
-        // Manage buffer size
+        // Manage buffer size to prevent memory issues
         if (rx_buffer.size() > MAX_BUFFER_SIZE)
         {
             rx_buffer.clear();
-            std::cerr << "Buffer size exceeded. Clearing buffer." << std::endl;
         }
     }
 
@@ -323,7 +324,8 @@ class UM7 : public Module
         }
 
         // Verify that there's enough data for the full packet, including the checksum
-        if ((rx_buffer.size() - packet_index) < (data_length + 5))
+        // Total packet length = 3(header) + 1(PT) + 1(addr) + data_length + 2(checksum) = 7 + data_length
+        if ((rx_buffer.size() - packet_index) < (data_length + 7))
         {
             return 3; // Not enough data yet for the complete packet
         }
@@ -349,13 +351,34 @@ class UM7 : public Module
 
         if (received_checksum != computed_checksum)
         {
-            Debug( "Checksum mismatch, discarding packet.");
-            rx_buffer.erase(0, packet_index + 7); // Remove bad packet
+            // Enhanced debugging for checksum mismatch
+            std::string debug_msg = "Checksum mismatch at pos " + std::to_string(packet_index) + 
+                                  ": computed=0x" + std::to_string(computed_checksum) +
+                                  ", received=0x" + std::to_string(received_checksum) +
+                                  ", PT=0x" + std::to_string(PT) +
+                                  ", Addr=0x" + std::to_string(packet.Address) +
+                                  ", DataLen=" + std::to_string(data_length);
+            
+            // Show some bytes around the packet for context
+            debug_msg += ", Bytes: ";
+            int bytes_to_show = 10;
+            if (bytes_to_show > (int)rx_buffer.size() - packet_index)
+                bytes_to_show = (int)rx_buffer.size() - packet_index;
+            for (int i = 0; i < bytes_to_show; i++)
+            {
+                char hex[4];
+                snprintf(hex, sizeof(hex), "%02X ", (unsigned char)rx_buffer[packet_index + i]);
+                debug_msg += hex;
+            }
+            Debug(debug_msg);
+            
+            // Remove packet from buffer and try to find next valid packet
+            rx_buffer.erase(0, packet_index + 1); // Remove just the bad start, not the whole packet
             return 4;                             // Bad checksum
         }
 
-        // Successfully parsed packet, remove it from the buffer
-        size_t erase_length = packet_index + 5 + data_length + 2;
+        // Successfully parsed packet, remove it from the buffer              
+        size_t erase_length = packet_index + 7 + data_length; // 3(header) + 1(PT) + 1(addr) + data + 2(checksum)
         if (erase_length > rx_buffer.size())
         {
             Warning( "Error: Attempt to erase beyond buffer size. Buffer size: " + std::to_string(rx_buffer.size())
@@ -365,7 +388,9 @@ class UM7 : public Module
 
         rx_buffer.erase(0, erase_length);
         return 0; // Successfully parsed
+
     }
+
 };
 
 INSTALL_CLASS(UM7)
