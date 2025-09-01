@@ -156,14 +156,16 @@ find_package (Jpeg-Turbo)
    		 message(FATAL_ERROR "\nIkaros require the Turbo-JPEG library. \nVisit www.ikaros-project.org for information about dependencies")
 	endif (TURBO_JPEG_FOUND)
 
-# PNG not part of the core
-# find_package (PNG)
-#if (PNG_FOUND)
-#  include_directories(${PNG_INCLUDE_DIRS})
-#  target_link_libraries (ikaros ${PNG_LIBRARIES})
-#    else()
-#    message(FATAL_ERROR "\nIkaros require the PNG library. \nVisit www.ikaros-project.org for information about dependencies")
-#endif (PNG_FOUND)
+ # PNG 
+ find_package (PNG)
+if (PNG_FOUND)
+  include_directories(${PNG_INCLUDE_DIRS})
+  target_link_libraries (ikaros ${PNG_LIBRARIES})
+    else()
+    message(FATAL_ERROR "\nIkaros require the PNG library. \nVisit www.ikaros-project.org for information about dependencies")
+endif (PNG_FOUND)
+
+
 
 # ALSA Midi not part of the core
 #find_package(ALSA)                                    
@@ -206,3 +208,10 @@ message(STATUS "Using Python3 at: ${Python3_EXECUTABLE}")
 # Add the dependency to ensure the virtual environment is set up
 add_dependencies(ikaros python_venv)
 
+
+
+#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -ffast-math")
+
+set(CMAKE_INSTALL_RPATH "/usr/local/lib")
+set_target_properties(ikaros PROPERTIES INSTALL_RPATH "/usr/local/lib")
+target_link_options(ikaros PRIVATE "-Wl,-rpath,/usr/local/lib")

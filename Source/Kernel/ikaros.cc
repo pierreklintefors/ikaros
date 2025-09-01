@@ -2039,9 +2039,8 @@ if(classes[classname].path.empty())
                     Notify(msg_print, u8"Loaded "s+options_.full_path());
 
                     CalculateCheckSum();
-                    //ListBuffers();  // FIXME: remove
-                    //ListConnections();
                     needs_reload = false;
+                    Pause(); // Rest clocks
                 }
                 catch(const exception& e)
                 {
@@ -2408,34 +2407,6 @@ if(classes[classname].path.empty())
     }
 
 
-    /*
-    void
-    Kernel::RunTasks()
-    {
-        std::vector<TaskSequence *> sequences;
-
-        for(auto & task_sequence : tasks)
-        {
-            auto ts = new TaskSequence(task_sequence);
-            sequences.push_back(ts);
-            thread_pool->submit(ts);
-        }
-        // WAIT FOR COMPLETION
-
-        bool working = true;
-        while(working)
-        {
-            working =false;
-            for(auto ts: sequences)
-                if(!ts->isCompleted())
-                    working = true;     
-        }
-
-        for(auto ts: sequences)
-            delete ts;
-    }
-*/
-
 
     void
     Kernel::RunTasksInSingleThread()
@@ -2492,7 +2463,7 @@ if(classes[classname].path.empty())
 
 
     void
-    Kernel::Run() // START-UP + RUN MAIN LOOP => Two functions?? *************
+    Kernel::Run()
     {
         // Main loop
         while (run_mode > run_mode_quit && !global_terminate) // Not quit
@@ -2508,6 +2479,18 @@ if(classes[classname].path.empty())
                 }
                 else
                     Sleep(0.01); // Wait 10 ms to avoid wasting cycles if there are no requests
+
+                if(lag > 1.0)
+                {
+                    Notify(msg_warning, "Performance warning: System is " + std::to_string(lag) +  " seconds behind real time. Consider increasing tick_duration.");
+                    std::this_thread::sleep_for(std::chrono::milliseconds(100)); // Give HTTP thread more time to run
+                }
+                
+               else  if(lag > 0.001)
+                {
+                    std::cout  << "Ikaros is lagging " << lag << " seconds behind real time." << std::endl;
+                    std::this_thread::sleep_for(std::chrono::milliseconds(1)); // Give HTTP thread a chance to run
+                }
 
                 // Run_mode may have changed during the delay - needs to be checked again
 
