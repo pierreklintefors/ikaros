@@ -15,22 +15,49 @@ class WebUIWidgetPlot extends WebUIWidgetGraph
             {'name':'color', 'default':"", 'type':'string', 'control': 'textedit'},
             {'name':'show_title', 'default':true, 'type':'bool', 'control': 'checkbox'},
             {'name':'show_frame', 'default':false, 'type':'bool', 'control': 'checkbox'},
-            {'name':'style', 'default':"", 'type':'string', 'control': 'textedit'},
+            { 'name': 'style', 'default':"--decimals:0", 'type':'string', 'control': 'textedit'},
             {'name':'frame-style', 'default':"", 'type':'string', 'control': 'textedit'},
 
         ]};
 
     init()
     {
-      
-
         super.init();
         this.data = [];
         this.buffer = [];
         this.ix = 0;
 
         this.onclick = function () { alert(this.data) }; // last matrix
-   }
+    }
+
+    getSelectedColumns()
+    {
+        const sel = (this.parameters.select ?? "").toString().trim();
+        if(!sel) return null;
+        const out = [];
+        const add = (i) => { if(Number.isInteger(i) && i >= 0) out.push(i); };
+        for(const tok of sel.split(',')) {
+            const t = tok.trim();
+            if(!t) continue;
+            const m = t.match(/^(-?\d+)(?::(-?\d+)(?::(-?\d+))?)?$/);
+            if(m) {
+                let start = parseInt(m[1],10);
+                if(m[2] !== undefined) {
+                    let end = parseInt(m[2],10);
+                    let step = m[3] !== undefined ? parseInt(m[3],10) : 1;
+                    if(step === 0) step = 1;
+                    if(start <= end) { for(let i=start;i<=end;i+=step) add(i); }
+                    else { for(let i=start;i>=end;i-=Math.abs(step)) add(i); }
+                } else {
+                    add(start);
+                }
+            } else {
+                const i = parseInt(t,10);
+                add(i);
+            }
+        }
+        return out.length ? out : null;
+    }
 
     getBufferSize()
     {
@@ -120,11 +147,15 @@ class WebUIWidgetPlot extends WebUIWidgetGraph
 
     update()
     {
-
         if(this.data = this.getSource('source'))
         {
             if(typeof this.data[0] != "object") // FIXME: Fix for arbitrary matrix sizes
             this.data = [this.data];
+
+            const cols = this.getSelectedColumns();
+            if(cols) {
+                this.data = this.data.map(row => cols.map(i => row?.[i]).filter(v => v !== undefined));
+            }
 
             if(this.buffer.length < this.getBufferSize())
                 this.buffer.push(this.data);
