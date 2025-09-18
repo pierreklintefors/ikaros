@@ -1304,6 +1304,8 @@ namespace ikaros
         // std::cout << "Check sum: " << check_sum << std::endl;
     }
 
+
+
     // Connection
 
     Connection::Connection(std::string s, std::string t, range &delay_range, std::string alias)
@@ -1821,8 +1823,17 @@ namespace ikaros
         cpu_cores = std::thread::hardware_concurrency();
         thread_pool = new ThreadPool(cpu_cores > 1 ? cpu_cores-1 : 1); // FIXME: optionally use ikg parameters
         //thread_pool = new ThreadPool(1); // FIXME: optionally use ikg parameters
-
     }
+
+
+    void
+        Kernel::PrintProfiling()
+        {
+            for(auto & c : components)
+                c.second->profiler_.print(c.second->path_);
+        }
+
+
 
     // Functions for creating the network
 
@@ -2399,7 +2410,7 @@ if(classes[classname].path.empty())
             // Wait for completion
             for (auto &ts : sequences) 
                 if(!ts->waitForCompletion(5)) // Timeout after 5 seconds
-                    Notify(msg_fatal_error, "Task sequence did not complete successfully during the timeout period."); 
+                    Notify(msg_warning, "Task sequence did not complete successfully within the 5 second timeout period."); 
         } 
         catch (const std::exception &e) {
             Notify(msg_fatal_error, "Error during task execution: " + std::string(e.what()));
@@ -2515,6 +2526,7 @@ if(classes[classname].path.empty())
             }
             Stop();
             Sleep(0.1);
+
         }
     }
 
@@ -2609,6 +2621,7 @@ if(classes[classname].path.empty())
         timer.Pause();
         timer.SetPauseTime(0);
         LogStop();
+        PrintProfiling();
         Clear(); // Delete all modules
         needs_reload = true;
     }

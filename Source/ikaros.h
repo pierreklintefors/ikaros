@@ -36,6 +36,9 @@ using namespace std::literals;
 #include "Kernel/image_file_formats.h"
 #include "Kernel/serial.h"
 #include "Kernel/thread_pool.h"
+#include "Kernel/statistics.h"
+#include "Kernel/profiler.h"
+
 
 namespace ikaros
 {
@@ -277,8 +280,8 @@ namespace ikaros
     virtual int SetSizes(input_map ingoing_connections); // Sets input and output if possible
     void CheckRequiredInputs();
 
-        void CalculateCheckSum(long &check_sum, prime &prime_number); // Calculates a value that depends on all parameters and buffer size
-    };
+    void CalculateCheckSum(long & check_sum, prime & prime_number); // Calculates a value that depends on all parameters and buffer size
+};
 
     typedef std::function<Module *()> ModuleCreator;
 
@@ -300,14 +303,17 @@ namespace ikaros
         int SetOutputSizes(input_map ingoing_connections); // Uses the size attribute
         int SetSizes(input_map ingoing_connections);       // Sets input and output if possible
 
-        tick_count GetTick();
-        double GetTickDuration();
-        double GetTime();        // actual or nominal time depending om run mode
-        double GetRealTime();    // actual time since start
-        double GetNominalTime(); // nominal time at current tick
-        double GetTimeOfDay();   // seconds since midnight
-        double GetLag();
-    };
+    tick_count GetTick();
+    double GetTickDuration();
+    double GetTime();           // actual or nominal time depending om run mode
+    double GetRealTime();       // actual time since start
+    double GetNominalTime();    // nominal time at current tick
+    double GetTimeOfDay();      // seconds since midnight
+    double GetLag();
+
+    void ProfilingBegin() { profiler_.begin(); }
+    void ProfilingEnd()  { profiler_.end();  }
+};
 
     //
     // CONNECTION
@@ -463,20 +469,21 @@ namespace ikaros
         void ListClasses();
         void ResolveParameter(parameter &p, std::string &name);
 
-        void ResolveParameters(); // Find and evaluate value or default
-        void CalculateSizes();
-        void CalculateDelays();
-        void InitCircularBuffers();
-        void RotateBuffers();
-        void ListComponents();
-        void ListConnections();
-        void ListInputs();
-        void ListOutputs();
-        void ListBuffers();
-        void ListCircularBuffers();
-        void ListParameters();
-        void ListTasks();
-        void PrintLog();
+    void ResolveParameters(); // Find and evaluate value or default
+    void CalculateSizes();
+    void CalculateDelays();
+    void InitCircularBuffers();
+    void RotateBuffers();
+    void ListComponents();
+    void ListConnections();
+    void ListInputs();
+    void ListOutputs();
+    void ListBuffers();
+    void ListCircularBuffers();
+    void ListParameters();
+    void ListTasks();
+    void PrintLog();
+    void PrintProfiling();
 
         // Functions for creating the network
 

@@ -61,10 +61,9 @@ class WebUIWidgetButton extends WebUIWidgetControl
 
     button_down(evt)
     {
+        console.log("button down");
         let thisbutton = this;
         let p = this.parentElement.parameters;
-
-
 
         if(p.type == "push")
         {
@@ -73,7 +72,6 @@ class WebUIWidgetButton extends WebUIWidgetControl
             if(p.command)
                 this.parentElement.send_command(p.command, p.value, p.xindex, p.yindex);
         }
-
 
         else if(p.type=="toggle")
         {
@@ -96,7 +94,6 @@ class WebUIWidgetButton extends WebUIWidgetControl
 
             }
         }
-
 
 
             else if(p.type=="radio")
@@ -155,12 +152,18 @@ class WebUIWidgetButton extends WebUIWidgetControl
 
     button_up(evt)
     {
+        console.log("button up");
+        evt.stopPropagation();
+        if(main.edit_mode)
+            return;
         let p = this.parentElement.parameters;
 
         if(p.type == "push")
         {
             if(p.parameter)
+            {
                 this.parentElement.send_control_change(p.parameter, p.valueUp, p.xindex, p.yindex);
+            }
             if(p.commandUp)
                 this.parentElement.send_command(p.commandUp, p.value, p.xindex, p.yindex);
         }
@@ -181,6 +184,12 @@ class WebUIWidgetButton extends WebUIWidgetControl
         super.init();
         this.firstChild.addEventListener("mousedown", this.button_down, true);
         this.firstChild.addEventListener("mouseup", this.button_up, true);
+        this.firstChild.addEventListener('click', e => {
+            console.log("button click");
+            if(main.edit_mode)
+                return; 
+            e.stopPropagation();
+            }, true);
     }
 
     update(d)

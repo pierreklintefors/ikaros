@@ -81,11 +81,16 @@
             <div class="button" onclick="inspector.toggleComponent()">&#9432;</divb></div>
             <div class="button large" onclick="inspector.toggleSystem()">&#x2699;</div>
         </div>
+
     </header>
 
 	<section>
         <main id="main" class="view_mode">
+
             <div id="main_grid" >
+
+
+              
 
                 <div class="grid_commands">
                     <button onclick="main.decreaseGrid()" style="border-radius:15px 0 0 15px; margin-left: 0">-</button>
@@ -113,7 +118,7 @@
                 <canvas id="main_grid_canvas" width="3000" height="3000" ></canvas>
             </div>
             <div id="connections"> </div>
-            <div id="main_view" onclick="selector.selectItems([],null)" style="position:absolute;z-index: 400;height:3000px;width:3000px;top:0px;left:0px" > </div>
+            <div id="main_view"  style="position:absolute;z-index: 400;height:3000px;width:3000px;top:0px;left:0px" > </div>
 		</main>
 
         <!-- NAVIGATOR -->
@@ -568,12 +573,18 @@
                             <button class="transport_button" onmousedown="controller.realtime()">Realtime</button>
                         </td>
                     </tr>
+
+
                     <tr id="debug_row">
-                        <td style="color:red">DEBUG</td>
-                        <td><button   onclick="network.debug_json()" style="border:1px solid red; color:red;display:inline-bock;">JSON</button>
-                            <button style="border:1px solid red; color:red;" onclick="network.debug_dict()">dict</button>
-                            <button style="border:1px solid red; color:red;" onclick="controller.debug_data()">data</button></td>
+                        <td colspan="2"  style="text-align: center;color:red;background-color: rgb(99, 56, 56);">
+                            DEBUG
+                            <button onclick="network.debug_json()" style="display:inline;border:1px solid red; color:red;">JSON</button>
+                            <button  onclick="network.debug_dict()"style="display:inline;border:1px solid red; color:red;">dict</button>
+                            <button onclick="controller.debug_data()" style="display:inline;border:1px solid red; color:red;">data</button>
+                        </td>
                     </tr>
+
+                    
                     <tr>
                         <td>file</td><td id="file">-</td>
                     </tr>
