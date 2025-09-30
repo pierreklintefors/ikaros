@@ -35,14 +35,16 @@ class FadeCandy : public Module
     fadecandy_driver::FadecandyDriver fd_driver;
     parameter simulate;
 
-
-    // Initialize the led array colors
-    std::vector<std::vector<Color>> led_array_colors = {
-        std::vector<Color>(8, Color(0, 0, 0)),  // (Mouth high)
-        std::vector<Color>(8, Color(0, 0, 0)),  // (Mouth low)
-        std::vector<Color>(12, Color(0, 0, 0)), // (Right eye)
-        std::vector<Color>(12, Color(0, 0, 0))  // (Left eye)
-    };
+    // Pre-allocated LED array colors for better performance
+    std::vector<std::vector<Color>> led_array_colors;
+    
+    // Cache intensity values to avoid repeated matrix access
+    float cached_left_intensity = 1.0f;
+    float cached_right_intensity = 1.0f; 
+    float cached_mouth_intensity = 1.0f;
+    
+    // Track if colors actually changed to avoid unnecessary updates
+    bool colors_changed = false;
 
     void Init()
     {
@@ -54,6 +56,13 @@ class FadeCandy : public Module
         Bind(Intensity, "INTENSITY");
 
         Bind(simulate, "simulate");
+
+        // Pre-allocate LED array with exact sizes for better performance
+        led_array_colors.resize(4);
+        led_array_colors[0].resize(8, Color(0, 0, 0));  // Mouth low
+        led_array_colors[1].resize(8, Color(0, 0, 0));  // Mouth high  
+        led_array_colors[2].resize(12, Color(0, 0, 0)); // Right eye
+        led_array_colors[3].resize(12, Color(0, 0, 0)); // Left eye
 
         if (simulate)
         {
@@ -104,30 +113,79 @@ class FadeCandy : public Module
             }
         }   
             
-        Debug("Intensity Matrix: " + Intensity.json());
-
+        // Cache intensity values once per tick to avoid repeated matrix access
+        cached_left_intensity = Intensity[0];
+        cached_right_intensity = Intensity[1]; 
+        cached_mouth_intensity = Intensity[2];
         
-      
+        colors_changed = false;
 
-        // Fill color from input
+        // Fill color from input with optimized calculations
         for (size_t i = 0; i < 8; ++i) // 8 Leds in each row of the mouth
         {
-            led_array_colors[1][i] = Color(MouthHigh[0][i] * 255 * Intensity[2] , MouthHigh[1][i] * 255 * Intensity[2] , MouthHigh[2][i] * 255 * Intensity[2]);
-            led_array_colors[0][i] = Color(MouthLow[0][i] * 255 * Intensity[2] , MouthLow[1][i] * 255 * Intensity[2] , MouthLow[2][i] * 255 * Intensity[2]);
+            // Calculate colors once
+            Color new_mouth_high(MouthHigh[0][i] * 255 * cached_mouth_intensity, 
+                                 MouthHigh[1][i] * 255 * cached_mouth_intensity, 
+                                 MouthHigh[2][i] * 255 * cached_mouth_intensity);
+            Color new_mouth_low(MouthLow[0][i] * 255 * cached_mouth_intensity, 
+                                MouthLow[1][i] * 255 * cached_mouth_intensity, 
+                                MouthLow[2][i] * 255 * cached_mouth_intensity);
+            
+            // Only update if colors changed (compare RGB values manually)
+            Color& current_mouth_high = led_array_colors[1][i];
+            if (current_mouth_high.r_ != new_mouth_high.r_ || 
+                current_mouth_high.g_ != new_mouth_high.g_ || 
+                current_mouth_high.b_ != new_mouth_high.b_) {
+                led_array_colors[1][i] = new_mouth_high;
+                colors_changed = true;
+            }
+            
+            Color& current_mouth_low = led_array_colors[0][i];
+            if (current_mouth_low.r_ != new_mouth_low.r_ || 
+                current_mouth_low.g_ != new_mouth_low.g_ || 
+                current_mouth_low.b_ != new_mouth_low.b_) {
+                led_array_colors[0][i] = new_mouth_low;
+                colors_changed = true;
+            }
         }
         for (size_t i = 0; i < 12; ++i) // 12 Leds in each eye
         {
-            led_array_colors[2][i] = Color(RightEye[0][i] * 255 * Intensity[1] , RightEye[1][i] * 255 * Intensity[1] , RightEye[2][i] * 255 * Intensity[1]);
-            led_array_colors[3][i] = Color(LeftEye[0][i] * 255 * Intensity[0] , LeftEye[1][i] * 255 * Intensity[0] , LeftEye[2][i] * 255 * Intensity[0]);
+            // Calculate colors once
+            Color new_right_eye(RightEye[0][i] * 255 * cached_right_intensity, 
+                               RightEye[1][i] * 255 * cached_right_intensity, 
+                               RightEye[2][i] * 255 * cached_right_intensity);
+            Color new_left_eye(LeftEye[0][i] * 255 * cached_left_intensity, 
+                               LeftEye[1][i] * 255 * cached_left_intensity, 
+                               LeftEye[2][i] * 255 * cached_left_intensity);
+            
+            // Only update if colors changed (compare RGB values manually)
+            Color& current_right_eye = led_array_colors[2][i];
+            if (current_right_eye.r_ != new_right_eye.r_ || 
+                current_right_eye.g_ != new_right_eye.g_ || 
+                current_right_eye.b_ != new_right_eye.b_) {
+                led_array_colors[2][i] = new_right_eye;
+                colors_changed = true;
+            }
+            
+            Color& current_left_eye = led_array_colors[3][i];
+            if (current_left_eye.r_ != new_left_eye.r_ || 
+                current_left_eye.g_ != new_left_eye.g_ || 
+                current_left_eye.b_ != new_left_eye.b_) {
+                led_array_colors[3][i] = new_left_eye;
+                colors_changed = true;
+            }
         }
 
-        try
-        {
-            fd_driver.setColors(led_array_colors); // Send the colors to the driver. Set color is checking that isConnected is true. However,if the device is unpluged this is not detected by the driver.
-        }
-        catch (const std::exception &e)
-        {
-            Debug("Could not set colors of the eyes");
+        // Only send colors if they actually changed
+        if (colors_changed) {
+            try
+            {
+                fd_driver.setColors(led_array_colors); // Send the colors to the driver. Set color is checking that isConnected is true. However,if the device is unpluged this is not detected by the driver.
+            }
+            catch (const std::exception &e)
+            {
+                Debug("Could not set colors of the eyes");
+            }
         }
         
     
