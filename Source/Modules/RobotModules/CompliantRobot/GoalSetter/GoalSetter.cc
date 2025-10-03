@@ -14,6 +14,7 @@ class GoalSetter: public Module
     parameter num_servos;
     parameter transition_delay;
     parameter one_cycle;
+    parameter static_test_mode;
 
     //inputs
     matrix present_position;
@@ -41,6 +42,21 @@ class GoalSetter: public Module
     double final_transition_time_point;
 
     int time_before_restart = 5; // seconds before restarting transitions
+    
+    // Function to print a progress bar of the current transition
+    void PrintProgressBar(int transition, int number_transitions){
+        int barWidth = 70;
+        float progress = (float)transition/number_transitions;
+        std::cout << "[";
+        int pos = barWidth * progress;
+        for (int i = 0; i < barWidth; ++i) {
+            if (i < pos) std::cout << "=";
+            else if (i == pos) std::cout << ">";
+            else std::cout << " ";
+        }
+        std::cout << "] " << int(progress * 100.0) << " %\r" << std::endl;
+        std::cout.flush();
+    }
     
     matrix RandomisePositions(int num_transitions, matrix min_limits, matrix max_limits, std::string robotType)
     {
@@ -111,6 +127,7 @@ class GoalSetter: public Module
     Bind(num_transitions, "NumTransitions");
     Bind(position_margin, "PositionMargin");
     Bind(transition_delay, "TransitionDelay");
+    Bind(static_test_mode, "StaticTestMode");
 
     //Bind override goal position
     Bind(override_goal_position, "OVERRIDE_GOAL_POSITION");
@@ -141,6 +158,18 @@ class GoalSetter: public Module
 
    void Tick()
    {
+    // In static test mode, just hold current position and don't process transitions
+    if (static_test_mode) {
+        // On first tick, capture and hold the current position
+        if (GetTick() == 1 && present_position.sum() > 0) {
+            goal_position.copy(present_position);
+            start_position.copy(present_position);
+            Debug("GoalSetter: Static test mode - holding position at " + goal_position.json());
+        }
+        // Keep sending the same goal position every tick
+        return;
+    }
+    
     // Helper function to check if override is meaningful (any non-zero value)
     auto has_override = [this]() -> bool {
         if (!override_goal_position.connected() || override_goal_position.size() == 0) {
@@ -198,22 +227,21 @@ class GoalSetter: public Module
         }
 
 
-        if (GetTime() - reached_goal_time_point > transition_delay.as_int())
+        if (GetTime() - reached_goal_time_point >= transition_delay.as_int())
         {
+            PrintProgressBar(transition, num_transitions);
+            
             if (transition < num_transitions && !one_cycle)
             {
                 Debug("GoalSetter: Transitioning to next goal position");
-                // Reset reached_goal for the next transition
-                
-                start_position.copy(present_position);
+
                 goal_position.copy(planned_positions[transition]);
-                reached_goal.set(0);
-                transition++;
+                
             }
             else if (one_cycle && goal_position_in.connected())
             {
                 // Alternate between goal_position_in and neutral position (180)
-                start_position.copy(present_position);
+                
                 if (!going_to_neutral)
                 {
                     // Currently at goal position, now go to neutral
@@ -229,7 +257,9 @@ class GoalSetter: public Module
                     goal_position.copy(goal_position_in);
                     going_to_neutral = false;
                 }
+                start_position.copy(present_position);
                 reached_goal.set(0);
+                transition++;
             }
 
             get_time_after_transition = true; // TO get the time for when next transition is finished
@@ -272,7 +302,7 @@ class GoalSetter: public Module
     }
     Debug("GoalSetter: Time since last transition: " + std::to_string(GetTime() - reached_goal_time_point) + " seconds");
 
-    goal_position.print();
+  
    }
 
 };

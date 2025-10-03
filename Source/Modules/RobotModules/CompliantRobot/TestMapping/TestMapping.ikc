@@ -1,22 +1,25 @@
-<class name="TestMapping" description="Randomises postions and decides on goal current based on function">
+<class name="TestMapping" description="Maps positions to currents and logs trajectory data">
 	<parameter name="NumberTransitions" description="Number of transitions to make" type="int" default="4"/>
-	<parameter name="MinLimits" default="122,142" description="Minimum limits for the servos in degrees" type="matrix" />
-	<parameter name = "MaxLimits" default="237,240" description="Maximum limits for the servos in degrees" type="matrix" />
 	<parameter name="RobotType" default="Torso" description="Type of the robot" options="Torso, FullBody" type="string" control="menu" />
-	<parameter name="CurrentPrediction" default="Quadratic" description="Function to use for calculating current" type="string" control="menu" options="Linear, Quadratic, ANN, NearestNeighbor" />
+	<parameter name="CurrentPrediction" default="ANN" description="Function to use for calculating current" type="string" control="menu" options="Linear, Quadratic, ANN, NearestNeighbor" />
 	<parameter name="CurrentIncrement" default="10" description="Current increment" type="int" />
-	<parameter name="DevianceLogging" default="0" description="Deviance logging" type="bool" />
+	<parameter name="StaticTestMode" default="0" description="Enable static testing mode with timed push prompts" type="bool" />
+	<parameter name="StaticCountdown" default="3.0" description="Countdown before prompting for push (seconds)" type="number" />
+	<parameter name="StaticDataCollection" default="2.0" description="Duration for data collection during push (seconds)" type="number" />
+	<parameter name="StaticInterval" default="1.0" description="Interval between test cycles (seconds)" type="number" />
 
 	<input name="PresentPosition" description=""/>
 	<input name="PresentCurrent" description="" />
 	<input name ="GyroData" description="Gyro data (XYZ) degrees/s" />
 	<input name="AccelData" description="Accelerometer data (XYZ) m/s^2" />
 	<input name="EulerAngles" description="Euler angles (XYZ) degrees" />
-	<input name="ANN_prediction" optional="true" description="ANN prediction" />
-	<output name="GoalCurrent" description="" size="19"/>
-	<output name="GoalPositionOut" description="" size="19"/>
+	<input name="ANN_prediction" optional="true" description="ANN prediction from PythonScriptCaller" />
+	<input name="GoalPositionIn" description="Goal position from GoalSetter" size="19"/>
+	<input name="StartPositionIn" optional="true" description="Start position from GoalSetter" size="19"/>
+	
+
 	<output name="ModelPrediction" description="" size="19"/>
-	<output name="ModelPredictionStart" description="" size="19"/>
+
 	
 	<author>
 		<name>Pierre Klintefors</name>
