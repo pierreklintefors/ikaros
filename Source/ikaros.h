@@ -227,10 +227,10 @@ namespace ikaros
         virtual void Tick() {}
         virtual void Init() {}
 
-        virtual void Command(std::string command_name, dictionary &parameters)
-        {
-            std::cout << "Received command: \n";
-            parameters.print();
+    virtual void Command(std::string command_name, dictionary & parameters)
+    {
+        std::cout << "Received command: " << command_name << "\n";
+        parameters.print();
 
         } // Used to send commands and arbitrary data structures to modules
 

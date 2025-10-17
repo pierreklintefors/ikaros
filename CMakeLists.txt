@@ -214,4 +214,4 @@ add_dependencies(ikaros python_venv)
 
 set(CMAKE_INSTALL_RPATH "/usr/local/lib")
 set_target_properties(ikaros PROPERTIES INSTALL_RPATH "/usr/local/lib")
-target_link_options(ikaros PRIVATE "-Wl,-rpath,/usr/local/lib")
+#target_link_options(ikaros PRIVATE "-Wl,-rpath,/usr/local/lib")

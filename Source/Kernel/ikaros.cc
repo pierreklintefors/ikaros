@@ -3041,26 +3041,36 @@ if(classes[classname].path.empty())
     void
     Kernel::DoCommand(Request &request)
     {
-        if (!components.count(request.component_path))
-        {
-            Notify(msg_warning, "Component '" + request.component_path + "' could not be found.");
-            DoSendData(request);
-            return;
-        }
+        try
+       {
+            std::string root;
+         
+            if(request.parameters.contains("root"))
+                root = std::string(request.parameters["root"]);
 
-        if (!request.body.empty()) // FIXME: Move to request and check content-type first
-        {
-            request.parameters = parse_json(request.body);
-        }
+            if(!components.count(request.component_path))
+            {
+                Notify(msg_warning, "Component '"+request.component_path+"' could not be found.");
+                DoSendData(request);
+                return;
+            }
+   
+            if(!request.body.empty()) // FIXME: Move to request and check content-type first
+                request.parameters = parse_json(request.body);
 
-        if (!request.parameters.contains("command"))
-        {
-            Notify(msg_warning, "No command specified for  '" + request.component_path + "'.");
-            DoSendData(request);
-            return;
-        }
+            if(!request.parameters.contains("command"))
+            {
+                    Notify(msg_warning, "No command specified for  '"+request.component_path+"'.");
+                    DoSendData(request);
+                    return;
+            }
 
-        components.at(request.component_path)->Command(request.parameters["command"], request.parameters);
+            components.at(request.component_path)->Command(request.parameters["command"], request.parameters);
+        }
+        catch(const std::exception& e)
+        {
+            std::cerr << e.what() << '\n';
+        }
         DoSendData(request);
     }
 
@@ -3322,12 +3332,12 @@ if(classes[classname].path.empty())
                 if(equal_strings(socket->header.Get("Method"), "GET"))
                 {
                     HandleHTTPRequest();
-                    }
-                    else if(equal_strings(socket->header.Get("Method"), "PUT")) // JSON Data
-                    {
-                        HandleHTTPRequest();
-                    }
-                    socket->Close();
+                }
+                else if(equal_strings(socket->header.Get("Method"), "PUT")) // JSON Data
+                {
+                    HandleHTTPRequest();
+                }
+                socket->Close();
             }
         }
     }

@@ -17,7 +17,8 @@ class OutputFile: public Module
     int             index;
     matrix          input;
 
-    void Init()
+    void 
+    Init()
     {
         Bind(input, "INPUT");
         Bind(filename, "filename");
@@ -36,7 +37,8 @@ class OutputFile: public Module
     }
 
 
-    void WriteHeader()
+    void 
+    WriteHeader()
     {
         if(input.labels().empty())
             return;
@@ -51,7 +53,8 @@ class OutputFile: public Module
     }
 
 
-    void WriteRow()
+    void 
+    WriteRow()
     {
         std::string sep;
         for(float v : input)
@@ -70,7 +73,8 @@ class OutputFile: public Module
     }
 
 
-    void Tick()
+    void 
+    Tick()
     {
         WriteRow();
     }
