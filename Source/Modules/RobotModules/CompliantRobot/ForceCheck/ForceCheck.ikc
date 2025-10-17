@@ -4,13 +4,11 @@
 	<parameter name="HistoryLength" type="int" default="10" description="Number ticks back for devation history"/>
 	<parameter name="ControlMode" type="int" options="0,1,2" default="0" description="The control mode for how the robot handles deviations from predicted current, 0=Normal, 1=Avoidant, 2=Compliant"/>
 	<parameter name="SustainedHoldDurationMs" type="int" default="1500" description="The duration in milliseconds that the robot should hold a position before switching to compliant mode"/>
-	<parameter name="FastPushDeviationIncrease" type="int" default="300" description="The increase in deviation to trigger fast push mode"/>
-	<parameter name="MaxMovementDegreesWhenHeld" type="int" default="2" description="The maximum degrees the robot can move when held in a position"/>
-	<parameter name="ObstacleDetectionDeviationCount" type="int" default="3" description="The number of deviations to detect an obstacle"/>
-	<parameter name="CompliantTriggerMinDeviationRatio" type="number" default="0.7" description="The minimum ratio of deviation to trigger compliant mode"/>
+	<parameter name="SustainedForceThresholdRatio" type="number" default="0.7" description="The minimum ratio of deviation to trigger compliant mode"/>
 	<parameter name="AutomaticModeSwitchingEnabled" type="bool" default="false" description="Enable automatic switching between control modes based on conditions"/>
 	<parameter name="MovementThresholdScalar" type="number" default="1.0" description="Scalar for allowed devation threshold when motors are in motion"/>
-	<parameter name="PeakWidthTolerance" type="number" default="0.1" description="Tolerance for peak width in the current prediction error, used to determine the deviance peaks is wide enough to not be noise"/>
+	<parameter name="PeakWidth" type="number" default="0.1" description="Peak width of error , used to determine the deviance peaks is wide enough to not be noise"/>
+	<parameter name="PeakHeight" type="number" default="2.0" description="The minimum height of a peak in the current prediction error to be considered a valid deviation"/>
 
 	<input name="GoalPositionIn" description="The goal position of the servomotors in degrees" size="19"/>
 	<input name="StartPosition" description="The start position of the servomotors in degrees"/>
