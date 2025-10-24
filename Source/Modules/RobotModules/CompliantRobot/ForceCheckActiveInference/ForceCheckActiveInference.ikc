@@ -1,10 +1,11 @@
 <class name="ForceCheckActiveInference" description="Advanced force regulation system with Active Inference and Variational Free Energy. Uses prediction errors to automatically switch between control modes (Normal/Avoidant/Compliant) while incorporating uncertainty estimation for adaptive thresholds and online learning for improved discrimination between self-movement and external forces">
 	
 	<parameter name="PullBackAmount" type="int" default="10" description="Number of degrees motor should pullback in the event of an obstacle in avoidance mode"/>
+	<parameter name="PeakWidthTolerance" type="number" default="0.1" description="Width of the peak for sharp peak detection in percentage of deviance history"/>
 	<parameter name="TimeWindow" type="int" default="5" description="Time window in seconds for deviation counting"/>
 	<parameter name="ControlMode" type="int" options="0,1,2" default="0" description="The control mode for how the robot handles deviations from predicted current, 0=Normal, 1=Avoidant, 2=Compliant"/>
 	<parameter name="AutomaticModeSwitchingEnabled" type="bool" default="true" description="Enable automatic switching between control modes based on active inference"/>
-	
+	<parameter name="DeviationHistoryLength" type="int" default="30" description="Number of deviation samples to store in history before reset"/>
 	<!-- Variational Free Energy Parameters -->
 	<parameter name="UseUncertaintyEstimation" type="bool" default="true" description="Enable variational free energy uncertainty estimation and adaptive thresholds"/>
 	<parameter name="VFELearningRate" type="number" default="0.01" description="Learning rate for precision parameter updates (0.001-0.1)"/>
@@ -15,7 +16,10 @@
 	<!-- Active Inference Parameters -->
 	<parameter name="Temperature" type="number" default="1.0" description="Temperature for softmax action selection in active inference"/>
 	<parameter name="PrecisionLearningRate" type="number" default="0.1" description="Learning rate for active inference precision weights"/>
-
+	
+	<!-- Calibration Parameters -->
+	<parameter name="CalibrationMode" type="bool" default="false" description="Enable calibration mode to learn and save optimal parameters"/>
+	
 	<input name="GoalPositionIn" description="The goal position of the servomotors in degrees" size="19"/>
 	<input name="StartPosition" description="The start position of the servomotors in degrees"/>
 	<input name="PresentPosition" description="The present position of the servomotors in degrees"/>
