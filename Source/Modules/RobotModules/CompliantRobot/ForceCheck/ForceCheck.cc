@@ -2,6 +2,7 @@
 #include <chrono>
 #include <algorithm>
 #include <cmath>
+#include <iomanip>
 
 using namespace ikaros;
 
@@ -25,6 +26,15 @@ public: // Ensure INSTALL_CLASS can access constructor if it's implicitly used.
     parameter movement_threshold_scalar;
     parameter peak_width; // Width of the peak for sharp peak detection in percentage of devaiance history
     parameter peak_height;
+    parameter confidence_threshold;
+
+    
+    // Classification threshold parameters
+    parameter push_min_magnitude;
+    parameter push_max_magnitude;
+    parameter obstacle_min_std_dev;
+    parameter obstacle_min_peaks;
+    parameter refactory_duration;
 
     //inputs
     matrix present_current;
@@ -33,6 +43,7 @@ public: // Ensure INSTALL_CLASS can access constructor if it's implicitly used.
     matrix goal_position_in;
     matrix start_position;
     matrix allowed_deviance_input;
+    matrix perturbation_classification; // New input for perturbation classification
 
     //outputs
     matrix goal_position_out;
@@ -51,8 +62,7 @@ public: // Ensure INSTALL_CLASS can access constructor if it's implicitly used.
     matrix motor_in_motion;
     matrix allowed_deviance;
     matrix deviation_history; // Stores recent deviations for each motor
-    
-
+    matrix colour; // RBG
 
 
     bool goal_reached;
@@ -64,14 +74,15 @@ public: // Ensure INSTALL_CLASS can access constructor if it's implicitly used.
 
     // Variables for auto mode switching
     double sustained_high_dev_start_time;
-    bool refractory_period = false;                      // Avoid rapid mode switching
-    bool fast_push_detected = false;                     // True if a fast push was detected
-    bool automatic_mode_switching_enabled_value = false; // Value of the parameter
-    bool evaluating_sustained_hold = false;              // True if currently evaluating sustained hold
+    bool refractory_period;                      // Avoid rapid mode switching
+    bool fast_push_detected;                     // True if a fast push was detected
+    bool evaluating_sustained_hold;              // True if currently evaluating sustained hold
 
-    
+    bool all_motors_stable;
+    bool use_ml_classifier; // True if all motors are stable
 
     double refractory_start_time;
+    double motors_stable_start_time; // Time when motors first became stable (for compliant state)
 
     struct ErrorProfile
     {
@@ -86,6 +97,8 @@ public: // Ensure INSTALL_CLASS can access constructor if it's implicitly used.
         // Temporal features
         double duration_ms;          // How long has pattern lasted
         int samples_above_threshold; // Count of significant errors
+        double elevation_start_time; // Time when error first became elevated (for sustained detection)
+        double sustained_duration;   // Actual measured duration of sustained elevation
 
         // Pattern indicators
         bool has_sharp_peak;        // Fast push: narrow, high peak
@@ -93,18 +106,29 @@ public: // Ensure INSTALL_CLASS can access constructor if it's implicitly used.
         bool has_oscillations;      // Obstacle: variable errors
 
         int sharp_peak_count; // Number of significant peaks
+        std::string pattern_type;   // Classified pattern type
+        double confidence;          // Confidence score [0.0-1.0] for the classification
     };
 
     enum class RobotState
     {
         NORMAL,     // Following goal normally
-        RETRACTING, // Pulling back from push
+        PUSH, // Pulling back from push
         COMPLIANT,  // Torque off, free movement
-        HALTED      // Stopped at obstacle
+        OBSTACLE      // Stopped at obstacle
     };
 
-    std::vector<ErrorProfile> motor_profiles; // One profile per motor
-    RobotState robot_state;
+    struct MotorState
+    {
+        RobotState state;          // Individual state for this motor
+        double state_switch_time;  // Time when current state was entered (last state switch)
+    };
+
+    std::vector<MotorState> motor_states; // One state per motor (includes individual RobotState)
+    
+    // Track sustained plateau timing per motor (persistent across ticks)
+   matrix elevation_start_times; // When each motor first became elevated
+   matrix is_currently_elevated; // Whether each motor is currently elevated
 
     bool GoalReached(matrix present_position, matrix goal_position, int margin)
     {
@@ -119,13 +143,14 @@ public: // Ensure INSTALL_CLASS can access constructor if it's implicitly used.
 
     matrix StartedTransition(matrix& present_position, matrix& start_position, int margin)
     {
+        matrix transition_status(deviation.size());
         if (present_position.size() == 0 || present_position.size() != start_position.size())
         {
             Warning("ForceCheck: StartedTransition - Input matrix size mismatch or empty. Returning empty matrix.");
-            return matrix(0); 
+            return transition_status;
         }
 
-        matrix transition_status(deviation.size()); // Assuming deviation is correctly sized
+         
         transition_status.set(0.0); // Initialize to not started
 
         for (int i = 0; i < deviation.size() ; i++){
@@ -177,117 +202,6 @@ public: // Ensure INSTALL_CLASS can access constructor if it's implicitly used.
         return in_motion;
     }
 
-    ErrorProfile GetErrorProfile(const matrix& deviation_window, int motor_idx, double threshold = 0)
-    {
-        ErrorProfile profile = {};
-        if (deviation_window.size() == 0 || deviation_window.rows() == 0) return profile;
-        
-        // Check if motor_idx is valid
-        if (motor_idx >= deviation_window.cols()) {
-            Warning("ForceCheck: motor_idx out of bounds in GetErrorProfile");
-            return profile;
-        }
-        
-        int N = deviation_window.rows();
-        
-        // Basic statistics for the specified motor
-        double sum = 0.0;
-        double sum2 = 0.0;
-        double max_val = 0.0;
-        int max_idx_row = 0;
-        int count_above_threshold = 0;
-        
-        for (int row = 0; row < N; row++) {
-            double val = (double)deviation_window(row, motor_idx); // Signed error for this motor
-            double abs_val = std::abs(val);
-            sum += val;
-            sum2 += val * val;
-            
-            if (abs_val > max_val) {
-                max_val = abs_val;
-                max_idx_row = row;
-            }
-            if (val > threshold) count_above_threshold++;
-        }
-        
-        // Mean and standard deviation for this motor
-        profile.mean_error = sum / N;
-        double variance = (N > 1) ? (sum2 / N - profile.mean_error * profile.mean_error) : 0.0;
-        profile.std_dev = std::sqrt(std::max(0.0, variance));
-        profile.peak_magnitude = max_val;
-        profile.samples_above_threshold = count_above_threshold;
-        
-        // Peak width (FWHM - samples above half peak magnitude)
-        double half_peak = max_val * 0.5;
-        int peak_width_samples = 0;
-        int search_window = std::min(10, N / 4); // Search ±10 samples or 25% of window
-        int search_start = std::max(0, max_idx_row - search_window);
-        int search_end = std::min(N, max_idx_row + search_window);
-        for (int row = search_start; row < search_end; row++) {
-            if (std::abs((double)deviation_window(row, motor_idx)) >= half_peak) {
-                peak_width_samples++;
-            }
-        }
-        profile.peak_width = (double)peak_width_samples / N; // As fraction of window
-        
-        // Slope for this motor
-        if (N >= 3) {
-            double start_avg = 0.0;
-            double end_avg = 0.0;
-            int slope_samples = std::min(3, N / 10); // Use 3 samples or 10% of window
-            for (int i = 0; i < slope_samples; i++) {
-                start_avg += (double)deviation_window(i, motor_idx);
-                end_avg += (double)deviation_window(N - slope_samples + i, motor_idx);
-            }
-            start_avg /= slope_samples;
-            end_avg /= slope_samples;
-            profile.slope = (end_avg - start_avg) / N; // Change per sample
-        } else {
-            profile.slope = 0.0;
-        }
-        
-        // Duration (using GetTicksPerSecond for actual timing)
-        double tick_duration_ms = 1000.0 / GetTickDuration();
-        profile.duration_ms = N * tick_duration_ms;
-        
-        // Pattern indicators (using class parameters)
-        // Sharp peak: high magnitude, narrow width
-        profile.has_sharp_peak = (profile.peak_magnitude > peak_height * profile.std_dev) && 
-                                 (profile.peak_width < peak_width);
-        
-        // Sustained plateau: high mean, low variance, many samples above threshold
-        double frac_above = (double)count_above_threshold / N;
-        double plateau_threshold = threshold * sustained_force_threshold_ratio;
-        profile.has_sustained_plateau = (profile.mean_error > plateau_threshold) &&
-                                        (frac_above > 0.7) &&
-                                        (profile.std_dev < profile.mean_error * 1.5);
-        
-        // Oscillations: sign changes + moderate variance
-        int sign_changes = 0;
-        for (int row = 1; row < N; row++) {
-            double curr = (double)deviation_window(row, motor_idx);
-            double prev = (double)deviation_window(row - 1, motor_idx);
-            if ((curr > threshold && prev < -threshold) || (curr < -threshold && prev > threshold)) {
-                sign_changes++;
-            }
-        }
-        double oscillation_rate = (double)sign_changes / N;
-        profile.has_oscillations = (oscillation_rate > 0.15) && 
-                                   (profile.std_dev > profile.mean_error * 0.5);
-        
-        // Count sharp peaks in window
-        profile.sharp_peak_count = 0;
-        for (int row = 1; row < N - 1; row++) {
-            double curr = std::abs((double)deviation_window(row, motor_idx));
-            double prev = std::abs((double)deviation_window(row - 1, motor_idx));
-            double next = std::abs((double)deviation_window(row + 1, motor_idx));
-            if (curr > threshold && curr > prev && curr > next) {
-                profile.sharp_peak_count++;
-            }
-        }
-        
-        return profile;
-    }
     void UpdateDeviationHistory()
     {
         if (current_prediction.connected())
@@ -324,11 +238,30 @@ public: // Ensure INSTALL_CLASS can access constructor if it's implicitly used.
        
     }
 
-        void Init()
+    void ApplyColorToAllLEDs(const matrix &color)
+    {
+        for (int i = 0; i < 12; i++)
         {
+            led_color_eyes(0, i) = color(0);
+            led_color_eyes(1, i) = color(1);
+            led_color_eyes(2, i) = color(2);
+        }
+        for (int i = 0; i < 8; i++)
+        {
+            led_color_mouth(0, i) = color(0);
+            led_color_mouth(1, i) = color(1);
+            led_color_mouth(2, i) = color(2);
+        }
+    }
+
+    void Init()
+    {
             Bind(present_current, "PresentCurrent");
             Bind(present_position, "PresentPosition");
             Bind(goal_position_in, "GoalPositionIn");
+            Bind(perturbation_classification, "PerturbationClassification");
+            use_ml_classifier = perturbation_classification.connected();
+
             Bind(goal_position_out, "GoalPositionOut");
             Bind(current_prediction, "CurrentPrediction");
             Bind(deviation, "Deviation");
@@ -341,74 +274,194 @@ public: // Ensure INSTALL_CLASS can access constructor if it's implicitly used.
             Bind(history_lenght, "HistoryLength");
             Bind(torque, "Torque");
             Bind(control_mode, "ControlMode");
-            Bind(peak_width, "PeakWidth"); // Width of the peak for sharp peak detection in percentage of deviance history
-            Bind(peak_height, "PeakHeight");                  // Height of the peak for sharp peak detection in standard deviations above mean
-
-            // Mode switching parameters
+            Bind(peak_width, "PeakWidth");
+            Bind(peak_height, "PeakHeight");
+            Bind(confidence_threshold, "MinConfidenceForStateSwitch");
             Bind(automatic_mode_switching_enabled, "AutomaticModeSwitchingEnabled");
             Bind(sustained_hold_duration_ms, "SustainedHoldDurationMs");
-            Bind(sustained_force_threshold_ratio, "SustainedForceThresholdRatio");       // Threshold for detecting sustained guidance forces
-            Bind(movement_threshold_scalar, "MovementThresholdScalar");                  // Scalar for movement threshold
-
-            torque.set(1); // Enable torque by default
-
-            start_time = std::time(nullptr); // Using C time, consider chrono if more precision needed elsewhere
-            goal_time_out = 5;               // Seconds
-            goal_reached = false;
-            previous_position.set_name("PreviousPosition");
-            previous_current_prediction.set_name("PreviousCurrentPrediction");
-
-            led_intensity.set(0.5); // Default intensity
-            led_color_eyes.set(1);  // Default white
-            led_color_mouth.set(1); // Default white
-
-            // Removed number_deviations_per_time_window init and time_window_start since we're using deviation_history
-
-            deviation_history = matrix(0, deviation.size()); // Store recent deviations for each motor
-            deviation_history.set_name("DeviationHistory");
-
-            evaluating_sustained_hold = false;
-            allowed_deviance.copy(allowed_deviance_input); // Initialize allowed_deviance with input
+            Bind(sustained_force_threshold_ratio, "SustainedForceThresholdRatio");
+            Bind(movement_threshold_scalar, "MovementThresholdScalar");
+            Bind(refactory_duration, "RefactoryDuration");
+           
             
             
+         
+        
+            goal_position_out.set(0);
+
+            colour = matrix(3); // RGB
+
+            led_intensity.set(0.5);
+
+           
+            led_color_eyes.set(1.0);
+
+            led_color_mouth.set(1.0);
+
+       
+            torque.set(1);
+
+            motor_states.resize(current_prediction.size());
+            for(auto& state : motor_states) {
+                state.state = RobotState::NORMAL;
+                state.state_switch_time = 0.0;
+            }
+            
+            refractory_period = false;
+            refractory_start_time = 0.0;
+            motors_stable_start_time = 0.0;
         }
 
+        
+       
         void Tick()
         {
-            
             UpdateDeviationHistory();
+
+            if (!use_ml_classifier || present_position.size() == 0 || perturbation_classification.size() < 1) {
+                return;
+            }
+
             
-            // Analyze error profile for each motor
-            if (deviation_history.rows() > 0 && deviation_history.cols() > 0) {
-                motor_profiles.clear();
-                motor_profiles.resize(deviation_history.cols());
-                
-                for (int motor = 0; motor < deviation_history.cols(); motor++) {
-                    motor_profiles[motor] = GetErrorProfile(deviation_history, motor);
+            RobotState current_state = motor_states[0].state;
+
+            // Check for motor stabilization first
+            bool all_motors_stabilized = true;
+            previous_position = present_position.last();
+            if (previous_position.size() == present_position.size()) {
+                for (int i = 0; i < present_position.size(); ++i) {
+                    if (abs(present_position(i) - previous_position.last()(i)) > 1.0) { // 1 degree threshold for stability
+                        all_motors_stabilized = false;
+                        break;
+                    }
+                }
+            } else {
+                all_motors_stabilized = false;
+            }
+            double current_time = GetTime();
+            // Track how long motors have been stable (for COMPLIANT state)
+            if (all_motors_stabilized) {
+                if (motors_stable_start_time == 0.0) {
+                    motors_stable_start_time = current_time;
+                }
+            } else {
+                motors_stable_start_time = 0.0; // Reset if motors start moving
+            }
+
+            // If in COMPLIANT state, stay there until motors are stabilized for 2 seconds
+            if (current_state == RobotState::COMPLIANT) {
+                if (motors_stable_start_time > 0.0 && (current_time - motors_stable_start_time >= 2.0)) {
+                    // Motors have been stable for 2 seconds, return to NORMAL
+                    for (auto& motor_state : motor_states) {
+                        motor_state.state = RobotState::NORMAL;
+                        motor_state.state_switch_time = current_time;
+                    }
+                    motors_stable_start_time = 0.0; // Reset
+                    // No refractory period when returning to normal
+                }
+                // Skip classifier processing while in COMPLIANT state
+                // (will stay in COMPLIANT until stabilized)
+            } else {
+                // Refractory period check - only applies when leaving PUSH or OBSTACLE
+                if (refractory_period && (current_time - refractory_start_time < (double)refactory_duration)) {
+                    // While in refractory, just maintain current state's outputs
+                    // But handle automatic state transitions
+                } else {
+                    refractory_period = false;
+
+                    int class_idx = (int)perturbation_classification(0);
+                    RobotState new_state = current_state;
+
+                    // Determine new state from classifier ONLY if confidence is high enough
+                    if (perturbation_classification(1) >= (double)confidence_threshold) {
+                        // Confidence exceeds threshold - trust the classification
+                        switch (class_idx) {
+                            case 1: new_state = RobotState::OBSTACLE; break;
+                            case 2: new_state = RobotState::PUSH; break;
+                            case 3: new_state = RobotState::COMPLIANT; break;
+                            default: new_state = RobotState::NORMAL; break;
+                        }
+                    } else {
+                        // Low confidence - stay in current state
+                        new_state = current_state;
+                    }
+
+                    // State transition logic
+                    if (new_state != current_state) {
+                        // Only apply refractory period when transitioning TO push/obstacle/compliant, not FROM them
+                        bool should_apply_refractory = (new_state == RobotState::PUSH || 
+                                                       new_state == RobotState::OBSTACLE || 
+                                                       new_state == RobotState::COMPLIANT);
+                        
+                        for (auto& motor_state : motor_states) {
+                            motor_state.state = new_state;
+                            motor_state.state_switch_time = current_time;
+                        }
+                        
+                        if (should_apply_refractory) {
+                            refractory_period = true;
+                            refractory_start_time = current_time;
+                        }
+                        
+                        // Reset motor stability tracking when entering COMPLIANT state
+                        if (new_state == RobotState::COMPLIANT) {
+                            motors_stable_start_time = 0.0;
+                        }
+                    }
+                }
+
+                // After refractory period, any perturbation state (PUSH, OBSTACLE) should return to NORMAL
+                // (COMPLIANT is handled separately above based on motor stabilization)
+                if ((current_state == RobotState::PUSH || current_state == RobotState::OBSTACLE) && 
+                    (current_time - motor_states[0].state_switch_time >= (double)refactory_duration)) {
+                    for (auto& motor_state : motor_states) {
+                        motor_state.state = RobotState::NORMAL;
+                        motor_state.state_switch_time = current_time;
+                    }
+                    // No refractory period when returning to normal
                 }
             }
+
+            // Default outputs
+            goal_position_out.set(0);
+            torque.set(1);
             
+            perturbation_classification.print();
 
-            // Print error profile for debugging (for each motor)
-            for (int motor = 0; motor < motor_profiles.size(); motor++) {
-                std::cout << "Motor " << motor << " Error Profile - "
-                          << "Mean: " << motor_profiles[motor].mean_error
-                          << ", StdDev: " << motor_profiles[motor].std_dev
-                          << ", PeakMag: " << motor_profiles[motor].peak_magnitude
-                          << ", PeakWidth: " << motor_profiles[motor].peak_width
-                          << ", Slope: " << motor_profiles[motor].slope
-                          << ", Duration(ms): " << motor_profiles[motor].duration_ms
-                          << ", SamplesAboveThreshold: " << motor_profiles[motor].samples_above_threshold
-                          << ", SharpPeak: " << motor_profiles[motor].has_sharp_peak
-                          << ", SustainedPlateau: " << motor_profiles[motor].has_sustained_plateau
-                          << ", Oscillations: " << motor_profiles[motor].has_oscillations
-                          << ", SharpPeakCount: " << motor_profiles[motor].sharp_peak_count
-                          << std::endl;
-            }
+            // State-based actions (apply outputs based on current state)
+            switch (motor_states[0].state) {
+                    case RobotState::NORMAL:
+                        colour(0) = 1.0; colour(1) = 1.0; colour(2) = 1.0; // White
+                        
+                        break;
 
-            // robot_state = UpdateRobotState(error_profile, robot_state);
+                    case RobotState::OBSTACLE:
+                        goal_position_out.copy(present_position);
+                        colour(0) = 1.0; colour(1) = 0.0; colour(2) = 0.0; // Red
+                        
+                        led_intensity(0) = 0.8;
+                        break;
 
-            // ExecuteBehaviour(robot_state);
+                    case RobotState::PUSH:
+                        goal_position_out.copy(present_position);
+                        for (int i = 0; i < current_prediction.size(); ++i) {
+                            double retraction = (goal_position_in.size() > i && goal_position_in(i) > 180) ? -pullback_amount : pullback_amount;
+                            goal_position_out(i) = present_position(i) + retraction;
+                        }
+                        colour(0) = 1.0; colour(1) = 1.0; colour(2) = 0.0; // Yellow
+                        led_intensity(0) = 0.8;
+                        break;
+
+                    case RobotState::COMPLIANT:
+                        torque.set(0);
+                        // State transition logic is handled above - just maintain compliant behavior
+                        colour(0) = 0.0; colour(1) = 1.0; colour(2) = 0.0; // Green
+                        
+                        led_intensity(0) = 0.8;
+                        break;
+                }
+
+                ApplyColorToAllLEDs(colour);
         }
     };
 

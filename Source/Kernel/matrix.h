@@ -689,7 +689,9 @@ namespace ikaros
         {
             if(info_->continuous)
             {
-                std::fill(data_->begin()+info_->offset_, data_->begin()+info_->offset_+info_->offset_+info_->size_, v);
+                auto begin_it = data_->begin() + info_->offset_;
+                auto end_it = begin_it + info_->size_;
+                std::fill(begin_it, end_it, v);
                 return *this;
             }
             else

@@ -4,11 +4,20 @@
 	<parameter name="HistoryLength" type="int" default="10" description="Number ticks back for devation history"/>
 	<parameter name="ControlMode" type="int" options="0,1,2" default="0" description="The control mode for how the robot handles deviations from predicted current, 0=Normal, 1=Avoidant, 2=Compliant"/>
 	<parameter name="SustainedHoldDurationMs" type="int" default="1500" description="The duration in milliseconds that the robot should hold a position before switching to compliant mode"/>
+
 	<parameter name="SustainedForceThresholdRatio" type="number" default="0.7" description="The minimum ratio of deviation to trigger compliant mode"/>
 	<parameter name="AutomaticModeSwitchingEnabled" type="bool" default="false" description="Enable automatic switching between control modes based on conditions"/>
 	<parameter name="MovementThresholdScalar" type="number" default="1.0" description="Scalar for allowed devation threshold when motors are in motion"/>
-	<parameter name="PeakWidth" type="number" default="0.1" description="Peak width of error , used to determine the deviance peaks is wide enough to not be noise"/>
+	<parameter name="PeakWidth" type="number" default="0.2" description="Peak width of error , used to determine the deviance peaks is wide enough to not be noise"/>
 	<parameter name="PeakHeight" type="number" default="2.0" description="The minimum height of a peak in the current prediction error to be considered a valid deviation"/>
+	<parameter name="MinConfidenceForStateSwitch" type="number" default="0.8" description="Minimum confidence required to switch robot states"/>
+	
+	<!-- Classification thresholds -->
+	<parameter name="PushMinMagnitude" type="number" default="150.0" description="Minimum peak magnitude to classify as push"/>
+	<parameter name="PushMaxMagnitude" type="number" default="400.0" description="Maximum peak magnitude to classify as push"/>
+	<parameter name="ObstacleMinStdDev" type="number" default="60.0" description="Minimum standard deviation to classify as obstacle"/>
+	<parameter name="ObstacleMinPeaks" type="int" default="3" description="Minimum number of sharp peaks to classify as obstacle"/>
+	<parameter name="RefactoryDuration" type="number" default="1.0" description="Cooldown duration in seconds after retraction before allowing another retraction"/>
 
 	<input name="GoalPositionIn" description="The goal position of the servomotors in degrees" size="19"/>
 	<input name="StartPosition" description="The start position of the servomotors in degrees"/>
@@ -16,6 +25,7 @@
 	<input name="PresentCurrent" description="The present current from the servomotors in mA" />
 	<input name="CurrentPrediction" description="The current prediction from the servomotors in mA" />
 	<input name="AllowedDeviance" optional="true" default= "700, 200" description="Allowed deviance of the current from the current prediction"/>
+	<input name="PerturbationClassification" optional="true" description="The perturbation classifier output from PythonScriptCaller" />
 
 	<output name="GoalPositionOut" size="19" description="The goal position of the servomotors in degrees"/>
 	<output name="ForceOutput" size="CurrentPrediction.size" description="The force output of the servomotors in PWM percentage"/>
