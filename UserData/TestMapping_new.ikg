@@ -33,15 +33,15 @@
    <connection delay="1" source="Servos.PRESENT_CURRENT[0:2]" target="PredictionError.INPUT1"/>
    <connection delay="1" source="CurrentPrediction.Output" target="PredictionError.INPUT2"/>
    <connection delay="1" source="TorqueEnable.OUTPUT" target="Servos.TORQUE_ENABLE"/>
-   <module _x="24" _y="48" class="Constant" data="140, 180, 180, 180, 5, 5, 180, 180, 180, 180, 180, 180, 180, 180, 180, 180, 180, 180, 180" log_level="5" name="GoalPosition"/>
+   <module _x="24" _y="48" class="Constant" data="180, 210, 180, 180, 5, 5, 180, 180, 180, 180, 180, 180, 180, 180, 180, 180, 180, 180, 180" log_level="5" name="GoalPosition"/>
    <module _x="24" _y="96" class="Constant" data="1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1" log_level="5" name="TorqueEnable"/>
-   <module CurrentPrediction="ANN" NumberTransitions="10" RobotType="Torso" StaticCountdown="3.0" StaticDataCollection="2.0" StaticInterval="1.0" StaticTestMode="true" _x="264" _y="384" class="TestMapping" log_level="7" name="TestMapping">
+   <module TestingServo="both" PerturbationType="sustained" CurrentPrediction="ANN" NumberTransitions="50" RobotType="Torso" StaticCountdown="1.0" StaticDataCollection="2.0" StaticInterval="1.0" StaticTestMode="true" _x="264" _y="384" class="TestMapping" log_level="7" name="TestMapping">
       <files>
          <file/>
          <file/>
       </files>
    </module>
-   <module MaxLimitPosition="237,240" MinLimitPosition="122,130" NumServos="2" NumTransitions="10" OneCycle="true" PositionMargin="3" RobotType="Torso" StaticTestMode="true" TransitionDelay="1" _x="72" _y="120" class="GoalSetter" log_level="0" name="GoalSetter">
+   <module MaxLimitPosition="235, 240" MinLimitPosition="125,130" NumServos="2" NumTransitions="50" OneCycle="false" PositionMargin="3" RobotType="Torso" StaticTestMode="true" TransitionDelay="1" _x="96" _y="48" class="GoalSetter" log_level="0" name="GoalSetter">
       <files>
          <file/>
          <file/>
@@ -68,9 +68,11 @@
    <module _x="168" _y="704" class="Subtract" log_level="0" name="DistToStart"/>
    <module _x="336" _y="632" class="Subtract" log_level="0" name="PredictionError"/>
    <parameter control="menu" default="0" name="log_level" type="number" value="0"/>
-   <widget _index_="0" _x="368" _y="206" class="slider-horizontal" count="2" frame-style="" height="121" labels="Tilt, Pan" max="240" min="120" name="Widget_1" parameter="GoalPosition.data" select="0" show_frame="false" show_title="true" show_values="true" source="" step="1" style="" title="Manual Goal Positions" width="241"/>
-   <widget _index_="2" _x="648" _y="248" buffer_size="100" class="plot" color="" direction="vertical" frame-style="" height="313" max="1000" min="-1000" name="Widget_1" select="0" show_frame="false" show_title="true" source="PredictionError.OUTPUT" style="--decimals:0" title="Prediction Deviation Tilt" width="529"/>
-   <widget _index_="4" _x="1252" _y="248" buffer_size="100" class="plot" color="" direction="vertical" frame-style="" height="313" max="1000" min="-1000" name="Widget_1" select="1" show_frame="false" show_title="true" source="PredictionError.OUTPUT" style="--decimals:0" title="Prediction Deviation Pan" width="529"/>
-   <widget _index_="6" _x="648" _y="584" buffer_size="100" class="plot" color="blue, green" direction="vertical" frame-style="" height="385" max="250" min="-250" name="Widget_7" select="0" show_frame="false" show_title="true" source="Servos.PRESENT_POSITION" style="--decimals:0" title="Position tilt" width="529"/>
-   <widget _index_="8" _x="1252" _y="548" buffer_size="100" class="plot" color="blue, green" direction="vertical" frame-style="" height="385" max="250" min="-250" name="Widget_7" select="1" show_frame="false" show_title="true" source="Servos.PRESENT_POSITION" style="--decimals:0" title="Position pan" width="529"/>
+   <widget _index_="0" _x="368" _y="106" class="slider-horizontal" count="2" frame-style="" height="121" labels="Tilt, Pan" max="240" min="120" name="GoalPosition" parameter="GoalPosition.data" select="0" show_frame="false" show_title="true" show_values="true" source="" step="1" style="" title="Manual Goal Positions" width="241"/>
+   <widget _index_="2" _x="648" _y="248" buffer_size="100" class="plot" color="" direction="vertical" frame-style="" height="313" max="1000" min="-1000" name="TiltError" select="0" show_frame="false" show_title="true" source="PredictionError.OUTPUT" style="--decimals:0" title="Prediction Deviation Tilt" width="529"/>
+   <widget _index_="4" _x="1252" _y="248" buffer_size="100" class="plot" color="" direction="vertical" frame-style="" height="313" max="1000" min="-1000" name="PanError" select="1" show_frame="false" show_title="true" source="PredictionError.OUTPUT" style="--decimals:0" title="Prediction Deviation Pan" width="529"/>
+   <widget _index_="6" _x="648" _y="584" buffer_size="100" class="plot" color="blue, green" direction="vertical" frame-style="" height="385" max="250" min="-250" name="TiltPosition" select="0" show_frame="false" show_title="true" source="Servos.PRESENT_POSITION" style="--decimals:0" title="Position tilt" width="529"/>
+   <widget _index_="8" _x="1252" _y="548" buffer_size="100" class="plot" color="blue, green" direction="vertical" frame-style="" height="385" max="250" min="-250" name="PanPosition" select="1" show_frame="false" show_title="true" source="Servos.PRESENT_POSITION" style="--decimals:0" title="Position pan" width="529"/>
+   <widget _index_="10" _x="744" _y="48" auto="false" class="bar-graph" color="green" direction="vertical" fill="" frame-style="" height="193" labels="Recording" lineCap="" lineJoin="" lineWidth="1" max="1" min="0" name="recording_bar" select="" show_frame="false" show_title="true" source="TestMapping.RecordIndicator" style="--decimals:0" title="Recording indicator" transpose="false" width="937"/>
+   <widget _index_="12" _x="504" _y="240" auto="false" class="bar-graph" color="green" direction="vertical" fill="" frame-style="" height="697" labels="Remaining" lineCap="" lineJoin="" min="0" max="100" lineWidth="1" name="transitions_bar" select="" show_frame="false" show_title="true" source="TestMapping.TransitionsRemaining" style="--decimals:0" title="Transitions" transpose="false" width="97"/>
 </group>
