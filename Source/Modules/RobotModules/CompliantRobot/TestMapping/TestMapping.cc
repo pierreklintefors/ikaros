@@ -41,9 +41,11 @@ class TestMapping: public Module
     
 
     // Outputs
-    matrix goal_current;
+
     matrix starting_positions;
     matrix model_prediction;
+    matrix record_indicator;
+    matrix transitions_remaining;
 
     // Internal
     matrix servos_to_test;
@@ -65,9 +67,11 @@ class TestMapping: public Module
     parameter static_countdown;
     parameter static_data_collection;
     parameter static_interval;
-    
-    // Internal
-    std::random_device rd;
+    parameter testing_servo;
+    parameter perturbation_type;
+
+        // Internal
+        std::random_device rd;
 
     int position_margin = 2;
     int transition = 0;
@@ -78,7 +82,7 @@ class TestMapping: public Module
     bool first_start_position = true;
     std::string time_stamp_str_no_dots;
     int num_input_data = 0;
-    matrix transition_start_time;
+    double transition_start_time;
     matrix transition_duration;
     double time_prev_position;
     bool goal_changed = false;
@@ -118,13 +122,44 @@ class TestMapping: public Module
     const int DEVIANCE_LOG_FLUSH_INTERVAL = 2; // How often to flush (ticks)
     bool is_first_deviance_log_entry = true; // To handle commas in JSON array
 
+    // Previous goal position for change detection
+    matrix previous_goal_position;
+    bool first_goal_received = false;
+
     bool GoalHasChanged(matrix goal_position)
     {
-        // On first tick, there's no previous goal - return false
-        if (GetTick() <= 1) {
+        // On first few ticks, there's no previous goal - return false
+        if (GetTick() <= 2) {
             return false;
         }
-        return (goal_position != goal_position.last());
+        
+        // If this is the first time we're checking, store the current goal and return false
+        if (!first_goal_received) {
+            previous_goal_position = matrix(goal_position.size());
+            previous_goal_position.copy(goal_position);
+            first_goal_received = true;
+            return false;
+        }
+        
+        // Check if the goal has changed by comparing with our stored previous goal
+        bool changed = false;
+        if (goal_position.size() == previous_goal_position.size()) {
+            for (int i = 0; i < goal_position.size(); i++) {
+                if (abs(goal_position(i) - previous_goal_position(i)) > 0.01) { // Small tolerance for floating point
+                    changed = true;
+                    break;
+                }
+            }
+        } else {
+            changed = true; // Size changed, so it's definitely different
+        }
+        
+        // Update our stored previous goal for next time
+        if (changed) {
+            previous_goal_position.copy(goal_position);
+        }
+        
+        return changed;
     }
 
     void ReachedGoal(matrix present_position, matrix goal_positions, matrix &reached_goal, int margin){
@@ -152,8 +187,8 @@ class TestMapping: public Module
 
                 double current_time_ms = GetTime();
                 
-                if (transition < transition_duration.rows() && i < transition_duration.cols()) {
-                    transition_duration(transition, i) = current_time_ms - transition_start_time(transition, i);
+                if (transition < number_transitions && i < transition_duration.cols()) {
+                    transition_duration(transition, i) = current_time_ms - transition_start_time;
                 }
             }
         }
@@ -265,14 +300,27 @@ class TestMapping: public Module
         current_object_ss << "      \"tick\": " << GetTick() << ",\n";
         current_object_ss << "      \"time\": " << std::fixed << std::setprecision(4) << GetTime() << ",\n";
         current_object_ss << "      \"transition\": " << transition << ",\n";
+        current_object_ss << "      \"pertubation_type\": \"" << perturbation_type.as_string() << "\",\n";
+        
+        
+
+        current_object_ss << "      \"phase_elapsed\": " << std::fixed << std::setprecision(4) << GetTime() - transition_start_time << ",\n";
         current_object_ss << "      \"present_position\": " << serialize_controlled_servos(present_position) << ",\n";
         current_object_ss << "      \"goal_position\": " << serialize_controlled_servos(goal_position_in) << ",\n";
         current_object_ss << "      \"present_current\": " << serialize_controlled_servos(present_current) << ",\n";
-        current_object_ss << "      \"model_prediction\": " << serialize_controlled_servos(model_prediction) << ",\n"; // Last element in object
+        
+        // Add model prediction and also as ann_prediction for consistency
+        current_object_ss << "      \"model_prediction\": " << serialize_controlled_servos(ANN_prediction) << ",\n";
+        
         current_object_ss << "      \"gyro\": " << serialise_imu_data(gyro) << ",\n";
         current_object_ss << "      \"accel\": " << serialise_imu_data(accel) << ",\n";
-        current_object_ss << "      \"angles\": " << serialise_imu_data(eulerAngles) << ",\n";
-        current_object_ss << "      \"starting_positions\": " << serialize_controlled_servos(starting_positions[transition]) << "\n";
+        current_object_ss << "      \"euler_angles\": " << serialise_imu_data(eulerAngles) << ",\n";
+        
+        // Create a temporary vector for starting positions for this transition
+        
+  
+        
+        current_object_ss << "      \"starting_positions\": " << serialize_controlled_servos(start_position_in) << "\n";
         current_object_ss << "    }"; // Current object ends here, no "]}"
 
         // Add the current object to the deviance_log_stream buffer
@@ -366,25 +414,28 @@ class TestMapping: public Module
         }
 
         entry_ss << "    {\n";
-        entry_ss << "      \"cycle\": " << static_test_cycle << ",\n";
+        entry_ss << "      \"transition\": " << static_test_cycle << ",\n";
         entry_ss << "      \"tick\": " << GetTick() << ",\n";
         entry_ss << "      \"time\": " << std::fixed << std::setprecision(4) << GetTime() << ",\n";
+        entry_ss << "      \"pertubation_type\": \"" << perturbation_type.as_string() << "\",\n";
         entry_ss << "      \"phase_elapsed\": " << std::fixed << std::setprecision(4)
                  << (GetTime() - static_phase_start_time) << ",\n";
         entry_ss << "      \"present_position\": " << serialize_controlled_servos(present_position) << ",\n";
         entry_ss << "      \"goal_position\": " << serialize_controlled_servos(goal_position_in) << ",\n";
         entry_ss << "      \"present_current\": " << serialize_controlled_servos(present_current) << ",\n";
+      
 
-        // Add ANN prediction if available
-        if (ANN_prediction.connected() && ANN_prediction.size() > 0)
-        {
-            entry_ss << "      \"ann_prediction\": " << serialize_controlled_servos(ANN_prediction) << ",\n";
-        }
+        
 
-        // Add model prediction if available
-        if (model_prediction.size() > 0)
+        // Add model prediction if available (also include as ann_prediction for consistency)
+        if (ANN_prediction.size() > 0)
         {
-            entry_ss << "      \"model_prediction\": " << serialize_controlled_servos(model_prediction) << ",\n";
+            entry_ss << "      \"model_prediction\": " << serialize_controlled_servos(ANN_prediction) << ",\n";
+            // If no ANN prediction available, use model prediction as ann_prediction for consistency
+            if (!ANN_prediction.connected() || ANN_prediction.size() == 0)
+            {
+                entry_ss << "      \"model_prediction\": " << serialize_controlled_servos(model_prediction) << ",\n";
+            }
         }
 
         entry_ss << "      \"gyro\": " << serialize_imu_data(gyro) << ",\n";
@@ -410,8 +461,9 @@ class TestMapping: public Module
         Bind(goal_position_in, "GoalPositionIn");
         Bind(start_position_in, "StartPositionIn");
         Bind(model_prediction, "ModelPrediction");
-    
         Bind(ANN_prediction, "ANN_prediction");
+        Bind(record_indicator, "RecordIndicator");
+        Bind(transitions_remaining, "TransitionsRemaining");
 
 
         //parameters
@@ -424,11 +476,14 @@ class TestMapping: public Module
         Bind(static_countdown, "StaticCountdown");
         Bind(static_data_collection, "StaticDataCollection");
         Bind(static_interval, "StaticInterval");
+        Bind(testing_servo, "TestingServo");
+        Bind(perturbation_type, "PerturbationType");
 
 
         std::string scriptPath = __FILE__;
         
-       
+       transitions_remaining.set_name("TransitionsRemaining");
+       transitions_remaining(0) = number_transitions;
       
 
         if (present_position.size() == 0)
@@ -437,7 +492,7 @@ class TestMapping: public Module
             return;
         }
 
-        servo_names = {"NeckTilt", "NeckPan", "LeftEye", "RightEye", "LeftPupil", "RightPupil", "LeftArmJoint1", "LeftArmJoint2", "LeftArmJoint3", "LeftArmJoint4", "LeftArmJoint5", "LeftHand", "RightArmJoint1", "RightArmJoint2", "RightArmJoint3", "RightArmJoint4", "RightArmJoint5", "RightHand", "Body"};
+        servo_names = {"Tilt", "Pan", "LeftEye", "RightEye", "LeftArmJoint1", "LeftArmJoint2", "LeftArmJoint3", "LeftArmJoint4", "LeftArmJoint5", "LeftHand", "RightArmJoint1", "RightArmJoint2", "RightArmJoint3", "RightArmJoint4", "RightArmJoint5", "RightHand", "Body"};
         
 
         if(robotType.as_string() == "Torso"){
@@ -456,19 +511,15 @@ class TestMapping: public Module
         // Initialize matrices AFTER servos_to_test is set
         // Size these to present_position.size() since they're indexed by servo_idx (0-18), not loop index
         reached_goal = matrix(present_position.size());
-        reached_goal.set(0);
         reached_goal.set_name("ReachedGoal");
         
         approximating_goal = matrix(present_position.size());
-        approximating_goal.set(0);
         approximating_goal.set_name("ApproximatingGoal");
         
-        transition_start_time = matrix(number_transitions, servos_to_test.size());
-        transition_start_time.set(0);
-        transition_start_time.set_name("StartedTransitionTime");
+       
         
         transition_duration = matrix(number_transitions, servos_to_test.size());
-        transition_duration.set(0);
+
         transition_duration.set_name("TransitionDuration");
 
         unique_id = GenerateRandomNumber(0, 1000000);
@@ -491,7 +542,7 @@ class TestMapping: public Module
         prediction_error.set(0);
 
         model_prediction.set_name("ModelPrediction");
-        // Initialize model_prediction with the same size as present_current, then set to 0
+        // model_prediction size is set by the .ikc file (size="19")
         
         
         if (std::string(prediction_model) == "ANN") {
@@ -526,15 +577,12 @@ class TestMapping: public Module
       
         timeout_occurred.set_name("TimeoutOccurred");
         timeout_occurred = matrix(number_transitions, servos_to_test.size());
-        timeout_occurred.set(0);
+    
 
-        // Initialize transition_start_time as a 2D matrix
-        transition_start_time.set_name("StartedTransitionTime");
-        transition_start_time = matrix(number_transitions, servos_to_test.size());
-        transition_start_time.set(0);
+       
 
         starting_positions = matrix( number_transitions, servos_to_test.size());
-        starting_positions.set(0);
+       
 
         
         
@@ -543,12 +591,12 @@ class TestMapping: public Module
             try {
                 std::string scriptPath = __FILE__;
                 std::string scriptDirectory = scriptPath.substr(0, scriptPath.find_last_of("/\\"));
-                std::string resultsDir = scriptDirectory + "/results/static_push_logs";
+                std::string resultsDir = scriptDirectory + "/results/static_mode/" +  std::string(prediction_model);
 
                 // Create directory if it doesn't exist
                 if (!std::filesystem::exists(resultsDir)) {
                     if (!std::filesystem::create_directories(resultsDir)) {
-                         Error("Failed to create static push results directory: " + resultsDir);
+                         Error("Failed to create static mode results directory: " + resultsDir);
                          static_test_mode = false;
                     }
                 }
@@ -561,14 +609,15 @@ class TestMapping: public Module
                      ss_time << std::put_time(std::localtime(&now_c), "%Y%m%d_%H%M%S");
                      std::string time_stamp_str = ss_time.str();
 
-                    std::string filepath = resultsDir + "/static_push_log_" + time_stamp_str + ".json";
-                    static_initial_position = matrix(present_position.size());
-                    static_initial_position.set(0);
-                    static_push_log_file.open(filepath, std::ios::out | std::ios::trunc);
-                    if (!static_push_log_file.is_open()) {
-                        Error("Failed to open static push log file: " + filepath);
-                        static_test_mode = false;
-                    } else {
+                     std::string filepath = resultsDir + "/" + testing_servo.as_string() + "_static_mode_log_" + time_stamp_str + "_" + perturbation_type.as_string() +".json";
+                     static_initial_position = matrix(present_position.size());
+                     static_initial_position.set(0);
+                     static_push_log_file.open(filepath, std::ios::out | std::ios::trunc);
+                     if (!static_push_log_file.is_open())
+                     {
+                         Error("Failed to open static push log file: " + filepath);
+                         static_test_mode = false;
+                     } else {
                         Print("=== STATIC TEST MODE ENABLED ===");
                         Print("Static push log file: " + filepath);
                         Print("Countdown: " + std::to_string((float)static_countdown) + "s");
@@ -598,7 +647,7 @@ class TestMapping: public Module
             {
                 std::string scriptPath = __FILE__;
                 std::string scriptDirectory = scriptPath.substr(0, scriptPath.find_last_of("/\\"));
-                std::string resultsDir = scriptDirectory + "/results/deviance_logs/" + std::string(prediction_model);
+                std::string resultsDir = scriptDirectory + "/results/moving_mode/" + std::string(prediction_model);
 
                 // Create directory if it doesn't exist
                 if (!std::filesystem::exists(resultsDir))
@@ -618,7 +667,7 @@ class TestMapping: public Module
                 ss_time << std::put_time(std::localtime(&now_c), "%Y%m%d_%H%M");
                 std::string time_stamp_str = ss_time.str();
 
-                std::string filepath = resultsDir + "/deviance_log_" + time_stamp_str + "position_control" + ".json";
+                std::string filepath = resultsDir + "/" + testing_servo.as_string() + "_moving_mode_log_" + time_stamp_str + "_" + perturbation_type.as_string() + ".json";
 
                 deviance_log_file.open(filepath, std::ios::out | std::ios::trunc);
                 if (!deviance_log_file.is_open())
@@ -653,8 +702,11 @@ class TestMapping: public Module
     
     void Tick()
     {   
+        // Safety check: Don't do anything on the very first tick to let matrices initialize
+        if (GetTick() == 1) {
+            return;
+        }
         
-       
         // First check if required inputs are connected
         if (!present_current.connected() || !present_position.connected()) {
             Error("Present current and present position must be connected");
@@ -710,22 +762,42 @@ class TestMapping: public Module
                 case PUSHING:
                     // Log data during push
                     LogStaticPushData();
-                    
+                    record_indicator.set(1); // Turn on any recording indicators
                     if (elapsed >= (float)static_data_collection) {
                         static_phase = RESTING;
                         static_phase_start_time = GetTime();
                         Print("Push phase complete. Resting for " + std::to_string((float)static_interval) + " seconds...");
+                        transitions_remaining(0) -= 1;
+                        
                     }
                     break;
                     
                 case RESTING:
                     if (elapsed >= (float)static_interval) {
+                        // Flush static push log after each cycle to prevent memory buildup
+                        if (static_push_log_file.is_open()) {
+                            static_push_log_file.flush();
+                            Debug("Flushed static push log after cycle " + std::to_string(static_test_cycle));
+                        }
+                        
                         // Start new cycle
                         static_test_cycle++;
                         static_phase = HOLDING;
                         static_phase_start_time = GetTime();
                         Print("\n=== CYCLE " + std::to_string(static_test_cycle + 1) + " ===");
                         Print("HOLDING position for " + std::to_string((float)static_countdown) + " seconds...");
+                        record_indicator.set(0); // Turn off recording indicators
+
+                        if (transitions_remaining(0) <= 0) {
+                            Print("\n=== STATIC TEST COMPLETE ===");
+                            Print("Total cycles completed: " + std::to_string(static_test_cycle));
+                            // Finalize JSON structure
+                            if (static_push_log_file.is_open()) {
+                                static_push_log_file << "\n  ]\n}\n";
+                                static_push_log_file.close();
+                            }
+                            Notify(msg_terminate, "Static test mode complete");
+                        }
                     }
                     break;
             }
@@ -737,12 +809,11 @@ class TestMapping: public Module
         }
        
         
-        ReachedGoal(present_position, goal_position_in, reached_goal, position_margin);
-        approximating_goal = ApproximatingGoal(present_position, goal_position_in, position_margin);
+        
 
         // Skip processing on first tick, just initialize start time
         if (GetTick() <= 2) {
-            transition_start_time[transition].set(GetTime());
+            transition_start_time = GetTime();
             if (start_position_in.connected() && first_start_position) {
                
                 for (int i = 0; i < servos_to_test.size(); i++) {
@@ -751,6 +822,13 @@ class TestMapping: public Module
             }
             
             return;
+        }
+        else {
+            ReachedGoal(present_position, goal_position_in, reached_goal, position_margin);
+            approximating_goal = ApproximatingGoal(present_position, goal_position_in, position_margin);
+
+            // Check if goal has changed - this is essential for transition tracking
+            goal_changed = GoalHasChanged(goal_position_in);
         }
 
         // Handle new goal arrival - this means GoalSetter has sent a new goal after the delay
@@ -761,9 +839,10 @@ class TestMapping: public Module
             for (int i = 0; i < servos_to_test.size(); i++) {
                 int servo_idx = servos_to_test(i);
                 starting_positions(transition, i) = present_position(servo_idx);
-                transition_start_time(transition, i) = GetTime();
+                
             }
-            
+            transition_start_time = GetTime();
+
             // Store the predicted current for this transition
             for (int i = 0; i < servos_to_test.size(); i++) {
                 int servo_idx = servos_to_test(i);
@@ -790,7 +869,39 @@ class TestMapping: public Module
             // Now we can increment transition counter
             if (goal_changed && transition < number_transitions) {
                 Debug("Transition " + std::to_string(transition) + " complete. Moving to transition " + std::to_string(transition + 1));
+                
+                // Flush deviance log stream after each transition to prevent memory buildup
+                if (deviance_log_file.is_open() && deviance_log_stream.tellp() > 0) {
+                    // Seek to before the closing "\\n  ]\\n}\\n" (7 characters)
+                    deviance_log_file.seekp(-7L, std::ios::end);
+                    
+                    // Add comma separator if not the first entry
+                    if (!is_first_deviance_log_entry) {
+                        deviance_log_file << ",\n";
+                    }
+                    
+                    // Write buffered data
+                    deviance_log_file << deviance_log_stream.str();
+                    
+                    // Clear the buffer to free memory
+                    deviance_log_stream.str("");
+                    deviance_log_stream.clear();
+                    deviance_log_tick_counter = 0;
+                    
+                    is_first_deviance_log_entry = false;
+                    
+                    // Re-add closing structure
+                    deviance_log_file << "\n  ]\n}\n";
+                    deviance_log_file.flush();
+                    
+                    Debug("Flushed deviance log after transition " + std::to_string(transition));
+                }
+                
                 transition++;
+                
+                
+                
+                transitions_remaining(0) = number_transitions - transition;
                 
                 // Reset reached_goal flags for new transition
                 for (int i = 0; i < servos_to_test.size(); i++) {
@@ -813,7 +924,7 @@ class TestMapping: public Module
         for (int i = 0; i < servos_to_test.size(); i++) {
             int servo_idx = servos_to_test(i);
             double current_time = GetTime();
-            bool timeout = current_time - transition_start_time(transition, servo_idx) > TIMEOUT_DURATION;
+            bool timeout = current_time - transition_start_time > TIMEOUT_DURATION;
 
             // If servo hasn't reached goal yet
             if (reached_goal(servo_idx) == 0) {
@@ -875,7 +986,7 @@ class TestMapping: public Module
         if (static_test_mode && static_push_log_file.is_open()) {
             static_push_log_file << "\n  ]\n}\n"; // Close JSON structure
             static_push_log_file.close();
-            Print("Closed static push log file. Total cycles: " + std::to_string(static_test_cycle));
+            Print("Closed static mode log file. Total cycles: " + std::to_string(static_test_cycle));
         }
     }
 

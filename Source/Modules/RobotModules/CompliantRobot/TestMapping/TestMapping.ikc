@@ -7,6 +7,8 @@
 	<parameter name="StaticCountdown" default="3.0" description="Countdown before prompting for push (seconds)" type="number" />
 	<parameter name="StaticDataCollection" default="2.0" description="Duration for data collection during push (seconds)" type="number" />
 	<parameter name="StaticInterval" default="1.0" description="Interval between test cycles (seconds)" type="number" />
+	<parameter name="TestingServo" default="both" optional="true" options="tilt, pan, both" description="Name of servo (Tilt, Pan)" type="string" control="menu" />
+	<parameter name="PerturbationType" default="none" description="Type of perturbation to apply" type="string" control="menu" options="push, obstacle, sustained, none" />
 
 	<input name="PresentPosition" description=""/>
 	<input name="PresentCurrent" description="" />
@@ -19,7 +21,8 @@
 	
 
 	<output name="ModelPrediction" description="" size="19"/>
-
+	<output name="RecordIndicator" description="Indicates when to record data" size="1"/>
+	<output name="TransitionsRemaining" description="Number of transitions remaining" size="1"/>
 	
 	<author>
 		<name>Pierre Klintefors</name>
