@@ -72,7 +72,7 @@ updateAll() {
     selector.addEventListener('change', (e) => {
         e.preventDefault();  // Prevent default action
         e.stopPropagation(); // Stop event bubbling
-        this.option_selected(this.parameters.index, e.target.value, e.target.selectedOptions[0].innerText);
+        this.option_selected(e.target.selectedIndex, e.target.value, e.target.selectedOptions[0].innerText);
     }, true);  // Use capture phase
 
     selector.addEventListener('mousedown', (e) => {
