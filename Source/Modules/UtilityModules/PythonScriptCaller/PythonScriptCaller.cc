@@ -220,6 +220,8 @@ class PythonScriptCaller: public Module {
         // The GetTick() > 1 check also follows here.
 
         if (GetTick() > 1) {
+
+            Debug("Input to Python script: " + input_matrix.json());
             // Check if Python is ready for new input OR if C++ hasn't written anything yet (initial state).
             std::atomic_thread_fence(std::memory_order_acquire);
             if (shm_flags_ptr->python_wrote_output || !shm_flags_ptr->cpp_wrote_input) {
@@ -291,6 +293,7 @@ class PythonScriptCaller: public Module {
                 }
 
                 output_matrix.resize(actual_output_count);
+                
                 if (actual_output_count > 0)
                 {
                     memcpy(output_matrix.data(), &output_section_ptr[1], actual_output_count * sizeof(float));
