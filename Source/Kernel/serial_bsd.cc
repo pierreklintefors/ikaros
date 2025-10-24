@@ -281,15 +281,17 @@ Serial::ReceiveBytes(char *rcvbuf, int length)
 int
 Serial::ReceiveBytes(char *rcvbuf, int length, int timeout_ms)
 {
-	Timer t;
+	Timer t; // works in seconds
+
 	
 	if(data->fd == -1)
 		return 0;
 	
 	char *bufptr = rcvbuf;
 	long read_bytes = 0, read_bytes_tot = 0;
+	double timeout_secs = double(timeout_ms)/1000.0;
 	
-	while (t.GetTime() <= timeout_ms)
+	while (t.GetTime() <= timeout_secs)
 	{
 		read_bytes = read(data->fd, bufptr, length - read_bytes_tot);
 		
