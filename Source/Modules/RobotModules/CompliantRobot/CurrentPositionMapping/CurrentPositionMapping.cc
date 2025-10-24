@@ -54,7 +54,7 @@ class CurrentPositionMapping : public Module
     std::mt19937 gen;
 
     int number_transitions; // Will be used to add starting and ending position
-    int position_margin = 6;
+    int position_margin = 2;
     int transition = 0;
     int starting_current = 1000;
     int current_limit = 2000;
@@ -297,7 +297,14 @@ class CurrentPositionMapping : public Module
 
         std::string scriptPath = __FILE__;
         std::string scriptDirectory = scriptPath.substr(0, scriptPath.find_last_of("/\\"));
-        std::string filePath = scriptDirectory + "/data/Trajectories" + robotType + "_PositionMode";
+        // Get current time for unique filename
+        auto now = std::chrono::system_clock::now();
+        auto now_c = std::chrono::system_clock::to_time_t(now);
+        std::stringstream ss_time;
+        ss_time << std::put_time(std::localtime(&now_c), "%Y%m%d_%H%M");
+        std::string time_stamp_str = ss_time.str();
+
+        std::string filePath = scriptDirectory + "/data/Trajectories" + robotType + "_PositionMode_" + time_stamp_str;
         std::string suffix;
         if (ConsistencyTest)
         {
@@ -602,7 +609,12 @@ class CurrentPositionMapping : public Module
 
         if (present_current.connected() && present_position.connected() && second_tick)
         {
-
+            // Save trajectory data (smart pointer for memory management to avoid memory leaks)
+                moving_trajectory.push_back(std::make_shared<std::vector<float>>(present_position.data_->begin(), present_position.data_->end()));
+                current_history.push_back(std::make_shared<std::vector<float>>(present_current.data_->begin(), present_current.data_->end()));
+                gyro_history.push_back(std::make_shared<std::vector<float>>(gyro.data_->begin(), gyro.data_->end()));
+                accel_history.push_back(std::make_shared<std::vector<float>>(accel.data_->begin(), accel.data_->end()));
+                angles_history.push_back(std::make_shared<std::vector<float>>(eulerAngles.data_->begin(), eulerAngles.data_->end()));
 
             approximating_goal = ApproximatingGoal(present_position, previous_position, goal_position_out, position_margin);
 
@@ -618,12 +630,7 @@ class CurrentPositionMapping : public Module
                     transition_start_time.set(now_ms);
                     first_start_position = false;
                 }
-                // Save trajectory data (smart pointer for memory management to avoid memory leaks)
-                moving_trajectory.push_back(std::make_shared<std::vector<float>>(present_position.data_->begin(), present_position.data_->end()));
-                current_history.push_back(std::make_shared<std::vector<float>>(present_current.data_->begin(), present_current.data_->end()));
-                gyro_history.push_back(std::make_shared<std::vector<float>>(gyro.data_->begin(), gyro.data_->end()));
-                accel_history.push_back(std::make_shared<std::vector<float>>(accel.data_->begin(), accel.data_->end()));
-                angles_history.push_back(std::make_shared<std::vector<float>>(eulerAngles.data_->begin(), eulerAngles.data_->end()));
+                
     
                 // Update min_moving_current only at the start of movement for each servo
                 for (int i = 0; i < current_controlled_servos.size(); i++)
@@ -706,13 +713,9 @@ class CurrentPositionMapping : public Module
                 }
             }
 
-            else if (reached_goal.sum() == current_controlled_servos.size())
+            else if (reached_goal.sum() == current_controlled_servos.size() && reached_goal.sum() > 0)
             {
-                // Save trajectory data before any other operations
-                if (!moving_trajectory.empty())
-                {
-                    SaveTrajectory(moving_trajectory, current_history, gyro_history, accel_history, angles_history, robotType, start_position, goal_position_out);
-                }
+                
 
                 if (MinimumTorqueCurrentSearch)
                 {
@@ -720,7 +723,30 @@ class CurrentPositionMapping : public Module
                 }
                 else
                 {   
-                    Sleep(0.5);
+                    // Set a timer to wait 1000ms before proceeding
+                    static auto timer_start = Clock::now();
+                    static bool timer_set = false;
+                    
+                    if (!timer_set) {
+                        timer_start = Clock::now();
+                        timer_set = true;
+                        // Save trajectory data before any other operations
+                        if (!moving_trajectory.empty())
+                        {
+                            SaveTrajectory(moving_trajectory, current_history, gyro_history, accel_history, angles_history, robotType, start_position, goal_position_out);
+                        }
+                        return; // Exit early, continue timing
+                    }
+                    
+                    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(Clock::now() - timer_start).count();
+                    if (elapsed < 1000) {
+                        return; // Still waiting, exit early
+                    }
+                    
+                    // Timer completed, reset for next use
+                    timer_set = false;
+                    
+                    SaveMetricsToJson(goal_position_out, start_position, max_present_current, min_moving_current, min_torque_current, overshot_goal, transition_duration, number_ticks, robotType, transition, unique_id);
                     // Move to next transition
                     transition++;
                     auto now = Clock::now();
