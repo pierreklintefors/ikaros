@@ -25,6 +25,7 @@ class GoalSetter: public Module
     //outputs
     matrix goal_position;
     matrix start_position;
+    matrix transitions_remaining;
    
 
 
@@ -128,7 +129,7 @@ class GoalSetter: public Module
     Bind(position_margin, "PositionMargin");
     Bind(transition_delay, "TransitionDelay");
     Bind(static_test_mode, "StaticTestMode");
-
+    Bind(transitions_remaining, "TRANSITIONS_REMAINING");
     //Bind override goal position
     Bind(override_goal_position, "OVERRIDE_GOAL_POSITION");
 
@@ -158,17 +159,20 @@ class GoalSetter: public Module
 
    void Tick()
    {
-    // In static test mode, just hold current position and don't process transitions
-    if (static_test_mode) {
-        // On first tick, capture and hold the current position
-        if (GetTick() == 1 && present_position.sum() > 0) {
-            goal_position.copy(present_position);
-            start_position.copy(present_position);
-            Debug("GoalSetter: Static test mode - holding position at " + goal_position.json());
-        }
-        // Keep sending the same goal position every tick
-        return;
-    }
+       transitions_remaining(0) = num_transitions.as_int() - transition;
+       // In static test mode, just hold current position and don't process transitions
+       if (static_test_mode)
+       {
+           // On first tick, capture and hold the current position
+           if (GetTick() == 2 && present_position.sum() > 0)
+           {
+               goal_position.copy(present_position);
+               start_position.copy(present_position);
+               Debug("GoalSetter: Static test mode - holding position at " + goal_position.json());
+           }
+           // Keep sending the same goal position every tick
+           return;
+       }
     
     // Helper function to check if override is meaningful (any non-zero value)
     auto has_override = [this]() -> bool {
@@ -236,7 +240,9 @@ class GoalSetter: public Module
                 Debug("GoalSetter: Transitioning to next goal position");
 
                 goal_position.copy(planned_positions[transition]);
-                
+                reached_goal.set(0);
+                start_position.copy(present_position);
+                transition++;
             }
             else if (one_cycle && goal_position_in.connected())
             {
@@ -301,6 +307,8 @@ class GoalSetter: public Module
         }
     }
     Debug("GoalSetter: Time since last transition: " + std::to_string(GetTime() - reached_goal_time_point) + " seconds");
+    
+
 
   
    }
