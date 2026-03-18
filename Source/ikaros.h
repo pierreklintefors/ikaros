@@ -234,10 +234,11 @@ namespace ikaros
 
         } // Used to send commands and arbitrary data structures to modules
 
-        void print();
-        void info();
-        std::string json();
-        std::string xml();
+    void print();
+    void info();
+    std::string json();  // json representation of the component
+    virtual std::string json(const std::string & name) { return ""; }; // json representation for name of component
+    std::string xml();
 
         bool KeyExists(const std::string &key);        // Check if a key exist here or in any parent; this means that LookupKey will succeed
         std::string LookupKey(const std::string &key); // Look up value in dictionary with inheritance
@@ -407,7 +408,7 @@ namespace ikaros
 
     std::recursive_mutex                    kernelLock;  
     std::atomic<bool>                       shutdown;
-    int                                     run_mode;
+    std::atomic<int>                        run_mode;
 
         dictionary current_component_info; // Implivit parameters to create Component
         std::string current_component_path;
@@ -446,13 +447,13 @@ namespace ikaros
 
         // FIXME: Add mutexes for functions called by modules
 
-        tick_count GetTick() { return tick; }
-        double GetTickDuration() { return tick_duration; }                                                                       // Time for each tick in seconds (s)
-        double GetTime() { return (run_mode == run_mode_realtime) ? GetRealTime() : static_cast<double>(tick) * tick_duration; } // Time since start (in real time or simulated (tick) time dending on mode)
-        double GetRealTime() { return (run_mode == run_mode_realtime) ? timer.GetTime() : static_cast<double>(tick) * tick_duration; }
-        double GetNominalTime() { return static_cast<double>(tick) * tick_duration; }
-        double GetTimeOfDay();
-        double GetLag() { return (run_mode == run_mode_realtime) ? static_cast<double>(tick) * tick_duration - timer.GetTime() : 0; }
+    tick_count GetTick() { return tick; }
+    double GetTickDuration() { return tick_duration; } // Time for each tick in seconds (s)
+    double GetTime() { return (run_mode.load() == run_mode_realtime) ? GetRealTime() : static_cast<double>(tick)*tick_duration; }   // Time since start (in real time or simulated (tick) time dending on mode)
+    double GetRealTime() { return (run_mode.load() == run_mode_realtime) ? timer.GetTime() : static_cast<double>(tick)*tick_duration; }
+    double GetNominalTime() { return static_cast<double>(tick)*tick_duration; } 
+    double GetTimeOfDay();
+    double GetLag() { return (run_mode.load() == run_mode_realtime) ? static_cast<double>(tick)*tick_duration - timer.GetTime() : 0; }
 
         void CalculateCPUUsage();
 

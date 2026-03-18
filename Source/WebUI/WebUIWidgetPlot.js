@@ -1,5 +1,21 @@
 class WebUIWidgetPlot extends WebUIWidgetGraph
 {
+    roundUpToSignificantFigure(value)
+    {
+        if(!Number.isFinite(value) || value === 0)
+            return 0;
+        const scale = Math.pow(10, Math.floor(Math.log10(Math.abs(value))));
+        return Math.ceil(value / scale) * scale;
+    }
+
+    roundDownToSignificantFigure(value)
+    {
+        if(!Number.isFinite(value) || value === 0)
+            return 0;
+        const scale = Math.pow(10, Math.floor(Math.log10(Math.abs(value))));
+        return Math.floor(value / scale) * scale;
+    }
+
     static template()
     {
         return [
@@ -7,16 +23,15 @@ class WebUIWidgetPlot extends WebUIWidgetGraph
             {'name':'title', 'default':"Plot", 'type':'string', 'control': 'textedit'},
             {'name':'source', 'default':"", 'type':'source', 'control': 'textedit'},
             {'name':'select', 'default':"", 'type':'string', 'control': 'textedit'},
-            {'name':'min', 'default':0, 'type':'float', 'control': 'textedit'},
-            {'name':'max', 'default':1, 'type':'float', 'control': 'textedit'},
             {'name':'buffer_size', 'default':50, 'type':'int', 'control': 'textedit'},
             {'name':'direction', 'default':"vertical", 'type':'string', 'min':0, 'max':2, 'control': 'menu', 'options': "vertical", 'class':'true'},
             {'name': "STYLE", 'control':'header'},
             {'name':'color', 'default':"", 'type':'string', 'control': 'textedit'},
-            {'name':'show_title', 'default':true, 'type':'bool', 'control': 'checkbox'},
-            {'name':'show_frame', 'default':false, 'type':'bool', 'control': 'checkbox'},
-            { 'name': 'style', 'default':"--decimals:0", 'type':'string', 'control': 'textedit'},
-            {'name':'frame-style', 'default':"", 'type':'string', 'control': 'textedit'},
+            {'name': "COORDINATE SYSTEM", 'control':'header'},
+            {'name':'min', 'default':0, 'type':'float', 'control': 'textedit'},
+            {'name':'max', 'default':1, 'type':'float', 'control': 'textedit'},
+            {'name':'auto', 'default':true, 'type':'bool', 'control': 'checkbox'},
+            {'name':'include_zero', 'default':true, 'type':'bool', 'control': 'checkbox'},
 
         ]};
 
@@ -27,37 +42,13 @@ class WebUIWidgetPlot extends WebUIWidgetGraph
         this.buffer = [];
         this.ix = 0;
 
-        this.onclick = function () { alert(this.data) }; // last matrix
-    }
-
-    getSelectedColumns()
-    {
-        const sel = (this.parameters.select ?? "").toString().trim();
-        if(!sel) return null;
-        const out = [];
-        const add = (i) => { if(Number.isInteger(i) && i >= 0) out.push(i); };
-        for(const tok of sel.split(',')) {
-            const t = tok.trim();
-            if(!t) continue;
-            const m = t.match(/^(-?\d+)(?::(-?\d+)(?::(-?\d+))?)?$/);
-            if(m) {
-                let start = parseInt(m[1],10);
-                if(m[2] !== undefined) {
-                    let end = parseInt(m[2],10);
-                    let step = m[3] !== undefined ? parseInt(m[3],10) : 1;
-                    if(step === 0) step = 1;
-                    if(start <= end) { for(let i=start;i<=end;i+=step) add(i); }
-                    else { for(let i=start;i>=end;i-=Math.abs(step)) add(i); }
-                } else {
-                    add(start);
-                }
-            } else {
-                const i = parseInt(t,10);
-                add(i);
-            }
-        }
-        return out.length ? out : null;
-    }
+        this.onclick = function ()
+        {
+            if(main.edit_mode)
+                return;
+            alert(this.data);
+        }; // last matrix
+   }
 
     getBufferSize()
     {
@@ -65,6 +56,15 @@ class WebUIWidgetPlot extends WebUIWidgetGraph
             return this.width;
         else
             return this.parameters.buffer_size;
+    }
+
+    getOrderedBuffer()
+    {
+        if(this.buffer.length === 0)
+            return [];
+        if(this.buffer.length < this.getBufferSize())
+            return this.buffer.slice();
+        return this.buffer.slice(this.ix).concat(this.buffer.slice(0, this.ix));
     }
 /*
     drawBarHorizontal(width, height, i) // not used
@@ -108,38 +108,26 @@ class WebUIWidgetPlot extends WebUIWidgetGraph
 
     drawPlotVertical(width, height, y)
     {
-        let min = this.parameters.min;
-        let max = this.parameters.max;
-        let w = this.getBufferSize();
-        let dx = width/w;
+        if(!Array.isArray(this.data) || this.data.length === 0 || !Array.isArray(this.data[0]))
+            return;
+        const history = this.getOrderedBuffer();
+        if(history.length === 0)
+            return;
+        let dx = width/Math.max(1, this.getBufferSize());
 
         for(let xx=0; xx<this.data[0].length; xx++)
         {
-            let x = 0;
-
             this.canvas.beginPath();
             this.setColor(xx);
-
-            if(this.ix >= 1)
+            for(let i=0; i<history.length; i++)
             {
-                this.canvas.moveTo(x, height-height*(this.buffer[0][y][xx]-min)/(max-min));
-                x += dx;
-                for(let i=1; i<this.ix; i++)
-                {
-                    this.canvas.lineTo(x, height-height*(this.buffer[i][y][xx]-min)/(max-min));
-                    x += dx;
-                }
-            }
-
-            if(this.ix <this.buffer.length)
-            {
-                this.canvas.moveTo(x, height-height*(this.buffer[this.ix][y][xx]-min)/(max-min));
-                x += dx;
-                for(let i=this.ix+1; i<this.buffer.length; i++)
-                {
-                    this.canvas.lineTo(x, height-height*(this.buffer[i][y][xx]-min)/(max-min));
-                    x += dx;
-                }
+                const x = i * dx;
+                const value = history[i]?.[y]?.[xx];
+                const yy = this.getPlotYForValue(value, height);
+                if(i === 0)
+                    this.canvas.moveTo(x, yy);
+                else
+                    this.canvas.lineTo(x, yy);
             }
             this.canvas.stroke();
         }
@@ -149,8 +137,12 @@ class WebUIWidgetPlot extends WebUIWidgetGraph
     {
         if(this.data = this.getSource('source'))
         {
-            if(typeof this.data[0] != "object") // FIXME: Fix for arbitrary matrix sizes
-            this.data = [this.data];
+            if(!Array.isArray(this.data))
+                return;
+            if(!Array.isArray(this.data[0])) // FIXME: Fix for arbitrary matrix sizes
+                this.data = [this.data];
+            if(!this.data.length || !Array.isArray(this.data[0]) || !this.data[0].length)
+                return;
 
             const cols = this.getSelectedColumns();
             if(cols) {
@@ -160,10 +152,40 @@ class WebUIWidgetPlot extends WebUIWidgetGraph
             if(this.buffer.length < this.getBufferSize())
                 this.buffer.push(this.data);
             else
+            {
                 this.buffer[this.ix] = this.data;
+                this.ix = (this.ix + 1) % this.getBufferSize();
+            }
 
-            if(this.ix++ >= this.getBufferSize())
-                this.ix = 0;
+            if(this.parameters.auto)
+            {
+                const values = this.getFiniteValues(this.data);
+                if(values.length > 0)
+                {
+                    let nextMax = Math.max(...values);
+                    let nextMin = Math.min(...values);
+                    if(this.parameters.include_zero)
+                    {
+                        nextMax = Math.max(0, nextMax);
+                        nextMin = Math.min(0, nextMin);
+                    }
+
+                    if(!Number.isFinite(this.computedMax))
+                        this.computedMax = this.roundUpToSignificantFigure(nextMax || 1);
+                    else if(nextMax > this.computedMax)
+                        this.computedMax = this.roundUpToSignificantFigure(nextMax || 1);
+
+                    if(!Number.isFinite(this.computedMin))
+                        this.computedMin = this.roundDownToSignificantFigure(nextMin || 0);
+                    else if(nextMin < this.computedMin)
+                        this.computedMin = this.roundDownToSignificantFigure(nextMin || 0);
+                }
+            }
+            else
+            {
+                this.computedMin = null;
+                this.computedMax = null;
+            }
 
             this.draw(this.data[0].length, this.data.length);
         }

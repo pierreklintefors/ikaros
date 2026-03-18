@@ -164,26 +164,28 @@ namespace ikaros
         return dict_->count(s);
     }
 
-    size_t
-    dictionary::count(std::string s)
-    {
-        return dict_->count(s);
-    }
-    /*
-            dictionary::dictionary(const dictionary & d)
-            {
-                //std::cout << "COPY CONSTRUCTOR" << std::endl;
-                dict_ = d.dict_;
-            }
-    */
-    dictionary::dictionary() : dict_(std::make_shared<std::map<std::string, value>>()) {};
+        size_t 
+        dictionary::count(std::string s)
+        {
+            return dict_->count(s);
+        }
+/*
+        dictionary::dictionary(const dictionary & d)
+        {
+            //std::cout << "COPY CONSTRUCTOR" << std::endl;
+            dict_ = d.dict_;
+        }
+*/
+        dictionary::dictionary():   
+            dict_(std::make_shared<std::unordered_map<std::string, value>>())
+        {};
 
-    dictionary::dictionary(const std::initializer_list<std::pair<std::string, std::string>> &init_list)
-    {
-        dict_ = std::make_shared<std::map<std::string, value>>();
-        for (const auto &[key, val] : init_list)
-            (*dict_)[key] = value(val);
-    }
+        dictionary::dictionary(const std::initializer_list<std::pair<std::string, std::string>>& init_list)
+        {
+            dict_ = std::make_shared<std::unordered_map<std::string, value>>();
+            for (const auto& [key, val] : init_list)
+                (*dict_)[key] = value(val);
+        }
 
     void dictionary::merge(const dictionary &source, bool overwrite) // shallow merge: copy from source to this
     {
@@ -334,6 +336,23 @@ namespace ikaros
     dictionary::dictionary(std::string filename) : dictionary(XMLDocument(filename.c_str()).xml)
     {
     }
+
+
+    void
+    dictionary::load_json(std::string filename)
+    {
+        std::ifstream file(filename);
+        if (!file)
+            throw("Error: could not open file.");
+
+        std::string content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+        value d = parse_json(content);
+        if(!d.is_dictionary())
+            throw("Error: JSON root is not a dictionary."); 
+
+        *this = dictionary(d);
+    }
+
 
     void
     dictionary::parse_url(std::string s)

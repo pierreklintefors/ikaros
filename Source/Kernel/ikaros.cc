@@ -6,7 +6,7 @@ using namespace ikaros;
 using namespace std::chrono;
 using namespace std::literals;
 
-bool global_terminate = false;
+std::atomic<bool> global_terminate(false);
 
 namespace ikaros
 {
@@ -483,11 +483,13 @@ namespace ikaros
         }
         catch (exception &e)
         {
-            Notify(msg_fatal_error, e.message());
+            Notify(msg_warning, e.message());
+            // FIXME:   THROW ???? 
         }
         catch (std::exception &e)
         {
-            Notify(msg_fatal_error, "ERROR: Could not resolve parameter \""s + name + "\" .", name);
+            Notify(msg_warning, "ERROR: Could not resolve parameter \""s +name + "\" .", name);  
+            // FIXME:   THROW ???? 
         }
         return false;
     }
@@ -1234,7 +1236,7 @@ namespace ikaros
         }
         catch (const std::invalid_argument &e)
         {
-            //Notify(msg_fatal_error, e.what());
+            Notify(msg_warning, e.what());
             throw setup_error("Size expression for output \""+std::string(d.at("name")) +"\" is invalid. "+e.what(), path_);
         }
         catch (...)
@@ -1565,7 +1567,7 @@ namespace ikaros
             else
                 run_mode = run_mode_pause;
         }
-        return (stop_after != -1 && tick >= stop_after) || global_terminate;
+        return (stop_after!= -1 &&  tick >= stop_after) || global_terminate.load();
     }
 
     void
@@ -1680,13 +1682,13 @@ namespace ikaros
         }
         catch (fatal_error &e)
         {
-            //Notify(msg_fatal_error, e.message()); // FIXME: Remove
+            Notify(msg_warning, e.message());
             throw setup_error("Could not calculate input and output sizes. "+e.message(), e.path());
         }
 
         catch (setup_error &e)
         {
-            Notify(msg_fatal_error, e.message()); // FIXME: Remove
+            Notify(msg_warning, e.message());
             throw setup_error("Could not calculate input and output sizes. "+e.message(), e.path());
         }
 
@@ -2066,6 +2068,7 @@ if(classes[classname].path.empty())
         catch(const exception& e)
         {
             Notify(msg_warning, e.what(), e.path()); // Do not exit if not in batch mode // FIXME: Check this
+            throw;
         }
     }
 
@@ -2156,8 +2159,19 @@ if(classes[classname].path.empty())
             if (c.delay_range_.is_delay_0())
                 continue;
             else
-                c.Tick();
+                try
+                {
+                    c.Tick();
+                }
+                catch(const std::exception& e)
+                {
+                    std::cerr << e.what() << '\n';
+                }
+                
+                
     }
+
+
 
     void
     Kernel::InitSocket(long port)
@@ -2409,8 +2423,12 @@ if(classes[classname].path.empty())
     
             // Wait for completion
             for (auto &ts : sequences) 
+            {
                 if(!ts->waitForCompletion(5)) // Timeout after 5 seconds
-                    Notify(msg_warning, "Task sequence did not complete successfully within the 5 second timeout period."); 
+                    throw std::runtime_error("Task sequence timed out after 5 seconds.");
+
+                ts->rethrowIfError();
+            }
         } 
         catch (const std::exception &e) {
             Notify(msg_fatal_error, "Error during task execution: " + std::string(e.what()));
@@ -2477,35 +2495,38 @@ if(classes[classname].path.empty())
     Kernel::Run()
     {
         // Main loop
-        while (run_mode > run_mode_quit && !global_terminate) // Not quit
+        while(run_mode.load() > run_mode_quit && !global_terminate.load())  // Not quit
         {
-            while (!Terminate() && run_mode > run_mode_quit)
+            while (!Terminate() && run_mode.load() > run_mode_quit)
             {
-                if(run_mode == run_mode_realtime)
+                if(run_mode.load() == run_mode_realtime)
                     lag = timer.WaitUntil(double(tick+1)*tick_duration);
-                else if(run_mode == run_mode_play)
+                else if(run_mode.load() == run_mode_play)
                 {
-                    timer.SetTime(double(tick + 1) * tick_duration); // Fake time increase // FIXME: remove sleep in batch mode
+                    timer.SetStartTime(double(tick+1)*tick_duration); // Fake time increase // FIXME: remove sleep in batch mode DOES NOT LOOK CORRECT
+                    lag = 0;
                     Sleep(0.01);
                 }
                 else
                     Sleep(0.01); // Wait 10 ms to avoid wasting cycles if there are no requests
 
+                if(run_mode.load() == run_mode_realtime)
+                {
                 if(lag > 1.0)
-                {
-                    Notify(msg_warning, "Performance warning: System is " + std::to_string(lag) +  " seconds behind real time. Consider increasing tick_duration.");
-                    std::this_thread::sleep_for(std::chrono::milliseconds(100)); // Give HTTP thread more time to run
-                }
-                
-               else  if(lag > 0.001)
-                {
-                    std::cout  << "Ikaros is lagging " << lag << " seconds behind real time." << std::endl;
-                    std::this_thread::sleep_for(std::chrono::milliseconds(1)); // Give HTTP thread a chance to run
+                    {
+                        Notify(msg_warning, "Performance warning: System is " + std::to_string(lag) +  " seconds behind real time. Consider increasing tick_duration.");
+                        std::this_thread::sleep_for(std::chrono::milliseconds(100)); // Give HTTP thread more time to run
+                    }
+                    else  if(lag > 0.001)
+                        {
+                            std::cout  << "Ikaros is lagging " << lag << " seconds behind real time." << std::endl;
+                            std::this_thread::sleep_for(std::chrono::milliseconds(1)); // Give HTTP thread a chance to run
+                        }
                 }
 
                 // Run_mode may have changed during the delay - needs to be checked again
 
-                if (run_mode == run_mode_realtime || run_mode == run_mode_play)
+                if(run_mode.load() == run_mode_realtime || run_mode.load() == run_mode_play) 
                 {
                     actual_tick_duration = intra_tick_timer.GetTime();
                     intra_tick_timer.Restart();
@@ -2521,8 +2542,8 @@ if(classes[classname].path.empty())
                         return;                 // FIXME: THROW INSTEAD
                     }
                     tick_time_usage = intra_tick_timer.GetTime();
-                    idle_time = tick_duration - tick_time_usage;
-                }
+                    idle_time = std::max(0.0, tick_duration - tick_time_usage);
+                }    
             }
             Stop();
             Sleep(0.1);
@@ -2616,7 +2637,7 @@ if(classes[classname].path.empty())
     void
     Kernel::Stop()
     {
-        run_mode = std::min(run_mode_stop, run_mode);
+        run_mode.store(std::min(run_mode_stop, run_mode.load()));
         tick = -1;
         timer.Pause();
         timer.SetPauseTime(0);
@@ -2645,12 +2666,18 @@ if(classes[classname].path.empty())
     void
     Kernel::Realtime()
     {
-        if(needs_reload)
-            LoadFile();
-     
-        Pause();
-        timer.Continue(); 
-        run_mode = run_mode_realtime;
+        try {
+            if(needs_reload)
+                LoadFile();
+        
+            Pause();
+            timer.Continue(); 
+            run_mode = run_mode_realtime;
+        }
+        catch(const load_failed& e)
+        {
+            Notify(msg_warning, e.what(), e.path());
+        }
     }
 
     void
@@ -2692,8 +2719,8 @@ if(classes[classname].path.empty())
         socket->Send("\t\"debug\": false,\n");
 #endif
 
-        socket->Send("\t\"state\": %d,\n", run_mode);
-        if (stop_after != -1)
+            socket->Send("\t\"state\": %d,\n", run_mode.load());
+        if(stop_after != -1)
         {
             socket->Send("\t\"tick\": \"%d / %d\",\n", tick, stop_after);
             socket->Send("\t\"progress\": %f,\n", double(tick) / double(stop_after));
@@ -2765,9 +2792,6 @@ if(classes[classname].path.empty())
     void
     Kernel::DoSendData(Request & request)
     {    
-        //sending_ui_data = true; // must be set while main thread is still running
-
-
         DoSendDataHeader();
 
         socket->Send("{\n");
@@ -2776,15 +2800,13 @@ if(classes[classname].path.empty())
 
         socket->Send("\t\"data\":\n\t{\n");
 
-        std::string data = request.parameters["data"]; // FIXME: Check that it exists ******** or return ""
-        std::string root;
-        if (request.parameters.contains("root"))
-            root = std::string(request.parameters["root"]);
+        std::string data = request.parameters["data"];  // FIXME: Check that it exists ******** or return ""
+        std::string root = request.component_path;
 
         std::string sep = "";
         bool sent = false;
 
-        while(!data.empty()) // FIXME: CHeck the we do not run out of time here and break if next tick is about to start.
+        while(!data.empty()) // FIXME: Check the we do not run out of time here and break if next tick is about to start.
         {
             std::string source = head(data, ",");
             std::string key = source;
@@ -2797,7 +2819,14 @@ if(classes[classname].path.empty())
             }
 
             std::string format = rtail(source, ":");
-            std::string source_with_root = root + "." + source;
+            std::string source_with_root = root +"."+source;
+
+            if(key[0] == '.')
+                source_with_root = key.substr(1); // Global path (keep `key` intact)
+
+            std::string component_path = peek_rhead(source_with_root, ".");
+            
+            std::string attribute = peek_rtail(source_with_root, ".");
 
             if(buffers.count(source_with_root))
             {
@@ -2822,9 +2851,21 @@ if(classes[classname].path.empty())
                 sent = socket->Send(sep + "\t\t\"" + key + "\": " + parameters[source_with_root].json());
             }
 
+            else if(components.count(component_path)) // Use module function to get value
+            {
+                    std::string json_data = components[component_path]->json(attribute);
+
+                if(!json_data.empty())
+                {
+                    socket->Send(sep);
+                    std::string s = "\t\t\"" + source + "\": "+json_data;
+                    socket->Send(s);
+                    sep = ",\n";
+                }
+            }
             else
             {
-                // sent = socket->Send(sep + "\t\t\"" + key + "\": \""+source+"\""); // ERROR: Does not exist, do not send
+                // ERROR: No such buffer or parameter
             }
 
             if(sent)
@@ -2856,16 +2897,20 @@ if(classes[classname].path.empty())
             options_.path_ = system_files.at(file);
         else
             options_.path_ = user_files.at(file);
-        try
-        {
-            LoadFile();
-        }
-        catch (const std::exception &e)
-        {
-            std::cerr << e.what() << '\n';
-            Notify(msg_warning, "File \"" + file + "\" could not be loaded"); // FIXME: better error message - alert? HTTP reply with error code
-            New();
-        }
+            try
+            {
+                LoadFile();
+            }
+            catch(const std::exception& e)
+            {
+                std::cerr << e.what() << '\n';
+                Notify(msg_warning, "File \""+file+"\" could not be loaded"); // FIXME: better error message - alert? HTTP reply with error code
+                New();
+            }
+            
+        // Great we loaded the file. Check the run_mode in the loaded file and set it accordingly?
+        // if(std::string(info_["real_time"]) == "true")
+        //     Realtime();
 
         DoSendNetwork(request);
     }
@@ -2954,7 +2999,10 @@ if(classes[classname].path.empty())
     void
     Kernel::DoSendNetwork(Request &request)
     {
-        std::string s = json();
+        std::string s = json(); 
+
+        //std::cout << s << std::endl;
+
         Dictionary rtheader;
         rtheader.Set("Session-Id", std::to_string(session_id).c_str());
         rtheader.Set("Package-Type", "network");
@@ -3048,7 +3096,12 @@ if(classes[classname].path.empty())
             if(request.parameters.contains("root"))
                 root = std::string(request.parameters["root"]);
 
-            if(!components.count(request.component_path))
+            std::string key = request.component_path;
+            if(key[0] == '.')
+                key = key.substr(1); // Global path
+
+
+            if(!components.count(key))
             {
                 Notify(msg_warning, "Component '"+request.component_path+"' could not be found.");
                 DoSendData(request);
@@ -3065,7 +3118,7 @@ if(classes[classname].path.empty())
                     return;
             }
 
-            components.at(request.component_path)->Command(request.parameters["command"], request.parameters);
+            components.at(key)->Command(request.parameters["command"], request.parameters);
         }
         catch(const std::exception& e)
         {
@@ -3079,20 +3132,19 @@ if(classes[classname].path.empty())
     {
         try
         {
-            std::string root;
+            std::string key = request.component_path;
+            if(key[0] == '.')
+                key = key.substr(1); // Global path
 
-            if (request.parameters.contains("root"))
-                root = std::string(request.parameters["root"]);
-
-            if (!parameters.count(request.component_path))
+            if(!parameters.count(key))
             {
                 Notify(msg_warning, "Parameter '" + request.component_path + "' could not be found.");
                 DoSendData(request);
                 return;
             }
 
-            parameter &p = parameters.at(request.component_path);
-            if (p.type == matrix_type)
+            parameter & p = parameters.at(key);
+            if(p.type == matrix_type)
             {
                 int x = 0;
                 int y = 0;
@@ -3106,11 +3158,11 @@ if(classes[classname].path.empty())
 
                 if (request.parameters.contains("value"))
                     value = request.parameters["value"];
-
-                if (p.matrix_value->rank() == 1)
-                    (*p.matrix_value)(x) = value;
-                else if (p.matrix_value->rank() == 2)
-                    (*p.matrix_value)(x, y) = value;
+                    
+                if(p.matrix_value->rank() == 1)
+                    (*p.matrix_value)(x)= value;
+                else if(p.matrix_value->rank() == 2)
+                    (*p.matrix_value)(y,x)= value; // Is this correct?
                 else
                     ; // FIXME: higher dimensional parameter
             }
@@ -3242,7 +3294,12 @@ if(classes[classname].path.empty())
 
         Request request(socket->header.Get("URI"), sid, socket->body);
 
-        //std::cout << "Request: " << request.url << std::endl;
+        if(request.parameters.contains("proxy"))
+            request.component_path = std::string(request.parameters["proxy"]);
+
+        if(!(request == "update"))
+        std::cout << "Request: " << request.url << std::endl;
+
         if(request == "network")
             DoNetwork(request);
 
@@ -3366,7 +3423,6 @@ if(classes[classname].path.empty())
 }
 
 }; // namespace ikaros
-
 
 
 

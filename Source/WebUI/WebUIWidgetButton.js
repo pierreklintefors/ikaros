@@ -141,12 +141,18 @@ class WebUIWidgetButton extends WebUIWidgetControl
 
             else if(p.type=="open")
             {
+                if(main.edit_mode)
+                    return; // TEMPORARY
+
                 let callback = function (selected_item)
                 {
                     thisbutton.parentElement.send_command(p.command, selected_item, p.xindex, p.yindex);
                 }
 
-                dialog.showOpenDialog(this.file_names, callback, p.title);
+                if(this.file_names)
+                    dialog.showListSelectDialog(this.file_names, callback, p.title);
+                else
+                    dialog.showListSelectDialog("", callback, p.title);
             }
     }
 
@@ -212,7 +218,11 @@ class WebUIWidgetButton extends WebUIWidgetControl
         try
         {
             if(this.parameters.enableSource)
-                this.firstChild.disabled = (this.getSource('enableSource')[0][0] == 0 ? true : false)
+            {
+                const enableSource = this.getSource('enableSource');
+                const enableValue = Array.isArray(enableSource) ? (Array.isArray(enableSource[0]) ? enableSource[0][0] : enableSource[0]) : enableSource;
+                this.firstChild.disabled = (enableValue == 0 ? true : false);
+            }
         }
         catch(err)
         {}
@@ -220,7 +230,13 @@ class WebUIWidgetButton extends WebUIWidgetControl
                 if(this.parameters.parameter)
                 {
                     let value = this.parameters.value;                   
-                    let v = this.getSource('parameter')[this.parameters.yindex][this.parameters.xindex]
+                    const parameterSource = this.getSource('parameter');
+                    if(!Array.isArray(parameterSource))
+                        return;
+                    const matrix = Array.isArray(parameterSource[0]) ? parameterSource : [parameterSource];
+                    if(!Array.isArray(matrix[this.parameters.yindex]))
+                        return;
+                    let v = matrix[this.parameters.yindex][this.parameters.xindex]
 
                     if(v == value)
 
@@ -239,4 +255,3 @@ class WebUIWidgetButton extends WebUIWidgetControl
 
 
 webui_widgets.add('webui-widget-button', WebUIWidgetButton);
-

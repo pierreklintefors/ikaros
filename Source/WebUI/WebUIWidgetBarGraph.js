@@ -1,5 +1,21 @@
 class WebUIWidgetBarGraph extends WebUIWidgetGraph
 {
+    roundUpToSignificantFigure(value)
+    {
+        if(!Number.isFinite(value) || value === 0)
+            return 0;
+        const scale = Math.pow(10, Math.floor(Math.log10(Math.abs(value))));
+        return Math.ceil(value / scale) * scale;
+    }
+
+    roundDownToSignificantFigure(value)
+    {
+        if(!Number.isFinite(value) || value === 0)
+            return 0;
+        const scale = Math.pow(10, Math.floor(Math.log10(Math.abs(value))));
+        return Math.floor(value / scale) * scale;
+    }
+
     static template()
     {
         return [
@@ -22,7 +38,8 @@ class WebUIWidgetBarGraph extends WebUIWidgetGraph
             {'name': "COORDINATE SYSTEM", 'control':'header'},
             {'name':'min', 'default':0, 'type':'float', 'control': 'textedit'},
             {'name':'max', 'default':1, 'type':'float', 'control': 'textedit'},
-            {'name':'auto', 'default':false, 'type':'bool', 'control': 'checkbox'},
+            {'name':'auto', 'default':true, 'type':'bool', 'control': 'checkbox'},
+            {'name':'include_zero', 'default':true, 'type':'bool', 'control': 'checkbox'},
             
             {'name': "FRAME", 'control':'header'},
             {'name':'show_title', 'default':true, 'type':'bool', 'control': 'checkbox'},
@@ -37,6 +54,8 @@ class WebUIWidgetBarGraph extends WebUIWidgetGraph
         this.data = [];
 
         this.onclick = function () {
+            if(main.edit_mode)
+                return;
             if(!this.data)
                 return;
             let s = "";
@@ -70,19 +89,27 @@ class WebUIWidgetBarGraph extends WebUIWidgetGraph
 
     drawPlotHorizontal(width, height, y)
     {
+        if(!Array.isArray(this.data) || this.data.length === 0 || !Array.isArray(this.data[0]))
+            return;
         let n = this.data[0].length;
         let bar_height = (height)/(n + (n-1)*this.format.spacing);
         let bar_spacing = Math.round((1 + this.format.spacing) * bar_height);
         bar_height = Math.round(bar_height);
-        let min = parseFloat(this.parameters.min);
-        let max = parseFloat(this.parameters.max);
+        const {min, max} = this.getYRange();
+        let axisX = 0;
+        if(min <= 0 && max >= 0)
+            axisX = (-min / (max - min)) * width;
+        else if(max < 0)
+            axisX = width;
 
         for(let i=0; i<n; i++)
         {
-            let h = (this.data[y][i])/(max-min);
+            const valueX = ((this.data[y][i] - min) / (max - min)) * width;
+            const left = Math.min(axisX, valueX);
+            const barWidth = Math.abs(valueX - axisX);
             this.canvas.save();
-            this.canvas.translate(-min/(max-min)*width,0 );
-            this.drawBarVertical(h*width, bar_height, i);
+            this.canvas.translate(left, 0);
+            this.drawBarVertical(barWidth, bar_height, i);
             this.canvas.restore();
             this.canvas.translate(0, bar_spacing);
         }
@@ -90,19 +117,27 @@ class WebUIWidgetBarGraph extends WebUIWidgetGraph
 
     drawPlotVertical(width, height, y)
     {
+        if(!Array.isArray(this.data) || this.data.length === 0 || !Array.isArray(this.data[0]))
+            return;
         let n = this.data[0].length;
         let bar_width = (width)/(n + (n-1)*this.format.spacing);
         let bar_spacing = Math.round((1 + this.format.spacing) * bar_width);
         bar_width = Math.round(bar_width);
-        let min = parseFloat(this.parameters.min);
-        let max = parseFloat(this.parameters.max);
+        const {min, max} = this.getYRange();
+        let axisY = height;
+        if(min <= 0 && max >= 0)
+            axisY = this.getPlotYForValue(0, height);
+        else if(max < 0)
+            axisY = 0;
 
         for(let i=0; i<n; i++)
         {
-            let h = (this.data[y][i])/(max-min);
+            const valueY = this.getPlotYForValue(this.data[y][i], height);
+            const top = Math.min(axisY, valueY);
+            const barHeight = Math.abs(valueY - axisY);
             this.canvas.save();
-            this.canvas.translate(0, (1-h)*height + min/(max-min)*height); // Translate to origo
-            this.drawBarVertical(bar_width, h*height, i);
+            this.canvas.translate(0, top);
+            this.drawBarVertical(bar_width, barHeight, i);
             this.canvas.restore();
             this.canvas.translate(bar_spacing, 0);
         }
@@ -113,6 +148,8 @@ class WebUIWidgetBarGraph extends WebUIWidgetGraph
     
     transpose(d)
     {
+        if(!Array.isArray(d) || d.length === 0 || !Array.isArray(d[0]))
+            return [];
         var e = d[0].map(function(col, i){
             return d.map(function(row){
                 return row[i];
@@ -121,35 +158,50 @@ class WebUIWidgetBarGraph extends WebUIWidgetGraph
         return e;
     }
 
-    max(m)
-    {
-        let res = 0;
-        for(const r of m)
-            res = Math.max(res, Math.max(...r));
-        return res;
-    }
-    min(m)
-    {
-        let res = 0;
-        for(const r of m)
-            res = Math.min(res, Math.min(...r));
-        return res;
-    }
     update()
     {
         if(this.data = this.getSource('source'))
         {
+            if(!Array.isArray(this.data))
+                return;
             if(typeof this.data[0] != "object") // FIXME: Fix for arbitrary matrix sizes
                 this.data = [this.data];
+            if(!this.data.length || !Array.isArray(this.data[0]) || !this.data[0].length)
+                return;
 
             if(this.parameters.auto)
-                this.parameters.max = this.max(this.data) || 1;
+            {
+                const values = this.getFiniteValues(this.data);
+                if(values.length > 0)
+                {
+                    let nextMax = Math.max(...values);
+                    let nextMin = Math.min(...values);
+                    if(this.parameters.include_zero)
+                    {
+                        nextMax = Math.max(0, nextMax);
+                        nextMin = Math.min(0, nextMin);
+                    }
+                    if(!Number.isFinite(this.computedMax))
+                        this.computedMax = this.roundUpToSignificantFigure(nextMax || 1);
+                    else if(nextMax > this.computedMax)
+                        this.computedMax = this.roundUpToSignificantFigure(nextMax || 1);
 
-            if(this.parameters.auto)
-                this.parameters.min = this.min(this.data) || 0;
+                    if(!Number.isFinite(this.computedMin))
+                        this.computedMin = this.roundDownToSignificantFigure(nextMin || 0);
+                    else if(nextMin < this.computedMin)
+                        this.computedMin = this.roundDownToSignificantFigure(nextMin || 0);
+                }
+            }
+            else
+            {
+                this.computedMin = null;
+                this.computedMax = null;
+            }
 
             if(this.parameters.transpose)
                 this.data = this.transpose(this.data); // TODO: should be changed in drawing instead
+            if(!this.data.length || !Array.isArray(this.data[0]) || !this.data[0].length)
+                return;
 
             this.draw(this.data[0].length, this.data.length);
         }

@@ -8,6 +8,7 @@
 #include <vector>
 #include <set>
 #include <map>
+#include <unordered_map>
 #include <variant>
 #include <iterator>
 #include <iostream>
@@ -26,7 +27,7 @@ namespace ikaros
     struct value;
 
     using valueVariant = std::variant<bool, double, null, std::string, list, dictionary>;
-    using mapPtr = std::shared_ptr<std::map<std::string, value>>;
+    using mapPtr = std::shared_ptr<std::unordered_map<std::string, value>>;
     using listPtr = std::shared_ptr<std::vector<value>>;
     using exclude_set = const std::set<std::string> &; // "a/b" = element b in a; "a.b" attribute b in a
 
@@ -46,8 +47,8 @@ namespace ikaros
     {
         mapPtr dict_;
 
-        using iterator = std::map<std::string, value>::iterator;
-        using const_iterator = std::map<std::string, value>::const_iterator;
+        using iterator = std::unordered_map<std::string, value>::iterator;
+        using const_iterator = std::unordered_map<std::string, value>::const_iterator;
 
 
         iterator begin() noexcept { return dict_->begin(); }
@@ -94,6 +95,8 @@ namespace ikaros
         dictionary copy() const;
 
         void print() const { std::cout << this->json() << std::endl; };
+
+        void load_json(std::string filename);
     };
 
     struct list
@@ -143,13 +146,14 @@ namespace ikaros
     {
         valueVariant value_;
 
-        value(bool v) { value_ = v; }
-        value(double v) { value_ = v; }
-        value(null n = null()) { value_ = null(); }
-        value(const char *s) { value_ = s; }
-        value(const std::string &s) { value_ = s; }
-        value(const list &v) { value_ = v; }
-        value(const dictionary &d) { value_ = d; }
+        value(bool v)               { value_ = v; }
+        value(double v)             { value_ = v; }
+        value(null n=null())        { value_ = null(); }
+        //value(std::nullptr_t n)     { value_ = null(); } // FIXME: This messses with the thread pool for some reason
+        value(const char * s)       { value_ = s; }
+        value(const std::string & s){ value_ = s; }
+        value(const list & v)       { value_ = v; }
+        value(const dictionary & d) { value_ = d; }
 
         value &operator=(bool v)
         {
