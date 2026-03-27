@@ -39,7 +39,6 @@ using namespace std::literals;
 #include "Kernel/statistics.h"
 #include "Kernel/profiler.h"
 
-
 namespace ikaros
 {
     const int run_mode_quit = 0;
@@ -143,10 +142,10 @@ namespace ikaros
         void print(std::string name = "");
         void info();
 
-    int as_int();
-    std::string as_int_string(); // as_int() converted to string
-    std::string as_string();
-    bool empty();
+        int as_int();
+        std::string as_int_string(); // as_int() converted to string
+        std::string as_string();
+        bool empty();
 
         const char *c_str() const noexcept;
 
@@ -180,7 +179,7 @@ namespace ikaros
 
         std::string json()
         {
-            return "[\""+std::to_string(level_)+"\",\""+escape_json_string(message_)+"\",\""+escape_json_string(path_)+"\"]";
+            return "[\"" + std::to_string(level_) + "\",\"" + escape_json_string(message_) + "\",\"" + escape_json_string(path_) + "\"]";
         }
     };
 
@@ -211,34 +210,34 @@ namespace ikaros
         bool Debug(std::string message, std::string path = "") { return Notify(msg_debug, message, path); }
         bool Trace(std::string message, std::string path = "") { return Notify(msg_trace, message, path); }
 
-    void AddLogLevel();
-    void AddInput(dictionary parameters);
-    void AddOutput(dictionary parameters);
-    void AddOutput(std::string name, int size, std::string description=""); // Must be called from creator function and not from Init
-    void ClearOutputs();    // Must be called from creator function and not from Init
-    void AddParameter(dictionary parameters);
-    void SetParameter(std::string name, std::string value);
-    bool BindParameter(parameter & p,  std::string & name);
-    bool ResolveParameter(parameter & p,  std::string & name);
-    void Bind(parameter & p, std::string n);   // Bind to parameter in global parameter table
-    void Bind(matrix & m, std::string n); // Bind to input or output in global parameter table, or matrix parameter
+        void AddLogLevel();
+        void AddInput(dictionary parameters);
+        void AddOutput(dictionary parameters);
+        void AddOutput(std::string name, int size, std::string description = ""); // Must be called from creator function and not from Init
+        void ClearOutputs();                                                      // Must be called from creator function and not from Init
+        void AddParameter(dictionary parameters);
+        void SetParameter(std::string name, std::string value);
+        bool BindParameter(parameter &p, std::string &name);
+        bool ResolveParameter(parameter &p, std::string &name);
+        void Bind(parameter &p, std::string n); // Bind to parameter in global parameter table
+        void Bind(matrix &m, std::string n);    // Bind to input or output in global parameter table, or matrix parameter
 
         virtual void SetParameters() {} // Can be overridden in modules to set parmeter values in code rather than from the ikc/ikg file; called before Init()
         virtual void Tick() {}
         virtual void Init() {}
 
-    virtual void Command(std::string command_name, dictionary & parameters)
-    {
-        std::cout << "Received command: " << command_name << "\n";
-        parameters.print();
+        virtual void Command(std::string command_name, dictionary &parameters)
+        {
+            std::cout << "Received command: " << command_name << "\n";
+            parameters.print();
 
         } // Used to send commands and arbitrary data structures to modules
 
-    void print();
-    void info();
-    std::string json();  // json representation of the component
-    virtual std::string json(const std::string & name) { return ""; }; // json representation for name of component
-    std::string xml();
+        void print();
+        void info();
+        std::string json();                                               // json representation of the component
+        virtual std::string json(const std::string &name) { return ""; }; // json representation for name of component
+        std::string xml();
 
         bool KeyExists(const std::string &key);        // Check if a key exist here or in any parent; this means that LookupKey will succeed
         std::string LookupKey(const std::string &key); // Look up value in dictionary with inheritance
@@ -278,11 +277,11 @@ namespace ikaros
         virtual int SetOutputSize(dictionary d, input_map ingoing_connections);
         virtual int SetOutputSizes(input_map &ingoing_connections); // Uses the size attribute
 
-    virtual int SetSizes(input_map ingoing_connections); // Sets input and output if possible
-    void CheckRequiredInputs();
+        virtual int SetSizes(input_map ingoing_connections); // Sets input and output if possible
+        void CheckRequiredInputs();
 
-    void CalculateCheckSum(long & check_sum, prime & prime_number); // Calculates a value that depends on all parameters and buffer size
-};
+        void CalculateCheckSum(long &check_sum, prime &prime_number); // Calculates a value that depends on all parameters and buffer size
+    };
 
     typedef std::function<Module *()> ModuleCreator;
 
@@ -304,69 +303,23 @@ namespace ikaros
         int SetOutputSizes(input_map ingoing_connections); // Uses the size attribute
         int SetSizes(input_map ingoing_connections);       // Sets input and output if possible
 
-    tick_count GetTick();
-    double GetTickDuration();
-    double GetTime();           // actual or nominal time depending om run mode
-    double GetRealTime();       // actual time since start
-    double GetNominalTime();    // nominal time at current tick
-    double GetTimeOfDay();      // seconds since midnight
-    double GetLag();
+        tick_count GetTick();
+        double GetTickDuration();
+        double GetTime();        // actual or nominal time depending om run mode
+        double GetRealTime();    // actual time since start
+        double GetNominalTime(); // nominal time at current tick
+        double GetTimeOfDay();   // seconds since midnight
+        double GetLag();
 
-    void ProfilingBegin() { profiler_.begin(); }
-    void ProfilingEnd()  { profiler_.end();  }
-};
+        void ProfilingBegin() { profiler_.begin(); }
+        void ProfilingEnd() { profiler_.end(); }
+    };
 
     //
     // CONNECTION
     //
 
-class Connection: public Task
-{
-public:
-    std::string source;             // FIXME: Add undescore to names ****
-    range       source_range;
-    std::string target;
-    range       target_range;
-    range       delay_range_;
-    std::string alias_;
-    bool        flatten_;
-
-    Connection(std::string s, std::string t, range & delay_range, std::string alias="");
-
-    range Resolve(const range & source_output);
-
-    void Tick();
-    void Print();
-
-    std::string Info(); // FIXME: Make consistent with other classes
-};
-
-//
-// CLASS
-//
-
-class Class
-{
-public:
-    dictionary      info_;
-    ModuleCreator   module_creator;
-    std::string     name;
-    std::string     path;
-    // std::map<std::string, std::string>  parameters;
-
-    Class() {};
-    Class(std::string n, std::string p);
-    Class(std::string n, ModuleCreator mc);
-
-    void Print();
-};
-
-
-//
-// REQUEST
-//
-
-struct Request
+    class Connection : public Task
     {
     public:
         std::string source; // FIXME: Add undescore to names ****
@@ -398,7 +351,7 @@ struct Request
         ModuleCreator module_creator;
         std::string name;
         std::string path;
-        std::map<std::string, std::string> parameters;
+        // std::map<std::string, std::string>  parameters;
 
         Class() {};
         Class(std::string n, std::string p);
@@ -446,23 +399,23 @@ struct Request
         std::map<std::string, CircularBuffer> circular_buffers; // Circular circular_buffers for delayed buffers
         std::map<std::string, parameter> parameters;
 
-    std::vector<std::vector<Task *>>        tasks;                  // Sorted tasks in groups
-    ThreadPool *                            thread_pool = nullptr;
+        std::vector<std::vector<Task *>> tasks; // Sorted tasks in groups
+        ThreadPool *thread_pool = nullptr;
 
-    long                                    session_id;
-    bool                                    needs_reload;
+        long session_id;
+        bool needs_reload;
 
-    std::recursive_mutex                    kernelLock;  
-    std::atomic<bool>                       shutdown;
-    std::atomic<int>                        run_mode;
+        std::recursive_mutex kernelLock;
+        std::atomic<bool> shutdown;
+        std::atomic<int> run_mode;
 
         dictionary current_component_info; // Implivit parameters to create Component
         std::string current_component_path;
 
-    double                                  idle_time = 0;         
-    int                                     cpu_cores = 1;
-    double                                  cpu_usage = 0;
-    double                                  last_cpu = 0;
+        double idle_time = 0;
+        int cpu_cores = 1;
+        double cpu_usage = 0;
+        double last_cpu = 0;
 
         Timer uptime_timer; // Measues kernel uptime
         Timer timer;        // Main timer
@@ -480,9 +433,9 @@ struct Request
         double lag_max; // Largest positive lag
         double lag_sum; // Sum |lag|
 
-    ServerSocket *                          socket = nullptr;
-    std::vector<Message>                    log;
-    std::thread *                           httpThread = nullptr;
+        ServerSocket *socket = nullptr;
+        std::vector<Message> log;
+        std::thread *httpThread = nullptr;
 
         Kernel();
         ~Kernel();
@@ -493,13 +446,13 @@ struct Request
 
         // FIXME: Add mutexes for functions called by modules
 
-    tick_count GetTick() { return tick; }
-    double GetTickDuration() { return tick_duration; } // Time for each tick in seconds (s)
-    double GetTime() { return (run_mode.load() == run_mode_realtime) ? GetRealTime() : static_cast<double>(tick)*tick_duration; }   // Time since start (in real time or simulated (tick) time depending on mode)
-    double GetRealTime() { return (run_mode.load() == run_mode_realtime) ? timer.GetTime() : static_cast<double>(tick)*tick_duration; }
-    double GetNominalTime() { return static_cast<double>(tick)*tick_duration; } 
-    double GetTimeOfDay();
-    double GetLag() { return (run_mode.load() == run_mode_realtime) ? static_cast<double>(tick)*tick_duration - timer.GetTime() : 0; }
+        tick_count GetTick() { return tick; }
+        double GetTickDuration() { return tick_duration; }                                                                              // Time for each tick in seconds (s)
+        double GetTime() { return (run_mode.load() == run_mode_realtime) ? GetRealTime() : static_cast<double>(tick) * tick_duration; } // Time since start (in real time or simulated (tick) time depending on mode)
+        double GetRealTime() { return (run_mode.load() == run_mode_realtime) ? timer.GetTime() : static_cast<double>(tick) * tick_duration; }
+        double GetNominalTime() { return static_cast<double>(tick) * tick_duration; }
+        double GetTimeOfDay();
+        double GetLag() { return (run_mode.load() == run_mode_realtime) ? static_cast<double>(tick) * tick_duration - timer.GetTime() : 0; }
 
         void CalculateCPUUsage();
 
@@ -516,21 +469,21 @@ struct Request
         void ListClasses();
         void ResolveParameter(parameter &p, std::string &name);
 
-    void ResolveParameters(); // Find and evaluate value or default
-    void CalculateSizes();
-    void CalculateDelays();
-    void InitCircularBuffers();
-    void RotateBuffers();
-    void ListComponents();
-    void ListConnections();
-    void ListInputs();
-    void ListOutputs();
-    void ListBuffers();
-    void ListCircularBuffers();
-    void ListParameters();
-    void ListTasks();
-    void PrintLog();
-    void PrintProfiling();
+        void ResolveParameters(); // Find and evaluate value or default
+        void CalculateSizes();
+        void CalculateDelays();
+        void InitCircularBuffers();
+        void RotateBuffers();
+        void ListComponents();
+        void ListConnections();
+        void ListInputs();
+        void ListOutputs();
+        void ListBuffers();
+        void ListCircularBuffers();
+        void ListParameters();
+        void ListTasks();
+        void PrintLog();
+        void PrintProfiling();
 
         // Functions for creating the network
 
@@ -544,16 +497,16 @@ struct Request
         void LoadExternalGroup(dictionary d);
         void BuildGroup(dictionary d, std::string path = "");
 
-    void AllocateInputs();
-    void InitComponents();
-    void PruneConnections();
-    void SortTasks();
-    void RunTasks();
-    void RunTasksInSingleThread();
-    void SetUp();
-    void SetCommandLineParameters(dictionary & d);
-    void LoadFile();
-    void Save();
+        void AllocateInputs();
+        void InitComponents();
+        void PruneConnections();
+        void SortTasks();
+        void RunTasks();
+        void RunTasksInSingleThread();
+        void SetUp();
+        void SetCommandLineParameters(dictionary &d);
+        void LoadFile();
+        void Save();
 
         void LogStart();
         void LogStop();
@@ -591,15 +544,8 @@ struct Request
 
         void DoSendNetwork(Request &request);
 
-    void DoNetwork(Request & request);
-    void DoSendLog(Request & request);
-    void DoSendClasses(Request & request);
-    void DoSendClassInfo(Request & request);
-    void DoSendClassReadMe(Request & request);
-    void DoSendFileList(Request & request);
-    void DoSendFile(std::string file);
-    void DoSendError();
-    void SendImage(matrix & image, std::string & format);
+        void DoSendDataHeader();
+        void DoSendDataStatus();
 
         void DoSendData(Request &request);
         void DoUpdate(Request &request);
@@ -608,6 +554,7 @@ struct Request
         void DoSendLog(Request &request);
         void DoSendClasses(Request &request);
         void DoSendClassInfo(Request &request);
+        void DoSendClassReadMe(Request &request);
         void DoSendFileList(Request &request);
         void DoSendFile(std::string file);
         void DoSendError();
