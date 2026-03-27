@@ -1,7 +1,7 @@
 //
 //	EpiServos.cc		This file is a part of the IKAROS project
 //
-//    Copyright (C) 2022 Birger Johansson
+//    Copyright (C) 2026 Birger Johansson and Pierre Klintefors
 
 //    This program is free software; you can redistribute it and/or modify
 //    it under the terms of the GNU General Public License as published by
@@ -103,7 +103,7 @@
 // This must be after ikaros.h
 #include "dynamixel_sdk.h" // Uses Dynamixel SDK library
 
-#include "json.hpp"
+#include <nlohmann/json.hpp>
 #include <string>
 #include <algorithm>
 
@@ -1044,6 +1044,8 @@ class EpiServos : public Module
         }
         if (simulate)
         {
+
+            // Simulate need to handle different timebase as in new ikaros.
 
             //reset_array(presentCurrent, presentCurrentSize); // 0 mA
 
