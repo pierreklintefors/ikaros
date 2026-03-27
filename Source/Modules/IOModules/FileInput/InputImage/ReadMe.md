@@ -1,12 +1,13 @@
 # InputJPEG
 
-
 <br><br>
 ## Short description
 
 Reads jpeg files
 
 <br><br>
+
+![InputImage](InputImage.svg)
 
 ## Inputs
 

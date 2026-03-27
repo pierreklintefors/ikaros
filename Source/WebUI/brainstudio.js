@@ -116,6 +116,105 @@ function toURLParams(params) {
     }).join('&');
 }
 
+const inspectorUIColorOptions = "red,orange,yellow,green,blue,purple,pink,white,black";
+const logLevelOptions = ["inherit", "quiet", "exception", "end_of_file", "terminate", "fatal_error", "warning", "print", "debug", "trace"];
+const inspectorUIColorLabels = {
+    red: "&#x1F7E5; red",
+    orange: "&#x1F7E7; orange",
+    yellow: "&#x1F7E8; yellow",
+    green: "&#x1F7E9; green",
+    blue: "&#x1F7E6; blue",
+    purple: "&#x1F7EA; purple",
+    pink: "pink",
+    white: "&#x2B1C; white",
+    black: "&#x2B1B; black"
+};
+const inspectorUIColorStyles = {
+    red: "background:#d84a4a;color:#fff;",
+    orange: "background:#e58e3a;color:#111;",
+    yellow: "background:#efe26a;color:#111;",
+    green: "background:#58a663;color:#fff;",
+    blue: "background:#4f79c8;color:#fff;",
+    purple: "background:#7f59b3;color:#fff;",
+    pink: "background:#d77db2;color:#111;",
+    white: "background:#f5f5f5;color:#111;",
+    black: "background:#1a1a1a;color:#fff;"
+};
+const inspectorUIColorSwatches = {
+    red: "#d84a4a",
+    orange: "#e58e3a",
+    yellow: "#efe26a",
+    green: "#58a663",
+    blue: "#4f79c8",
+    purple: "#7f59b3",
+    pink: "#d77db2",
+    white: "#f5f5f5",
+    black: "#1a1a1a"
+};
+
+function parseInspectorRGBColor(colorValue)
+{
+    const fallback = { r: 0, g: 0, b: 0 };
+    if(colorValue === undefined || colorValue === null)
+        return fallback;
+    const rawValue = String(colorValue).trim().toLowerCase();
+    const namedValue = inspectorUIColorSwatches[rawValue];
+    const normalized = (namedValue || rawValue).replace(/^#/, "");
+    if(!/^[0-9a-fA-F]{6}$/.test(normalized))
+        return fallback;
+    return {
+        r: parseInt(normalized.slice(0, 2), 16),
+        g: parseInt(normalized.slice(2, 4), 16),
+        b: parseInt(normalized.slice(4, 6), 16)
+    };
+}
+
+function formatInspectorRGBColor(r, g, b)
+{
+    const toHex = function(value)
+    {
+        const n = Math.max(0, Math.min(255, parseInt(value, 10) || 0));
+        return n.toString(16).padStart(2, "0").toUpperCase();
+    };
+    return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+}
+
+function clampInspectorColorChannel(value)
+{
+    return Math.max(0, Math.min(255, Math.round(value)));
+}
+
+function mixInspectorColorChannel(a, b, ratio)
+{
+    return clampInspectorColorChannel(a + (b - a) * ratio);
+}
+
+function buildInspectorDerivedPalette(colorValue)
+{
+    const { r, g, b } = parseInspectorRGBColor(colorValue);
+    const luminance = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+    const mix = function(target, ratio)
+    {
+        return formatInspectorRGBColor(
+            mixInspectorColorChannel(r, target.r, ratio),
+            mixInspectorColorChannel(g, target.g, ratio),
+            mixInspectorColorChannel(b, target.b, ratio)
+        );
+    };
+    const darkTarget = { r: 0, g: 0, b: 0 };
+    const lightTarget = { r: 255, g: 255, b: 255 };
+    return {
+        bg: mix(darkTarget, 0.58),
+        titleBg: mix(darkTarget, 0.42),
+        rowBg: mix(lightTarget, 0.18),
+        classBg: mix(darkTarget, 0.32),
+        separator: mix(lightTarget, 0.28),
+        border: luminance > 0.65 ? "#333333" : "",
+        titleFg: luminance > 0.6 ? "#222222" : "#f7f7f7",
+        rowFg: luminance > 0.7 ? "#2b2b2b" : "#f1f1f1"
+    };
+}
+
 
 function setType(x, t)
 {
@@ -225,6 +324,44 @@ function getStringAfterBracket(str)
       return "";
     }
     return str.substring(index, str.length);
+}
+
+function parseBracketRangeString(str)
+{
+    const source = typeof str === "string" ? str : "";
+    const matches = source.match(/\[[^\]]*\]/g);
+    if(!matches)
+        return [];
+
+    return matches.map((token) =>
+    {
+        const content = token.slice(1, -1);
+        const parts = content.split(':');
+        return {
+            start: parts[0] ?? "",
+            end: parts.length > 1 ? (parts[1] ?? "") : "",
+            step: parts.length > 2 ? parts.slice(2).join(':') : ""
+        };
+    });
+}
+
+function serializeBracketRangeParts(parts)
+{
+    if(!Array.isArray(parts) || parts.length === 0)
+        return "";
+
+    return parts.map((part) =>
+    {
+        const start = part && part.start != null ? String(part.start).trim() : "";
+        const end = part && part.end != null ? String(part.end).trim() : "";
+        const step = part && part.step != null ? String(part.step).trim() : "";
+
+        if(end === "" && step === "")
+            return `[${start}]`;
+        if(step === "")
+            return `[${start}:${end}]`;
+        return `[${start}:${end}:${step}]`;
+    }).join("");
 }
 
 function setCookie(name,value,days=100)
@@ -612,6 +749,7 @@ const network =
     {
         this.network = n;
         this.ensureGroupAutoRouting(this.network);
+        this.ensureConnectionDefaults(this.network);
         this.rebuildDict();
         this.component_count = Object.keys(this.dict).length+1;
     },
@@ -657,6 +795,23 @@ const network =
             group.auto_routing = false;
         for(const child of group.groups || [])
             this.ensureGroupAutoRouting(child);
+    },
+
+    ensureConnectionDefaults(group)
+    {
+        if(!group || typeof group !== "object")
+            return;
+
+        for(const connection of group.connections || [])
+        {
+            if(!connection || typeof connection !== "object")
+                continue;
+            if(connection.line_type === undefined || connection.line_type === null || connection.line_type === "")
+                connection.line_type = "auto_route";
+        }
+
+        for(const child of group.groups || [])
+            this.ensureConnectionDefaults(child);
     },
 
     isUnique(name)  // test if name can be changed to this ******************************
@@ -753,7 +908,6 @@ const network =
         new_module._x = old_module._x;
         new_module._y = old_module._y;
         new_module.color = old_module.color;
-        new_module.log_level = old_module.log_level;
         // TODO: Check that all properties are in the class
         network.dict[module] = new_module;
         // FIXME: Update existing connections if possible
@@ -909,19 +1063,33 @@ let controller =
     {
         controller.get("update", controller.update);
         controller.setSystemInfo(null);
-        let s = document.querySelector("#state");
-        if(s.innerText == "waiting")
-            s.innerHTML = "waiting &bull;";
-        else
-            s.innerHTML = "waiting";
-
+        controller.setWaitingState();
     },
 
     defer_reconnect()
     {
         clearInterval(controller.reconnect_timer);
-        //controller.reconnect_timer = setInterval(controller.reconnect, controller.reconnect_interval);
-        // AUTOMATIC RECONNECT TEMPORARILY TURNED OFF - should only happen in run mode **********
+        controller.reconnect_timer = null;
+    },
+
+    schedule_reconnect()
+    {
+        clearTimeout(controller.request_timer);
+        controller.request_timer = null;
+        if(controller.reconnect_timer != null)
+            return;
+        controller.setSystemInfo(null);
+        controller.setWaitingState();
+        controller.reconnect_timer = setInterval(controller.reconnect, controller.reconnect_interval);
+    },
+
+    setWaitingState()
+    {
+        const stateElement = document.querySelector("#state");
+        if(stateElement)
+            stateElement.innerHTML = 'waiting to reconnect <span class="status-spinner" aria-hidden="true"></span>';
+        if(main && typeof main.showReconnectOverlay === "function")
+            main.showReconnectOverlay();
     },
 
         saveNetwork()
@@ -973,12 +1141,15 @@ let controller =
         
         xhr.ontimeout = function() 
         {
-            //log.print("Request timed out.");
             controller.open_mode = false;
-            controller.requestUpdate();
-
-
+            controller.schedule_reconnect();
         }
+
+        xhr.onerror = function()
+        {
+            controller.open_mode = false;
+            controller.schedule_reconnect();
+        };
 
         xhr.responseType = 'json';
         xhr.timeout = 2000;
@@ -996,7 +1167,6 @@ let controller =
         controller.getClasses();
         controller.getClassInfo();
         controller.requestUpdate();
-        controller.reconnect_timer = setInterval(controller.reconnect, controller.reconnect_interval);
     },
     
     queueCommand(command, path="", dictionary={}) {
@@ -1204,7 +1374,7 @@ let controller =
         }
         catch(err)
         {
-            console.log("controller.setSystemInfo: incorrect package received form ikaros.")
+            console.log("controller.setSystemInfo: incorrect package received from ikaros.")
         }
     },
 
@@ -1216,8 +1386,45 @@ let controller =
             return;
         }
 
+        if(main && typeof main.hideReconnectOverlay === "function")
+            main.hideReconnectOverlay();
         controller.ping = Date.now() - controller.send_stamp;
         controller.defer_reconnect(); // we are still connected
+        if(controller.request_timer == null && !controller.open_mode)
+            controller.requestUpdate();
+
+        if(response.log)
+        {
+            let logElement = log.getMessagesElement();
+            if(!logElement)
+                return;
+
+            response.log.forEach((element) => 
+            {
+                let message_class = ["inherit", "quiet","exception","end_of_file","terminate","fatal_error","warning","print","debug","trace"][element[0]];
+                let p = document.createElement('p');
+                p.className = message_class;
+                p.appendChild(document.createTextNode(element[1]));
+                if(element[2])
+                {
+                    let a = document.createElement('a');
+                    a.href = '#';
+                    a.innerText = " \u00bb " + element[2];
+                    a.onclick = function (evt)
+                    {
+                        evt.preventDefault();
+                        selector.selectError(element[2]);
+                    };
+                    p.appendChild(a);
+                }
+                logElement.appendChild(p);
+                if(element[0]<=6)
+                {
+                    log.showView(true);
+                    logElement.scrollTop = logElement.scrollHeight; // FIXME: Only when needed
+                }
+            });
+        }
 
         // NETWORK
 
@@ -1238,9 +1445,9 @@ let controller =
 
             let v = getCookie('selected_background');
             if(v && network.dict[v])
-                selector.selectItems([], v);
+                selector.selectItems([], v, false, false, true);
             else
-                selector.selectItems([], top);
+                selector.selectItems([], top, false, false, true);
 
             if(shouldAutoArrange)
                 main.arrangeComponents();
@@ -1280,48 +1487,12 @@ let controller =
                 }
             }
         }
-
-        if(response.log)
-        {
-            let logElement = log.getMessagesElement();
-            if(!logElement)
-                return;
-            //if(response.log.length > 0)    
-            //    console.log(response.log);
-
-            response.log.forEach((element) => 
-            {
-                let message_class = ["inherit", "quiet","exception","end_of_file","terminate","fatal_error","warning","print","debug","trace"][element[0]];
-                let p = document.createElement('p');
-                p.className = message_class;
-                p.appendChild(document.createTextNode(element[1]));
-                if(element[2])
-                {
-                    let a = document.createElement('a');
-                    a.href = '#';
-                    a.innerText = " \u00bb " + element[2];
-                    a.onclick = function (evt)
-                    {
-                        evt.preventDefault();
-                        selector.selectError(element[2]);
-                    };
-                    p.appendChild(a);
-                }
-                logElement.appendChild(p);
-                if(element[0]<=6)
-                {
-                    log.showView(true);
-                    logElement.scrollTop = logElement.scrollHeight; // FIXME: Only when needed
-                }
-            });
-        }
-
     },
 
     requestUpdate()
     {
         clearTimeout(controller.request_timer);
-        controller.request_timer = setTimeout(controller.requestUpdate, controller.webui_req_int); // immediately schdeule next
+        controller.request_timer = setTimeout(controller.requestUpdate, controller.webui_req_int); // immediately schedule next
 
         if(controller.open_mode)
             return;
@@ -1366,11 +1537,16 @@ let controller =
             let s = cmd_dict[0]; // FIXME: check empty string
             const path = cmd_dict[1];
             const dict = cmd_dict[2];
-            dict.data = data_string;
+            if(data_string !== "")
+                dict.data = data_string;
             //dict.root = group_path;
             const url_params = toURLParams(dict);
 
-            if(path.length>0 && path[0]=='.') // top path
+            if(s == "control" && path != "")
+            {
+                s += "/" + path;
+            }
+            else if(path.length>0 && path[0]=='.') // top path
             {
                 s += "/" + path;
             }
@@ -1403,6 +1579,8 @@ let controller =
         })
         .then(json => {
             network.classes = json.classes.sort();
+            if(inspector && typeof inspector.renderLibraryClassList === "function")
+                inspector.renderLibraryClassList();
         })
         .catch(function () {
             console.log("Could not get class list from server.");
@@ -1619,8 +1797,13 @@ const inspector =
     subview: {},
     current_t_body: null,
     component: null,
+    library: null,
     system: null,
-    width_cookie: 'inspector_width',
+    selected_library_class: null,
+    library_readme_cache: {},
+    pending_library_readme_class: null,
+    component_width_cookie: 'component_inspector_width',
+    library_width_cookie: 'library_inspector_width',
     min_width: 220,
     max_width_margin: 160,
     resize_active: false,
@@ -1631,6 +1814,9 @@ const inspector =
     {
         inspector.system = document.querySelector('#system_inspector');
         inspector.component = document.querySelector('#component_inspector');
+        inspector.library = document.querySelector('#library_inspector');
+        inspector.libraryClassList = document.querySelector('#library_class_list');
+        inspector.libraryClassDetails = document.querySelector('#library_class_details');
 
         inspector.subview.nothing  = document.querySelector('#inspector_nothing'); 
         inspector.subview.multiple  = document.querySelector('#inspector_multiple');
@@ -1642,56 +1828,69 @@ const inspector =
 
         inspector.hideSubviews();
         inspector.subview.nothing.style.display='table';
+        inspector.updateLibraryButtonState();
+        inspector.updateLibraryAddButtonState();
+        inspector.renderLibraryClassList();
 
-        if(inspector.component)
-        {
-            const computed = window.getComputedStyle(inspector.component);
-            const basis = parseInt(computed.flexBasis, 10);
-            const width = parseInt(computed.width, 10);
-            if(Number.isFinite(basis) && basis > 0)
-                inspector.default_width = basis;
-            else if(Number.isFinite(width) && width > 0)
-                inspector.default_width = width;
-
-            inspector.resizeHandle = inspector.component.querySelector('.inspector-resize-handle');
-            if(!inspector.resizeHandle)
-            {
-                inspector.resizeHandle = document.createElement('div');
-                inspector.resizeHandle.className = 'inspector-resize-handle';
-                inspector.component.prepend(inspector.resizeHandle);
-            }
-
-            const savedWidth = parseInt(getCookie(inspector.width_cookie), 10);
-            if(Number.isFinite(savedWidth) && savedWidth >= inspector.min_width)
-            {
-                const maxWidth = Math.max(inspector.min_width, window.innerWidth - inspector.max_width_margin);
-                const clampedWidth = Math.min(savedWidth, maxWidth);
-                inspector.component.style.flex = `0 0 ${clampedWidth}px`;
-                inspector.component.style.width = `${clampedWidth}px`;
-            }
-
-            inspector.resizeHandle.addEventListener('mousedown', inspector.startResize, true);
-        }
+        inspector.setupResizeForPanel(inspector.component);
+        inspector.setupResizeForPanel(inspector.library);
     },
 
-    resetComponentWidth()
+    setupResizeForPanel(panel)
     {
-        if(!inspector.component)
+        if(!panel)
             return;
+
+        const computed = window.getComputedStyle(panel);
+        const basis = parseInt(computed.flexBasis, 10);
+        const width = parseInt(computed.width, 10);
+        let defaultWidth = 300;
+        if(Number.isFinite(basis) && basis > 0)
+            defaultWidth = basis;
+        else if(Number.isFinite(width) && width > 0)
+            defaultWidth = width;
+        panel.dataset.defaultWidth = String(defaultWidth);
+        panel.dataset.widthCookie = panel === inspector.library ? inspector.library_width_cookie : inspector.component_width_cookie;
+
+        let resizeHandle = panel.querySelector('.inspector-resize-handle');
+        if(!resizeHandle)
+        {
+            resizeHandle = document.createElement('div');
+            resizeHandle.className = 'inspector-resize-handle';
+            panel.prepend(resizeHandle);
+        }
+
+        inspector.resetPanelWidth(panel);
+
+        resizeHandle.addEventListener('mousedown', inspector.startResize, true);
+    },
+
+    resetPanelWidth(panel)
+    {
+        if(!panel)
+            return;
+        const cookieName = panel.dataset.widthCookie || inspector.component_width_cookie;
+        const savedWidth = parseInt(getCookie(cookieName), 10);
         const maxWidth = Math.max(inspector.min_width, window.innerWidth - inspector.max_width_margin);
-        const width = Math.max(inspector.min_width, Math.min(maxWidth, inspector.default_width || 300));
-        inspector.component.style.flex = `0 0 ${width}px`;
-        inspector.component.style.width = `${width}px`;
+        const defaultWidth = parseInt(panel.dataset.defaultWidth, 10);
+        const targetWidth = Number.isFinite(savedWidth) && savedWidth >= inspector.min_width
+            ? savedWidth
+            : (Number.isFinite(defaultWidth) && defaultWidth > 0 ? defaultWidth : 300);
+        const width = Math.max(inspector.min_width, Math.min(maxWidth, targetWidth));
+        panel.style.flex = `0 0 ${width}px`;
+        panel.style.width = `${width}px`;
     },
 
     startResize(evt)
     {
-        if(evt.button !== 0 || !inspector.component)
+        const panel = evt.currentTarget ? evt.currentTarget.parentElement : null;
+        if(evt.button !== 0 || !panel)
             return;
         evt.preventDefault();
         inspector.resize_active = true;
+        inspector.resize_target = panel;
         inspector.resize_start_x = evt.clientX;
-        inspector.resize_start_width = inspector.component.getBoundingClientRect().width;
+        inspector.resize_start_width = panel.getBoundingClientRect().width;
         document.body.classList.add('inspector-resizing');
         document.addEventListener('mousemove', inspector.onResizeDrag, true);
         document.addEventListener('mouseup', inspector.stopResize, true);
@@ -1699,13 +1898,13 @@ const inspector =
 
     onResizeDrag(evt)
     {
-        if(!inspector.resize_active || !inspector.component)
+        if(!inspector.resize_active || !inspector.resize_target)
             return;
         const deltaX = inspector.resize_start_x - evt.clientX;
         const maxWidth = Math.max(inspector.min_width, window.innerWidth - inspector.max_width_margin);
         const newWidth = Math.max(inspector.min_width, Math.min(maxWidth, inspector.resize_start_width + deltaX));
-        inspector.component.style.flex = `0 0 ${newWidth}px`;
-        inspector.component.style.width = `${newWidth}px`;
+        inspector.resize_target.style.flex = `0 0 ${newWidth}px`;
+        inspector.resize_target.style.width = `${newWidth}px`;
         evt.preventDefault();
     },
 
@@ -1717,12 +1916,14 @@ const inspector =
         document.removeEventListener('mousemove', inspector.onResizeDrag, true);
         document.removeEventListener('mouseup', inspector.stopResize, true);
         document.body.classList.remove('inspector-resizing');
-        if(inspector.component)
+        if(inspector.resize_target)
         {
-            const w = Math.round(inspector.component.getBoundingClientRect().width);
+            const w = Math.round(inspector.resize_target.getBoundingClientRect().width);
+            const cookieName = inspector.resize_target.dataset.widthCookie || inspector.component_width_cookie;
             if(Number.isFinite(w) && w >= inspector.min_width)
-                setCookie(inspector.width_cookie, String(w));
+                setCookie(cookieName, String(w));
         }
+        inspector.resize_target = null;
     },
 
     toggleSystem()
@@ -1731,12 +1932,17 @@ const inspector =
         {
             inspector.system.style.display = 'block';
             inspector.component.style.display = 'none';
+            if(inspector.library)
+                inspector.library.style.display = 'none';
         }
         else
         {
             inspector.system.style.display = 'none';
             inspector.component.style.display = 'none';
+            if(inspector.library)
+                inspector.library.style.display = 'none';
         }
+        inspector.updateLibraryButtonState();
     },
 
     toggleComponent()
@@ -1745,20 +1951,391 @@ const inspector =
             {
             inspector.component.style.display = "block";
             inspector.system.style.display = "none";
-            inspector.resetComponentWidth();
+            if(inspector.library)
+                inspector.library.style.display = "none";
+            inspector.resetPanelWidth(inspector.component);
         }
         else
         {
             inspector.system.style.display = "none";
             inspector.component.style.display = "none";
+            if(inspector.library)
+                inspector.library.style.display = "none";
         }
+        inspector.updateLibraryButtonState();
+    },
+
+    toggleLibrary()
+    {
+        if(!inspector.library)
+            return;
+        if(window.getComputedStyle(inspector.library, null).display === 'none')
+        {
+            inspector.library.style.display = "flex";
+            inspector.system.style.display = "none";
+            inspector.component.style.display = "none";
+            inspector.resetPanelWidth(inspector.library);
+            inspector.renderLibraryClassList();
+        }
+        else
+        {
+            inspector.library.style.display = "none";
+            inspector.system.style.display = "none";
+            inspector.component.style.display = "none";
+        }
+        inspector.updateLibraryButtonState();
     },
 
     showComponent()
     {
         inspector.component.style.display = "block";
         inspector.system.style.display = "none";
-        inspector.resetComponentWidth();
+        if(inspector.library)
+            inspector.library.style.display = "none";
+        inspector.resetPanelWidth(inspector.component);
+        inspector.updateLibraryButtonState();
+    },
+
+    showLibrary()
+    {
+        if(!inspector.library)
+            return;
+        inspector.library.style.display = "flex";
+        inspector.system.style.display = "none";
+        inspector.component.style.display = "none";
+        inspector.resetPanelWidth(inspector.library);
+        inspector.renderLibraryClassList();
+        inspector.updateLibraryButtonState();
+        inspector.updateLibraryAddButtonState();
+    },
+
+    updateLibraryButtonState()
+    {
+        const button = document.getElementById("library_inspector_button");
+        if(!button || !inspector.library)
+            return;
+        const open = window.getComputedStyle(inspector.library, null).display !== 'none';
+        button.setAttribute("aria-pressed", open ? "true" : "false");
+    },
+
+    updateLibraryAddButtonState()
+    {
+        const button = document.getElementById("library_add_button");
+        if(!button)
+            return;
+        const canAdd = !!(main && main.edit_mode && inspector.selected_library_class);
+        button.disabled = !canAdd;
+    },
+
+    renderLibraryClassList()
+    {
+        if(!inspector.libraryClassList)
+            return;
+
+        inspector.libraryClassList.innerHTML = "";
+
+        const classes = Array.isArray(network.classes) ? network.classes : [];
+        if(classes.length === 0)
+        {
+            const emptyState = document.createElement("div");
+            emptyState.className = "library-inspector-placeholder";
+            emptyState.textContent = "No module classes available yet.";
+            inspector.libraryClassList.appendChild(emptyState);
+            if(inspector.libraryClassDetails && !inspector.selected_library_class)
+                inspector.libraryClassDetails.textContent = "Select a module class to view details here later.";
+            return;
+        }
+
+        if(!inspector.selected_library_class || !classes.includes(inspector.selected_library_class))
+            inspector.selected_library_class = classes[0];
+        inspector.updateLibraryAddButtonState();
+
+        for(const className of classes)
+        {
+            const button = document.createElement("button");
+            button.type = "button";
+            button.className = "library-class-item";
+            if(className === inspector.selected_library_class)
+                button.classList.add("is-selected");
+            button.setAttribute("role", "option");
+            button.setAttribute("aria-selected", className === inspector.selected_library_class ? "true" : "false");
+            button.textContent = className;
+            button.addEventListener("click", function()
+            {
+                inspector.selectLibraryClass(className);
+            });
+            inspector.libraryClassList.appendChild(button);
+        }
+
+        inspector.updateLibraryClassDetails();
+    },
+
+    selectLibraryClass(className)
+    {
+        inspector.selected_library_class = className;
+        inspector.updateLibraryAddButtonState();
+        inspector.renderLibraryClassList();
+    },
+
+    addSelectedLibraryClass()
+    {
+        if(!main.edit_mode || !inspector.selected_library_class)
+            return;
+        const fullName = main.newModule(inspector.selected_library_class);
+        if(fullName)
+            selector.selectItems([fullName], selector.selected_background, false, false, true);
+    },
+
+    escapeHtml(text)
+    {
+        return String(text)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#39;");
+    },
+
+    renderInlineMarkdown(text, options = {})
+    {
+        let html = inspector.escapeHtml(text);
+        html = html.replace(/&lt;br\s*\/?&gt;/gi, "<br>");
+        html = html.replace(/`([^`]+)`/g, "<code>$1</code>");
+        html = html.replace(/!\[([^\]]*)\]\(([^)\s]+)\)/g, (_match, alt, url) =>
+        {
+            const src = inspector.resolveMarkdownAssetUrl(url, options.className);
+            return `<img src="${src}" alt="${inspector.escapeHtml(alt)}" loading="lazy">`;
+        });
+        html = html.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+        html = html.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+        html = html.replace(/\*([^*]+)\*/g, "<em>$1</em>");
+        return html;
+    },
+
+    resolveMarkdownAssetUrl(url, className = "")
+    {
+        const value = String(url || "").trim();
+        if(!value)
+            return "";
+        if(/^(?:[a-z]+:)?\/\//i.test(value) || value.startsWith("data:") || value.startsWith("/"))
+            return value;
+        if(className && network.classinfo && network.classinfo[className] && network.classinfo[className].path)
+        {
+            const classPath = String(network.classinfo[className].path).replace(/\\/g, "/");
+            const sourceModules = "/Source/Modules/";
+            const relativeIndex = classPath.indexOf(sourceModules);
+            if(relativeIndex !== -1)
+            {
+                const moduleRelativePath = classPath.slice(relativeIndex + "/Source/".length);
+                return `/../${moduleRelativePath}/${encodeURIComponent(value)}`;
+            }
+        }
+        return value;
+    },
+
+    renderMarkdown(text, options = {})
+    {
+        const lines = String(text || "").replace(/\r\n/g, "\n").split("\n");
+        const blocks = [];
+        let paragraph = [];
+        let listItems = [];
+        let codeLines = [];
+        let inCodeBlock = false;
+        let tableRows = [];
+
+        const isTableLine = function(line)
+        {
+            return /\|/.test(line);
+        };
+
+        const isTableDivider = function(line)
+        {
+            const normalized = line.trim().replace(/^\||\|$/g, "").trim();
+            if(normalized === "")
+                return false;
+            return normalized.split("|").every((cell) => /^:?-{3,}:?$/.test(cell.trim()));
+        };
+
+        const splitTableRow = function(line)
+        {
+            return line.trim().replace(/^\||\|$/g, "").split("|").map((cell) => cell.trim());
+        };
+
+        const flushParagraph = function()
+        {
+            if(paragraph.length === 0)
+                return;
+            blocks.push(`<p>${inspector.renderInlineMarkdown(paragraph.join(" "), options)}</p>`);
+            paragraph = [];
+        };
+
+        const flushList = function()
+        {
+            if(listItems.length === 0)
+                return;
+            blocks.push(`<ul>${listItems.map((item) => `<li>${inspector.renderInlineMarkdown(item, options)}</li>`).join("")}</ul>`);
+            listItems = [];
+        };
+
+        const flushTable = function()
+        {
+            if(tableRows.length < 2)
+            {
+                if(tableRows.length === 1)
+                    paragraph.push(tableRows[0].join(" | "));
+                tableRows = [];
+                return;
+            }
+
+            const header = tableRows[0];
+            const bodyRows = tableRows.slice(2);
+            const thead = `<thead><tr>${header.map((cell) => `<th>${inspector.renderInlineMarkdown(cell, options)}</th>`).join("")}</tr></thead>`;
+            const tbody = bodyRows.length > 0
+                ? `<tbody>${bodyRows.map((row) => `<tr>${row.map((cell) => `<td>${inspector.renderInlineMarkdown(cell, options)}</td>`).join("")}</tr>`).join("")}</tbody>`
+                : "";
+            blocks.push(`<table>${thead}${tbody}</table>`);
+            tableRows = [];
+        };
+
+        const flushCodeBlock = function()
+        {
+            if(codeLines.length === 0)
+                return;
+            blocks.push(`<pre><code>${inspector.escapeHtml(codeLines.join("\n"))}</code></pre>`);
+            codeLines = [];
+        };
+
+        for(const line of lines)
+        {
+            if(line.trim().startsWith("```"))
+            {
+                flushParagraph();
+                flushList();
+                flushTable();
+                if(inCodeBlock)
+                {
+                    flushCodeBlock();
+                    inCodeBlock = false;
+                }
+                else
+                {
+                    inCodeBlock = true;
+                }
+                continue;
+            }
+
+            if(inCodeBlock)
+            {
+                codeLines.push(line);
+                continue;
+            }
+
+            const trimmed = line.trim();
+            if(trimmed === "")
+            {
+                flushParagraph();
+                flushList();
+                flushTable();
+                continue;
+            }
+
+            if(isTableLine(line))
+            {
+                const row = splitTableRow(line);
+                if(tableRows.length === 0)
+                {
+                    flushParagraph();
+                    flushList();
+                    tableRows.push(row);
+                    continue;
+                }
+                if(tableRows.length === 1 && isTableDivider(line))
+                {
+                    tableRows.push(row);
+                    continue;
+                }
+                if(tableRows.length >= 2)
+                {
+                    tableRows.push(row);
+                    continue;
+                }
+            }
+            else
+            {
+                flushTable();
+            }
+
+            const heading = trimmed.match(/^(#{1,6})\s+(.*)$/);
+            if(heading)
+            {
+                flushParagraph();
+                flushList();
+                flushTable();
+                const level = Math.min(6, heading[1].length);
+                blocks.push(`<h${level}>${inspector.renderInlineMarkdown(heading[2], options)}</h${level}>`);
+                continue;
+            }
+
+            const listItem = trimmed.match(/^[-*]\s+(.*)$/);
+            if(listItem)
+            {
+                flushParagraph();
+                listItems.push(listItem[1]);
+                continue;
+            }
+
+            flushList();
+            paragraph.push(trimmed);
+        }
+
+        flushParagraph();
+        flushList();
+        flushTable();
+        flushCodeBlock();
+
+        if(blocks.length === 0)
+            return "<p></p>";
+        return blocks.join("");
+    },
+
+    updateLibraryClassDetails()
+    {
+        if(!inspector.libraryClassDetails)
+            return;
+        if(!inspector.selected_library_class)
+        {
+            inspector.libraryClassDetails.innerHTML = "<p>Select a module class to view details here later.</p>";
+            return;
+        }
+        const className = inspector.selected_library_class;
+        if(Object.prototype.hasOwnProperty.call(inspector.library_readme_cache, className))
+        {
+            inspector.libraryClassDetails.innerHTML = inspector.renderMarkdown(inspector.library_readme_cache[className], {className});
+            return;
+        }
+
+        inspector.pending_library_readme_class = className;
+        inspector.libraryClassDetails.innerHTML = `<p>Loading ReadMe.md for ${inspector.escapeHtml(className)}...</p>`;
+        fetch(`/classreadme?class=${encodeURIComponent(className)}`, {
+            method: "GET",
+            headers: {"Session-Id": controller.session_id, "Client-Id": controller.client_id}
+        })
+        .then(response => {
+            if(!response.ok)
+                throw new Error("HTTP error " + response.status);
+            return response.text();
+        })
+        .then(text => {
+            inspector.library_readme_cache[className] = text;
+            if(inspector.pending_library_readme_class === className && inspector.selected_library_class === className)
+                inspector.libraryClassDetails.innerHTML = inspector.renderMarkdown(text, {className});
+        })
+        .catch(() => {
+            const fallback = `Could not load ReadMe.md for ${className}.`;
+            inspector.library_readme_cache[className] = fallback;
+            if(inspector.pending_library_readme_class === className && inspector.selected_library_class === className)
+                inspector.libraryClassDetails.innerHTML = `<p>${inspector.escapeHtml(fallback)}</p>`;
+        });
     },
 
     hideSubviews()
@@ -1917,7 +2494,10 @@ const inspector =
         });
 
         cell2.contentEditable = true;
-        const commitOnInput = (p.name !== "name");
+        const commitOnInput = !(
+            p.name === "name" ||
+            (inspector.item && inspector.item._tag == "connection")
+        );
         const commitTextEditValue = function(evt)
         {
             let newValue = evt.target.innerText.replace(String.fromCharCode(10), "").replace(String.fromCharCode(13), "");
@@ -1952,6 +2532,176 @@ const inspector =
             commitTextEditValue(evt);
             updateDefaultPlaceholderState(evt.target, evt.target.innerText.trim() === "");
         });
+    },
+
+    createRangeEditorRows(item, p)
+    {
+        const currentValue = typeof item[p.name] === "string" ? item[p.name] : "";
+        const rows = parseBracketRangeString(currentValue);
+        const displayRows = rows.slice();
+
+        const commitRangeRows = function()
+        {
+            const serialized = serializeBracketRangeParts(displayRows);
+            item[p.name] = serialized;
+            if(inspector.notify && inspector.notify.parameters)
+                inspector.notify.parameters[p.name] = item[p.name];
+            if(inspector.notify)
+                inspector.notify.parameterChangeNotification(p);
+        };
+
+        const buildRangePlaceholder = function(axis)
+        {
+            if(axis == "start")
+                return "start";
+            if(axis == "end")
+                return "end";
+            return "step";
+        };
+
+        for(let i = 0; i < displayRows.length; i++)
+        {
+            const rangeRow = displayRows[i];
+            const row = current_t_body.insertRow(-1);
+            const labelCell = row.insertCell(0);
+            const editorCell = row.insertCell(1);
+
+            labelCell.innerText = `${p.label || p.name} [${i+1}]`;
+            editorCell.className = `${p.type || "range"} textedit range-editor`;
+            editorCell.classList.add("inspector-removable-value-cell");
+
+            const wrapper = document.createElement("div");
+            wrapper.className = "range-editor-fields";
+
+            const fields = [
+                {key:"start", inputMode:"numeric"},
+                {key:"end", inputMode:"numeric"},
+                {key:"step", inputMode:"numeric"}
+            ];
+            const rowInputs = [];
+
+            for(const field of fields)
+            {
+                const input = document.createElement("input");
+                input.type = "text";
+                input.value = rangeRow[field.key] || "";
+                input.placeholder = buildRangePlaceholder(field.key);
+                input.setAttribute("aria-label", `${p.name} ${i+1} ${field.key}`);
+                input.className = "range-editor-input";
+                if(field.inputMode)
+                    input.inputMode = field.inputMode;
+                input.style.width = "100%";
+                const updateFieldValue = function(evt)
+                {
+                    rangeRow[field.key] = evt.target.value;
+                    item[p.name] = serializeBracketRangeParts(displayRows);
+                    if(inspector.notify && inspector.notify.parameters)
+                        inspector.notify.parameters[p.name] = item[p.name];
+                };
+                const commitFieldValue = function(evt)
+                {
+                    updateFieldValue(evt);
+                    commitRangeRows();
+                };
+                input.addEventListener("input", updateFieldValue);
+                input.addEventListener("change", updateFieldValue);
+                input.addEventListener("blur", function(evt)
+                {
+                    updateFieldValue(evt);
+                    const nextTarget = evt.relatedTarget;
+                    if(nextTarget && wrapper.contains(nextTarget))
+                        return;
+                    commitRangeRows();
+                });
+                input.addEventListener("keydown", function(evt)
+                {
+                    if(evt.key === "Enter")
+                    {
+                        evt.preventDefault();
+                        const currentIndex = rowInputs.indexOf(evt.target);
+                        const nextInput = currentIndex >= 0 ? rowInputs[currentIndex + 1] : null;
+                        if(nextInput)
+                            nextInput.focus();
+                        else
+                            evt.target.blur();
+                    }
+                });
+                rowInputs.push(input);
+                wrapper.appendChild(input);
+
+                if(
+                    item._range_editor_focus &&
+                    item._range_editor_focus.name === p.name &&
+                    item._range_editor_focus.index === i &&
+                    item._range_editor_focus.key === field.key
+                )
+                {
+                    const focusTarget = input;
+                    setTimeout(function()
+                    {
+                        focusTarget.focus();
+                        focusTarget.select();
+                    }, 0);
+                    delete item._range_editor_focus;
+                }
+            }
+
+            editorCell.appendChild(wrapper);
+
+            const removeButton = document.createElement("button");
+            removeButton.type = "button";
+            removeButton.className = "inspector-minus-button";
+            removeButton.setAttribute("aria-label", "Remove range");
+            removeButton.setAttribute("contenteditable", "false");
+            removeButton.innerHTML = `
+                <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false">
+                    <path d="M18 6L17.1991 18.0129C17.129 19.065 17.0939 19.5911 16.8667 19.99C16.6666 20.3412 16.3648 20.6235 16.0011 20.7998C15.588 21 15.0607 21 14.0062 21H9.99377C8.93927 21 8.41202 21 7.99889 20.7998C7.63517 20.6235 7.33339 20.3412 7.13332 19.99C6.90607 19.5911 6.871 19.065 6.80086 18.0129L6 6M4 6H20M16 6L15.7294 5.18807C15.4671 4.40125 15.3359 4.00784 15.0927 3.71698C14.8779 3.46013 14.6021 3.26132 14.2905 3.13878C13.9376 3 13.523 3 12.6936 3H11.3064C10.477 3 10.0624 3 9.70951 3.13878C9.39792 3.26132 9.12208 3.46013 8.90729 3.71698C8.66405 4.00784 8.53292 4.40125 8.27064 5.18807L8 6M14 10V17M10 10V17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                </svg>
+            `;
+            removeButton.addEventListener("mousedown", function(evt)
+            {
+                evt.preventDefault();
+            });
+            removeButton.addEventListener("click", function(evt)
+            {
+                evt.preventDefault();
+                evt.stopPropagation();
+                const updatedRows = parseBracketRangeString(item[p.name]);
+                if(i < updatedRows.length)
+                    updatedRows.splice(i, 1);
+                item[p.name] = serializeBracketRangeParts(updatedRows);
+                if(inspector.notify && inspector.notify.parameters)
+                    inspector.notify.parameters[p.name] = item[p.name];
+                if(inspector.notify)
+                    inspector.notify.parameterChangeNotification(p);
+            });
+            editorCell.appendChild(removeButton);
+        }
+
+        const actionRow = current_t_body.insertRow(-1);
+        const actionCellLeft = actionRow.insertCell(0);
+        const actionCellRight = actionRow.insertCell(1);
+        actionCellLeft.innerText = displayRows.length === 0 ? (p.label || p.name) : "";
+        actionCellRight.style.textAlign = "right";
+        actionCellRight.innerHTML = '<button type="button" class="inspector-plus-button" aria-label="Add range">+</button>';
+
+        const plusButton = actionCellRight.querySelector(".inspector-plus-button");
+        if(plusButton)
+        {
+            plusButton.addEventListener("click", function(evt)
+            {
+                evt.preventDefault();
+                evt.stopPropagation();
+                const updatedRows = parseBracketRangeString(item[p.name]);
+                updatedRows.push({start:"", end:"", step:""});
+                item[p.name] = serializeBracketRangeParts(updatedRows);
+                item._range_editor_focus = {name: p.name, index: updatedRows.length - 1, key: "start"};
+                if(inspector.notify && inspector.notify.parameters)
+                    inspector.notify.parameters[p.name] = item[p.name];
+                if(inspector.notify)
+                    inspector.notify.parameterChangeNotification(p);
+            });
+        }
     },
 
 
@@ -1990,6 +2740,142 @@ const inspector =
                 if(inspector.notify)
                 inspector.notify.parameterChangeNotification(p);
             });
+    },
+
+    createUIColorRow(item, p)
+    {
+        const row = current_t_body.insertRow(-1);
+        const cell1 = row.insertCell(0);
+        const cell2 = row.insertCell(1);
+
+        cell1.innerText = p.name;
+        cell2.className = "ui-color-cell";
+
+        const colorName = item[p.name] || "black";
+        const wrapper = document.createElement("div");
+        wrapper.className = "inspector-ui-color-display";
+
+        const swatch = document.createElement("span");
+        swatch.className = "inspector-ui-color-swatch";
+        swatch.style.background = inspectorUIColorSwatches[colorName] || inspectorUIColorSwatches.black;
+        swatch.setAttribute("aria-label", colorName);
+        swatch.title = colorName;
+        swatch.tabIndex = 0;
+        const openColorMenu = function()
+        {
+            let fullName = null;
+            if(selector.selected_foreground.length == 1)
+                fullName = selector.selected_foreground[0];
+            else if(inspector.item && inspector.item._tag == "group" && selector.selected_foreground.length == 0)
+                fullName = selector.selected_background;
+            else if(inspector.item && inspector.item._tag == "connection" && selector.selected_connection)
+                fullName = selector.selected_connection;
+            if(!fullName)
+                return;
+            const rect = swatch.getBoundingClientRect();
+            main.showComponentColorMenuAt(rect.right + 2, rect.top, fullName, "color-only", p.name);
+        };
+        swatch.addEventListener("click", function(evt)
+        {
+            evt.preventDefault();
+            evt.stopPropagation();
+            openColorMenu();
+        });
+        swatch.addEventListener("keydown", function(evt)
+        {
+            if(evt.key === "Enter" || evt.key === " ")
+            {
+                evt.preventDefault();
+                evt.stopPropagation();
+                openColorMenu();
+            }
+        });
+        wrapper.appendChild(swatch);
+
+        const label = document.createElement("span");
+        label.className = "inspector-ui-color-label";
+        label.textContent = colorName;
+        wrapper.appendChild(label);
+
+        cell2.appendChild(wrapper);
+    },
+
+    createColorRow(item, p)
+    {
+        const row = current_t_body.insertRow(-1);
+        const cell1 = row.insertCell(0);
+        const cell2 = row.insertCell(1);
+
+        cell1.innerText = p.name;
+        cell2.className = "inspector-rgb-color-cell";
+
+        const wrapper = document.createElement("div");
+        wrapper.className = "inspector-rgb-color-editor";
+
+        const previewRow = document.createElement("div");
+        previewRow.className = "inspector-rgb-color-preview-row";
+
+        const swatch = document.createElement("span");
+        swatch.className = "inspector-rgb-color-swatch";
+        previewRow.appendChild(swatch);
+
+        const valueLabel = document.createElement("span");
+        valueLabel.className = "inspector-rgb-color-value";
+        previewRow.appendChild(valueLabel);
+
+        wrapper.appendChild(previewRow);
+
+        const sliderContainer = document.createElement("div");
+        sliderContainer.className = "inspector-rgb-slider-list";
+
+        const channels = [
+            { key: "r", label: "R" },
+            { key: "g", label: "G" },
+            { key: "b", label: "B" }
+        ];
+        const sliders = {};
+        const channelValues = parseInspectorRGBColor(item[p.name]);
+
+        const commitColor = function()
+        {
+            const nextValue = formatInspectorRGBColor(sliders.r.value, sliders.g.value, sliders.b.value);
+            item[p.name] = nextValue;
+            swatch.style.backgroundColor = nextValue;
+            valueLabel.textContent = nextValue;
+            if(inspector.notify && inspector.notify.parameters)
+                inspector.notify.parameters[p.name] = item[p.name];
+            if(inspector.notify)
+                inspector.notify.parameterChangeNotification(p);
+        };
+
+        for(const channel of channels)
+        {
+            const sliderRow = document.createElement("label");
+            sliderRow.className = "inspector-rgb-slider-row";
+
+            const channelLabel = document.createElement("span");
+            channelLabel.className = "inspector-rgb-slider-label";
+            channelLabel.textContent = channel.label;
+            sliderRow.appendChild(channelLabel);
+
+            const slider = document.createElement("input");
+            slider.type = "range";
+            slider.min = "0";
+            slider.max = "255";
+            slider.step = "1";
+            slider.value = String(channelValues[channel.key]);
+            slider.className = "inspector-rgb-slider-input";
+            slider.addEventListener("input", commitColor);
+            slider.addEventListener("change", commitColor);
+            sliderRow.appendChild(slider);
+
+            sliders[channel.key] = slider;
+            sliderContainer.appendChild(sliderRow);
+        }
+
+        wrapper.appendChild(sliderContainer);
+        cell2.appendChild(wrapper);
+        commitColor();
     },
 
     
@@ -2036,6 +2922,14 @@ const inspector =
     
             for(let p of inspector.template)
             {
+                if(p.control == "ui_color")
+                {
+                    p.type = p.type || "source";
+                    p.options = inspectorUIColorOptions;
+                    p.option_labels = inspectorUIColorLabels;
+                    p.option_styles = inspectorUIColorStyles;
+                }
+
                 // Set standard controls
                 if(p.control == undefined)
                 {
@@ -2053,6 +2947,12 @@ const inspector =
                         this.acreateHeaderRow(item, p); break;
                     case 'textedit':
                         this.createTextEditRow(item, p); break;
+                    case 'range-editor':
+                        this.createRangeEditorRows(item, p); break;
+                    case 'color':
+                        this.createColorRow(item, p); break;
+                    case 'ui_color':
+                        this.createUIColorRow(item, p); break;
                     case 'menu':
                         this.createMenuRow(item, p); break;
                     case 'checkbox':
@@ -2358,20 +3258,6 @@ const inspector =
 
     parameterChangeNotification(p)
     {
-        if(
-            p &&
-            p.name == "color" &&
-            selector.selected_foreground &&
-            selector.selected_foreground.length == 1 &&
-            ["module", "group", "input", "output"].includes(inspector.item?._tag)
-        )
-        {
-            const selectedId = selector.selected_foreground[0];
-            const selectedElement = document.getElementById(selectedId);
-            main.applyComponentColorToElement(selectedElement, inspector.item);
-            network.tainted = true;
-        }
-
         const isTopGroupBackground = (
             inspector.item &&
             inspector.item._tag == "group" &&
@@ -2398,6 +3284,19 @@ const inspector =
         {
             main.updateAutoRoutingButtonState();
             main.addConnections();
+        }
+
+        if(
+            inspector.item &&
+            ["module", "group", "input", "output"].includes(inspector.item._tag) &&
+            p &&
+            p.name == "color"
+        )
+        {
+            network.tainted = true;
+            main.selectItem(selector.selected_foreground, selector.selected_background);
+            inspector.showInspectorForSelection();
+            return;
         }
 
         if(inspector.item._tag == "connection")
@@ -2466,6 +3365,7 @@ const inspector =
         const countRows = [];
         const allAttributes = Object.keys(item || {});
         const hiddenTopGroupAttributes = new Set(["filename", "webui_port", "info", "stop"]);
+        const priorityRowTemplates = new Map();
         for(const key of allAttributes)
         {
             if(key == "_tag" || key.startsWith("_"))
@@ -2484,6 +3384,13 @@ const inspector =
             }
             if(Array.isArray(value))
                 continue;
+            if(key == "color")
+                continue;
+            if(key == "auto_routing")
+            {
+                priorityRowTemplates.set(key, {'name': key, 'control':'checkbox', 'type':'bool'});
+                continue;
+            }
             if(typeof value == "number")
                 rowTemplate.push({'name': key, 'control':'textedit', 'type': Number.isInteger(value) ? 'int' : 'float'});
             else if(typeof value == "boolean")
@@ -2493,6 +3400,10 @@ const inspector =
             else
                 readOnlyRows.push({ key, value });
         }
+        const orderedPriorityRows = [];
+        if(priorityRowTemplates.has("auto_routing"))
+            orderedPriorityRows.push(priorityRowTemplates.get("auto_routing"));
+        rowTemplate.unshift(...orderedPriorityRows);
         for(const key of countRowKeys)
             if(!countRows.some((r) => r.key == key))
                 countRows.push({ key, value: (item[key] || []).length });
@@ -2510,7 +3421,25 @@ const inspector =
                     item.tick_duration = controller.tick_duration || 0;
                 template.push({'name':'tick_duration', 'control':'textedit', 'type':'float'});
             }
+            if(!isTopGroup)
+            {
+                if(!item.color)
+                    item.color = "black";
+                template.push({
+                    'name':'color',
+                    'control':'ui_color',
+                    'type':'source'
+                });
+            }
             inspector.addDataRows(item, template, inspector);
+            const logLevelMenu = inspector.addMenu("log_level", logLevelOptions[item.log_level ?? 0], logLevelOptions);
+            const applyGroupLogLevel = function()
+            {
+                item.log_level = logLevelOptions.indexOf(this.value);
+                selector.setLogLevel(item.log_level);
+            };
+            logLevelMenu.addEventListener("input", applyGroupLogLevel);
+            logLevelMenu.addEventListener("change", applyGroupLogLevel);
             if(rowTemplate.length > 0)
             {
                 const firstCustomRowIndex = current_t_body.rows.length;
@@ -2520,6 +3449,8 @@ const inspector =
                     const attribute = rowTemplate[i];
                     const row = current_t_body.rows[firstCustomRowIndex + i];
                     if(!row || row.cells.length < 2)
+                        continue;
+                    if(attribute.name == "auto_routing" || attribute.name == "color")
                         continue;
                     const valueCell = row.cells[1];
                     valueCell.classList.add("inspector-removable-value-cell");
@@ -2555,6 +3486,8 @@ const inspector =
             inspector.addAttributeValue("name", item.name);
             if(isTopGroup)
                 inspector.addAttributeValue("tick_duration", item.tick_duration !== undefined ? item.tick_duration : controller.tick_duration);
+            else
+                inspector.addAttributeValue("color", item.color || "black");
             for(const p of rowTemplate)
                 inspector.addAttributeValue(p.name, item[p.name]);
         }
@@ -2715,35 +3648,27 @@ const inspector =
         }
     
         const editMode = main.edit_mode;
-        const colorOptions = "red,orange,yellow,green,blue,purple,pink,white,black";
-        const colorOptionLabels = {
-            red: "&#x1F7E5; red",
-            orange: "&#x1F7E7; orange",
-            yellow: "&#x1F7E8; yellow",
-            green: "&#x1F7E9; green",
-            blue: "&#x1F7E6; blue",
-            purple: "&#x1F7EA; purple",
-            pink: "&#x25A3; pink",
-            white: "&#x2B1C; white",
-            black: "&#x2B1B; black"
+        const getParameterRows = function(component)
+        {
+            if(!component || component.parameters == null)
+                return [];
+            if(Array.isArray(component.parameters))
+                return component.parameters;
+            if(typeof component.parameters == "object")
+                return Object.values(component.parameters);
+            return [];
         };
         const commonDataRow = [
-            {'name': 'name', 'control': 'textedit', 'type': 'source'},
-            {'name': 'color', 'control': 'menu', 'type': 'source', 'options': colorOptions, 'option_labels': colorOptionLabels}
+            {'name': 'name', 'control': 'textedit', 'type': 'source'}
         ];
         const nameOnlyDataRow = [
             {'name': 'name', 'control': 'textedit', 'type': 'source'}
-        ];
-        const colorOnlyDataRow = [
-            {'name': 'color', 'control': 'menu', 'type': 'source', 'options': colorOptions, 'option_labels': colorOptionLabels}
         ];
     
         switch (item._tag) {
             case "module":
                 inspector.addHeader("MODULE");
                 if (editMode) {
-                    if(!item.color)
-                        item.color = "black";
                     inspector.addDataRows(item, nameOnlyDataRow, inspector);
                     const moduleClassMenu = inspector.addMenu("class", item.class, network.classes);
                     const applyModuleClass = function () {
@@ -2752,19 +3677,12 @@ const inspector =
                     };
                     moduleClassMenu.addEventListener('input', applyModuleClass);
                     moduleClassMenu.addEventListener('change', applyModuleClass);
-                    inspector.addDataRows(item, colorOnlyDataRow, inspector);
-
-                    const template = item.parameters || [];
-                    for (let key in template) {
-                        //template[key].control = "textedit";
-                    }
+                    const template = getParameterRows(item);
                     inspector.addDataRows(item, template, inspector);
                 } else {
                     inspector.addAttributeValue("name", item.name);
                     inspector.addAttributeValue("class", item.class);
                 }
-                const alternatives = ["inherit", "quiet","exception","end_of_file","terminate","fatal_error","warning","print","debug","trace"];
-                inspector.addMenu("log_level", alternatives[item.log_level], alternatives).addEventListener('change', function () { item.log_level=alternatives.indexOf(this.value); selector.setLogLevel(alternatives.indexOf(this.value)) });
 
                 break;
             
@@ -2774,16 +3692,28 @@ const inspector =
                     if(!item.color)
                         item.color = "black";
                     inspector.addDataRows(item, commonDataRow, inspector);
+                    inspector.addDataRows(item, [{
+                        'name': 'color',
+                        'control': 'ui_color',
+                        'type': 'source'
+                    }], inspector);
+                    const logLevelMenu = inspector.addMenu("log_level", logLevelOptions[item.log_level ?? 0], logLevelOptions);
+                    const applyGroupLogLevel = function()
+                    {
+                        item.log_level = logLevelOptions.indexOf(this.value);
+                        selector.setLogLevel(item.log_level);
+                    };
+                    logLevelMenu.addEventListener("input", applyGroupLogLevel);
+                    logLevelMenu.addEventListener("change", applyGroupLogLevel);
                 } else {
                     inspector.addAttributeValue("name", item.name);
+                    inspector.addAttributeValue("color", item.color || "black");
                 }
                 break;
             
             case "input":
                 inspector.addHeader("INPUT");
                 if (editMode) {
-                    if(!item.color)
-                        item.color = "black";
                     inspector.addDataRows(item, commonDataRow, inspector);
                 } else {
                     inspector.addAttributeValue("name", item.name);
@@ -2793,8 +3723,6 @@ const inspector =
             case "output":
                 inspector.addHeader("OUTPUT");
                 if (editMode) {
-                    if(!item.color)
-                        item.color = "black";
                     inspector.addDataRows(item, commonDataRow, inspector);
                 } else {
                     inspector.addAttributeValue("name", item.name);
@@ -2829,6 +3757,8 @@ const inspector =
     showConnection(connection)
     {
         const item = network.dict[connection];
+        item.source_range = getStringAfterBracket(item.source || "");
+        item.target_range = getStringAfterBracket(item.target || "");
 
         inspector.hideSubviews();
         inspector.setTable(inspector.subview.table);
@@ -2846,37 +3776,24 @@ const inspector =
                     item.line_type = "auto_route";
                 inspector.addDataRows(item, 
                 [
-                    {'name':'source_range', 'control':'textedit', 'type':'range'},
-                    {'name':'target_range', 'control':'textedit', 'type':'range'},
+                    {'name':'source_range', 'label':'source range', 'control':'range-editor', 'type':'range'},
+                    {'name':'target_range', 'label':'target range', 'control':'range-editor', 'type':'range'},
                     {'name':'delay', 'control':'textedit', 'type':'delay'},
                     {'name':'alias', 'control':'textedit', 'type':'source'}     
                 ], this);
-                inspector.addDataRows(item,
-                [
-                    {
-                        'name':'color',
-                        'control':'menu',
-                        'type':'source',
-                        'options':'red,orange,yellow,green,blue,purple,pink,white,black',
-                        'option_labels':{
-                            red: "&#x1F7E5; red",
-                            orange: "&#x1F7E7; orange",
-                            yellow: "&#x1F7E8; yellow",
-                            green: "&#x1F7E9; green",
-                            blue: "&#x1F7E6; blue",
-                            purple: "&#x1F7EA; purple",
-                            pink: "&#x25A3; pink",
-                            white: "&#x2B1C; white",
-                            black: "&#x2B1B; black"
-                        }
-                    },
-                    {
-                        'name':'line_type',
-                        'control':'menu',
-                        'type':'source',
-                        'options':'line,orthogonal,orthagonal rounded,spline,auto_route'
-                    }
-                ], this);
+                const connectionRows = [];
+                connectionRows.push({
+                    'name':'color',
+                    'control':'ui_color',
+                    'type':'source'
+                });
+                connectionRows.push({
+                    'name':'line_type',
+                    'control':'menu',
+                    'type':'source',
+                    'options':'line,orthogonal,orthagonal rounded,spline,auto_route'
+                });
+                inspector.addDataRows(item, connectionRows, this);
             }
             else
             {
@@ -2901,14 +3818,14 @@ const inspector =
             const signature = selector.selected_foreground.join("|");
             if(signature !== inspector.last_selected_signature)
             {
-                inspector.resetComponentWidth();
+                inspector.resetPanelWidth(inspector.component);
                 inspector.last_selected_signature = signature;
             }
         }
         else
         {
             inspector.last_selected_signature = "";
-            inspector.resetComponentWidth();
+            inspector.resetPanelWidth(inspector.component);
         }
 
         if(selector.selected_connection)
@@ -3211,11 +4128,16 @@ const selector =
 
     setLogLevel(level)
     {
+        if(!["pause", "play", "realtime"].includes(controller.run_mode))
+            return;
+
         let component = "";
         if(selector.selected_foreground.length == 1)
             component = selector.selected_foreground[0];
+        else if(selector.selected_background)
+            component = selector.selected_background;
 
-        controller.queueCommand("control", selector.getLocalPath(component)+".log_level", {"x":0, "y":0, "value":level});
+        controller.queueCommand("control", getStringUpToBracket(component)+".log_level", {"value":level});
     }
 }
 
@@ -3234,6 +4156,8 @@ const main =
     grid_active: false,
     edit_mode: false,
     map: {},
+    reconnect_overlay: null,
+    component_color_property: "color",
 
     new_position_x: 100,
     new_position_y: 100,
@@ -3248,10 +4172,45 @@ const main =
         main.createContextMenu();
         main.createComponentColorMenu();
         main.createWidgetMenu();
+        main.createReconnectOverlay();
         main.drawGrid();
         window.addEventListener("resize", main.drawGrid, false);
         main.view.addEventListener("mousedown", main.startBackgroundSelection, false);
         main.view.addEventListener("contextmenu", main.showBackgroundContextMenu, false);
+    },
+
+    createReconnectOverlay()
+    {
+        if(main.reconnect_overlay && main.reconnect_overlay.parentElement)
+            return;
+
+        const overlay = document.createElement("div");
+        overlay.className = "reconnect-overlay";
+        overlay.setAttribute("aria-live", "polite");
+        overlay.innerHTML = `
+            <div class="reconnect-overlay-content">
+                <span class="status-spinner reconnect-spinner" aria-hidden="true"></span>
+                <span class="reconnect-overlay-label">waiting to reconnect</span>
+            </div>
+        `;
+        main.main.appendChild(overlay);
+        main.reconnect_overlay = overlay;
+    },
+
+    showReconnectOverlay()
+    {
+        if(!main.main)
+            return;
+        if(!main.reconnect_overlay)
+            main.createReconnectOverlay();
+        if(main.reconnect_overlay)
+            main.reconnect_overlay.classList.add("visible");
+    },
+
+    hideReconnectOverlay()
+    {
+        if(main.reconnect_overlay)
+            main.reconnect_overlay.classList.remove("visible");
     },
 
     createContextMenu()
@@ -3631,7 +4590,7 @@ const main =
         return fullName;
     },
 
-    showComponentColorMenuAt(clientX, clientY, componentFullName, preferredSubmenu="color")
+    showComponentColorMenuAt(clientX, clientY, componentFullName, preferredSubmenu="color", propertyName="color")
     {
         if(!main.component_color_menu || !componentFullName)
             return;
@@ -3639,15 +4598,24 @@ const main =
         main.hideContextMenu();
         main.populateComponentClassSubmenu(componentFullName);
         main.component_color_target = componentFullName;
+        main.component_color_property = propertyName || "color";
         if(preferredSubmenu === "class")
         {
             main.component_color_menu.classList.add("open-class-submenu");
             main.component_color_menu.classList.add("open-class-only");
+            main.component_color_menu.classList.remove("open-color-only");
+        }
+        else if(preferredSubmenu === "color-only")
+        {
+            main.component_color_menu.classList.remove("open-class-submenu");
+            main.component_color_menu.classList.remove("open-class-only");
+            main.component_color_menu.classList.add("open-color-only");
         }
         else
         {
             main.component_color_menu.classList.remove("open-class-submenu");
             main.component_color_menu.classList.remove("open-class-only");
+            main.component_color_menu.classList.remove("open-color-only");
         }
         main.component_color_menu.style.display = "block";
 
@@ -3668,8 +4636,10 @@ const main =
         main.component_color_menu.style.display = "none";
         main.component_color_menu.classList.remove("open-class-submenu");
         main.component_color_menu.classList.remove("open-class-only");
+        main.component_color_menu.classList.remove("open-color-only");
         main.component_color_menu_visible = false;
         main.component_color_target = null;
+        main.component_color_property = "color";
     },
 
     showWidgetMenuAt(clientX, clientY, widgetFullName)
@@ -3768,13 +4738,24 @@ const main =
     setComponentColor(color)
     {
         const fullName = main.component_color_target;
+        const propertyName = main.component_color_property || "color";
         if(!fullName || !color)
             return;
         const item = network.dict[fullName];
-        if(!item || !["module", "group", "input", "output"].includes(item._tag))
+        if(!item || !["module", "group", "input", "output", "connection"].includes(item._tag))
             return;
-        item.color = color;
-        main.applyComponentColorToElement(document.getElementById(fullName), item);
+        item[propertyName] = color;
+        if(item._tag == "connection")
+        {
+            network.tainted = true;
+            if(selector.selected_connection)
+                selector.selectConnection(selector.selected_connection);
+            if(inspector && typeof inspector.showInspectorForSelection === "function")
+                inspector.showInspectorForSelection();
+            return;
+        }
+        if(selector.selected_background != null)
+            main.selectItem(selector.selected_foreground, selector.selected_background);
         if(inspector && typeof inspector.showInspectorForSelection === "function")
             inspector.showInspectorForSelection();
         network.tainted = true;
@@ -4782,22 +5763,23 @@ const main =
             n.object._y = snap(n.y + dy);
         }
 
-        const selected = [...selector.selected_foreground];
+        const selected = nodes
+            .filter((n) => n.object && n.object._tag !== "widget")
+            .map((n) => n.fullName);
         network.rebuildDict();
         nav.populate();
         selector.selectItems(selected, background, false, false, true);
         main.addConnections();
     },
     
-    newModule()
+    newModule(moduleClass = "Module")
     {
         const name = network.uniqueID("Untitled_");
         const m =
         {
             name:name,
-            class:"Module",
+            class:moduleClass,
             color:"",
-            log_level: 0,
             _tag:"module",
             _x:main.new_position_x,
             _y:main.new_position_y,
@@ -4808,6 +5790,8 @@ const main =
         const full_name = selector.selected_background+'.'+name;
         network.dict[selector.selected_background].modules.push(m);
         network.dict[full_name]=m;
+        if(moduleClass !== "Module" && network.classinfo && network.classinfo[moduleClass])
+            network.changeModuleClass(full_name, moduleClass);
         main.new_position_x += 30;
         main.new_position_y += 30;
 
@@ -4819,6 +5803,7 @@ const main =
         nav.populate();
         selector.selectItems([full_name]);
         main.beginRenameAfterSelection(full_name);
+        return full_name;
     },
 
     newGroup() // FIXME: Move to network
@@ -5264,6 +6249,8 @@ const main =
     startDragComponents(evt)
     {
         console.log("startDragComponents");
+        if(main.inline_name_edit)
+            main.finishInlineNameEdit(false);
         evt.stopPropagation();
         if(evt.detail == 2) // handle double clicks elsewhere
         {
@@ -5537,11 +6524,10 @@ const main =
         if(!component || typeof component.color !== "string")
             return null;
 
-        const colorName = component.color.trim().toLowerCase();
-        if(colorName === "")
+        const colorValue = component.color.trim();
+        if(colorValue === "")
             return null;
-        if(colorName === "black")
-            return null;
+        const colorName = colorValue.toLowerCase();
 
         const palettes = {
             red:    { bg:"#5e1a1a", titleBg:"#7a2020", rowBg:"#9a2b2b", classBg:"#8a2525", separator:"#a74747", titleFg:"#ffecec", rowFg:"#ffdede" },
@@ -5553,7 +6539,11 @@ const main =
             pink:   { bg:"#8c4f71", titleBg:"#a65f86", rowBg:"#e6a8ca", classBg:"#cb7faa", separator:"#b27398", titleFg:"#fff4fa", rowFg:"#ffe8f3" },
             white:  { bg:"#d8d8d8", titleBg:"#ebebeb", rowBg:"#f4f4f4", classBg:"#dfdfdf", separator:"#c3c3c3", border:"#333333", titleFg:"#222222", rowFg:"#333333" }
         };
-        return palettes[colorName] || null;
+        if(Object.prototype.hasOwnProperty.call(palettes, colorName))
+            return palettes[colorName];
+        if(/^(#)?[0-9a-fA-F]{6}$/.test(colorValue))
+            return buildInspectorDerivedPalette(colorValue);
+        return null;
     },
 
     getComponentStyleVars(component)
@@ -6992,6 +7982,7 @@ const main =
         controller.run_mode = 'stop';
         controller.get("stop", controller.update);
         main.updateComponentStates();
+        inspector.updateLibraryAddButtonState();
         inspector.showInspectorForSelection();
     },
 
@@ -7000,6 +7991,7 @@ const main =
         main.main.classList.add("view_mode");
         main.main.classList.remove("edit_mode");
         main.edit_mode = false;
+        inspector.updateLibraryAddButtonState();
         selector.selectItems([], selector.selected_background);
     },
 
@@ -7021,14 +8013,43 @@ const main =
         main.updateAutoRoutingButtonState();
     },
 
+    selectCurrentGroupComponents(options = {})
+    {
+        const background = selector.selected_background;
+        const group = network.dict[background];
+        if(!group)
+            return;
+
+        const includeWidgets = options.includeWidgets !== false;
+        const widgetsOnly = options.widgetsOnly === true;
+        let components = [];
+
+        if(widgetsOnly)
+            components = [...(group.widgets || [])];
+        else
+        {
+            components = [
+                ...(group.groups || []),
+                ...(group.modules || []),
+                ...(group.inputs || []),
+                ...(group.outputs || [])
+            ];
+            if(includeWidgets)
+                components.push(...(group.widgets || []));
+        }
+
+        selector.selectItems(components.map((component) => background + '.' + component.name), null, false, true);
+    },
+
     keydown(evt)
     {
         const key = (evt.key || "").toLowerCase();
         const code = evt.code || "";
         const isModifier = evt.metaKey || evt.ctrlKey;
+        const isSaveShortcut = isModifier && (key == "s" || code == "KeyS");
 
         const activeElement = document.activeElement;
-        if(activeElement && (activeElement.tagName === "INPUT" || activeElement.tagName === "TEXTAREA" || activeElement.tagName === "SELECT" || activeElement.isContentEditable))
+        if(!isSaveShortcut && activeElement && (activeElement.tagName === "INPUT" || activeElement.tagName === "TEXTAREA" || activeElement.tagName === "SELECT" || activeElement.isContentEditable))
             return;
 
         if(main.edit_mode && selector.selected_foreground.length > 0)
@@ -7077,10 +8098,14 @@ const main =
 
         if(key=="a" || code=="KeyA")
         {
-            let bg = selector.selected_background;
-            let g = network.dict[bg];
-            let comps = [...g.groups||[], ...g.modules||[], ...g.inputs||[], ...g.outputs||[], ...g.widgets||[]];
-            selector.selectItems(comps.map((x) => bg+'.'+x.name), null, false, true);
+            evt.preventDefault();
+            if(evt.altKey)
+                main.selectCurrentGroupComponents({widgetsOnly: true});
+            else if(evt.shiftKey)
+                main.selectCurrentGroupComponents({includeWidgets: false});
+            else
+                main.selectCurrentGroupComponents({includeWidgets: true});
+            return;
         }
   
   /*
@@ -7174,6 +8199,8 @@ const main =
         <tr><td>Backspace</td><td>Delete selected components/connections (edit mode).</td></tr>
         <tr><td>Escape</td><td>Toggle system inspector.</td></tr>
         <tr><td>&#8984; + A</td><td>Select all components/widgets in current group.</td></tr>
+        <tr><td>&#8984; + &#8679; + A</td><td>Select all non-widget components in current group.</td></tr>
+        <tr><td>&#8984; + &#8997; + A</td><td>Select widgets only in current group.</td></tr>
         <tr><td>&#8984; + D</td><td>Duplicate selected components (edit mode).</td></tr>
         <tr><td>&#8984; + &#8679; + D</td><td>Duplicate selected components (edit mode), preserving incoming/outgoing connections.</td></tr>
         <tr><td>&#8984; + E</td><td>Toggle edit mode.</td></tr>

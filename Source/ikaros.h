@@ -320,7 +320,53 @@ namespace ikaros
     // CONNECTION
     //
 
-    class Connection : public Task
+class Connection: public Task
+{
+public:
+    std::string source;             // FIXME: Add undescore to names ****
+    range       source_range;
+    std::string target;
+    range       target_range;
+    range       delay_range_;
+    std::string alias_;
+    bool        flatten_;
+
+    Connection(std::string s, std::string t, range & delay_range, std::string alias="");
+
+    range Resolve(const range & source_output);
+
+    void Tick();
+    void Print();
+
+    std::string Info(); // FIXME: Make consistent with other classes
+};
+
+//
+// CLASS
+//
+
+class Class
+{
+public:
+    dictionary      info_;
+    ModuleCreator   module_creator;
+    std::string     name;
+    std::string     path;
+    // std::map<std::string, std::string>  parameters;
+
+    Class() {};
+    Class(std::string n, std::string p);
+    Class(std::string n, ModuleCreator mc);
+
+    void Print();
+};
+
+
+//
+// REQUEST
+//
+
+struct Request
     {
     public:
         std::string source; // FIXME: Add undescore to names ****
@@ -449,7 +495,7 @@ namespace ikaros
 
     tick_count GetTick() { return tick; }
     double GetTickDuration() { return tick_duration; } // Time for each tick in seconds (s)
-    double GetTime() { return (run_mode.load() == run_mode_realtime) ? GetRealTime() : static_cast<double>(tick)*tick_duration; }   // Time since start (in real time or simulated (tick) time dending on mode)
+    double GetTime() { return (run_mode.load() == run_mode_realtime) ? GetRealTime() : static_cast<double>(tick)*tick_duration; }   // Time since start (in real time or simulated (tick) time depending on mode)
     double GetRealTime() { return (run_mode.load() == run_mode_realtime) ? timer.GetTime() : static_cast<double>(tick)*tick_duration; }
     double GetNominalTime() { return static_cast<double>(tick)*tick_duration; } 
     double GetTimeOfDay();
@@ -545,8 +591,15 @@ namespace ikaros
 
         void DoSendNetwork(Request &request);
 
-        void DoSendDataHeader();
-        void DoSendDataStatus();
+    void DoNetwork(Request & request);
+    void DoSendLog(Request & request);
+    void DoSendClasses(Request & request);
+    void DoSendClassInfo(Request & request);
+    void DoSendClassReadMe(Request & request);
+    void DoSendFileList(Request & request);
+    void DoSendFile(std::string file);
+    void DoSendError();
+    void SendImage(matrix & image, std::string & format);
 
         void DoSendData(Request &request);
         void DoUpdate(Request &request);
@@ -592,4 +645,3 @@ namespace ikaros
     };
 
 }; // namespace ikaros
-

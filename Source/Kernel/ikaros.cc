@@ -66,8 +66,8 @@ namespace ikaros
             type_string = "number";
 
         auto type_index = std::find(parameter_strings.begin(), parameter_strings.end(), type_string);
-        if (type_index == parameter_strings.end())
-            throw exception("Unkown parameter type: " + type_string + ".");
+        if(type_index == parameter_strings.end())
+            throw exception("Unknown parameter type: "+type_string+".");
 
         type = parameter_type(std::distance(parameter_strings.begin(), type_index));
 
@@ -540,7 +540,7 @@ namespace ikaros
 // GetComponent
 //
 // sensitive to variables and indirection
-// does local substitution of vaiables unlike GetValue() / FIXME: is this correct?
+// does local substitution of variables unlike GetValue() / FIXME: is this correct?
 //
  
     Component * 
@@ -932,7 +932,7 @@ namespace ikaros
 
         // Add log_level parameter to all components
 
-        AddLogLevel();
+        // AddLogLevel();
 
         for (auto p : info_["parameters"])
             AddParameter(p);
@@ -950,15 +950,26 @@ namespace ikaros
             parent_ = kernel().components.at(path_.substr(0, p));
     }
 
+
+    
     bool
     Component::Notify(int msg, std::string message, std::string path)
     {
         int log_level = GetIntValue("log_level", 0);
-        if(kernel().parameters.count(path_+".log_level")==1)
-            log_level = kernel().parameters.at(path_+".log_level").as_int();
+        //if(kernel().parameters.count(path_+".log_level")==1)
+         //   log_level = kernel().parameters.at(path_+".log_level").as_int();
+
+        if(log_level == 0)
+    {
+        if(parent_)
+            return parent_->Notify(msg, message, path);
+        else
+            return true;
+    }
 
         if(msg <= log_level)
             return kernel().Notify(msg, message, path);
+
         return true;
     }
 
@@ -1152,7 +1163,7 @@ namespace ikaros
         Trace("\t\t\tComponent::SetOutputSize ", path_ + "." + std::string(d["name"]));
 
         if(d.contains("size"))
-            throw setup_error(u8"Output \""+std::string(d["name"])+"\"+in group \""+path_+"\" can not have size attribute.", path_);
+            throw setup_failed(u8"Output \""+std::string(d["name"])+"\"+in group \""+path_+"\" can not have size attribute.", path_);
 
         range output_size; // FIXME: rename output_range
         std::string name = d.at("name");
@@ -1204,7 +1215,7 @@ namespace ikaros
         Kernel & k = kernel();
         for(dictionary d : info_["inputs"])
         if(!d.is_set("optional") && k.buffers[path_+"."+d["name"].as_string()].empty())
-            throw setup_error("Component \""+info_["name"].as_string()+"\" has required input \""+d["name"].as_string()+"\" that is not connected.", path_);
+            throw setup_failed("Component \""+info_["name"].as_string()+"\" has required input \""+d["name"].as_string()+"\" that is not connected.", path_);
     }
 
 
@@ -1220,14 +1231,14 @@ namespace ikaros
             if (d.contains("size"))
                 size = std::string(d.at("size"));
             else
-                throw setup_error("Output \""+std::string(d.at("name")) +"\" must have a value for \"size\".", path_);
+                throw setup_failed("Output \""+std::string(d.at("name")) +"\" must have a value for \"size\".", path_);
 
             // FIX: special indirection
             while (!size.empty() && size[0] == '@' && size.find(',') == std::string::npos)
                 size = GetValue(size.substr(1));
             
             if(size.empty())
-                throw setup_error("Output \""+std::string(d.at("name")) +"\" must have a value for \"size\".", path_);
+                throw setup_failed("Output \""+std::string(d.at("name")) +"\" must have a value for \"size\".", path_);
             std::vector<int> shape = EvaluateSizeList(size);
             matrix o;
             Bind(o, d.at("name"));
@@ -1237,11 +1248,11 @@ namespace ikaros
         catch (const std::invalid_argument &e)
         {
             Notify(msg_warning, e.what());
-            throw setup_error("Size expression for output \""+std::string(d.at("name")) +"\" is invalid. "+e.what(), path_);
+            throw setup_failed("Size expression for output \""+std::string(d.at("name")) +"\" is invalid. "+e.what(), path_);
         }
         catch (...)
         {
-            throw setup_error("Size expression for output \""+std::string(d.at("name")) +"\" is invalid.", path_);
+            throw setup_failed("Size expression for output \""+std::string(d.at("name")) +"\" is invalid.", path_);
         }
     }
 
@@ -1584,6 +1595,46 @@ namespace ikaros
                 std::string name = p.path().stem();
                 classes[name].path = p.path();
                 classes[name].info_ = dictionary(p.path());
+
+                // Inject default parameters
+
+                if(classes[name].info_["parameters"].is_null())
+                    classes[name].info_["parameters"] = list();
+
+                bool has_log_level = false;
+                bool has_color = false;
+                for(auto parameter : classes[name].info_["parameters"])
+                {
+                    std::string parameter_name = parameter["name"];
+                    if(parameter_name == "log_level")
+                        has_log_level = true;
+                    else if(parameter_name == "color")
+                        has_color = true;
+                }
+
+                if(!has_log_level)
+                {
+                    dictionary log_param;
+                    log_param["_tag"] = "parameter";
+                    log_param["name"] = "log_level";
+                    log_param["type"] = "number";
+                    log_param["control"] = "menu";
+                    log_param["options"] = "inherit,quiet,exception,end_of_file,terminate,fatal_error,warning,print,debug,trace";
+                    log_param["default"] = 0;
+                    classes[name].info_["parameters"].push_back(log_param);
+                }
+
+                if(!has_color)
+                {
+                    dictionary color_param;
+                    color_param["_tag"] = "parameter";
+                    color_param["name"] = "color";
+                    color_param["type"] = "string";
+                    color_param["default"] = "black";
+                    color_param["description"] = "Selected ui color";
+                    color_param["control"] = "ui_color";
+                    classes[name].info_["parameters"].push_back(color_param);
+                }
             }
     }
 
@@ -1656,8 +1707,8 @@ namespace ikaros
         {
             for(auto & p : parameters)
                 if(!*(p.second.resolved))
-                    throw setup_error("Parameter \""+p.first+"\" could not be resolved.", p.first);
-            throw setup_error("All parameters could not be resolved.");
+                    throw setup_failed("Parameter \""+p.first+"\" could not be resolved.", p.first);
+            throw setup_failed("All parameters could not be resolved.");
         }
     }
 
@@ -1683,18 +1734,18 @@ namespace ikaros
         catch (fatal_error &e)
         {
             Notify(msg_warning, e.message());
-            throw setup_error("Could not calculate input and output sizes. "+e.message(), e.path());
+            throw setup_failed("Could not calculate input and output sizes. "+e.message(), e.path());
         }
 
-        catch (setup_error &e)
+        catch(setup_failed & e)
         {
             Notify(msg_warning, e.message());
-            throw setup_error("Could not calculate input and output sizes. "+e.message(), e.path());
+            throw setup_failed("Could not calculate input and output sizes. "+e.message(), e.path());
         }
 
         catch (...)
         {
-            throw setup_error("Could not calculate input and output sizes.");
+            throw setup_failed("Could not calculate input and output sizes.");
         }
     }
 
@@ -1839,8 +1890,8 @@ namespace ikaros
 
     // Functions for creating the network
 
-    void
-    Kernel::AddInput(std::string name, dictionary parameters) // FIXME: use name as argument insteas of parameters
+    void 
+    Kernel::AddInput(std::string name, dictionary parameters) // FIXME: use name as argument instead of parameters
     {
         buffers[name] = matrix().set_name(parameters["name"]);
     }
@@ -1860,8 +1911,8 @@ namespace ikaros
     void
     Kernel::SetParameter(std::string name, std::string value)
     {
-        if (!parameters.count(name))
-            throw exception("Parameter \"" + name + "\" could not be set because it doees not exist.");
+        if(!parameters.count(name))
+            throw exception("Parameter \""+name+"\" could not be set because it does not exist.");
 
         try
         {
@@ -1870,7 +1921,7 @@ namespace ikaros
         }
         catch (...)
         {
-            throw exception("Parameter \"" + name + "\" could not be set. Check that parameter exist and that the data type and value is correct.");
+            throw exception("Parameter \""+name+"\" could not be set. Check that the parameter exists and that the data type and value is correct.");
         }
     }
 
@@ -1881,7 +1932,7 @@ namespace ikaros
         current_component_path = path;
 
         if(components.count(current_component_path)> 0)
-            throw exception("Module or group named \""+current_component_path+"\" already exists.", path);
+            throw build_failed("Module or group named \""+current_component_path+"\" already exists.", path);
 
         components[current_component_path] = new Group(); // Implicit argument passing as for components
     }
@@ -1893,7 +1944,7 @@ namespace ikaros
         current_component_path = path + "." + std::string(info["name"]);
 
         if(components.count(current_component_path)> 0)
-            throw exception("Module or group with this name already exists. \""+std::string(info["name"])+"\".", path);
+            throw build_failed("Module or group with this name already exists. \""+std::string(info["name"])+"\".", path);
 
         std::string classname = info["class"];
 
@@ -1905,12 +1956,50 @@ namespace ikaros
         }
 
         if(!classes.count(classname))
-            throw exception("Class \""+classname+"\" does not exist.", path);
+            throw build_failed("Class \""+classname+"\" does not exist.", path);
 
 if(classes[classname].path.empty())
-        throw setup_error("Class file \""+classname+".ikc\" could not be found.", path);
+        throw build_failed("Class file \""+classname+".ikc\" could not be found.", path);
 
-        info.merge(dictionary(classes[classname].path)); // merge with class data structure
+         info.merge(classes[classname].info_);  // merge with scanned class data, including injected defaults
+
+        if(info["parameters"].is_null())
+            info["parameters"] = list();
+
+        bool has_log_level = false;
+        bool has_color = false;
+        for(auto parameter : info["parameters"])
+        {
+            std::string parameter_name = parameter["name"];
+            if(parameter_name == "log_level")
+                has_log_level = true;
+            else if(parameter_name == "color")
+                has_color = true;
+        }
+
+        if(!has_log_level)
+        {
+            dictionary log_param;
+            log_param["_tag"] = "parameter";
+            log_param["name"] = "log_level";
+            log_param["type"] = "number";
+            log_param["control"] = "menu";
+            log_param["options"] = "inherit,quiet,exception,end_of_file,terminate,fatal_error,warning,print,debug,trace";
+            log_param["default"] = 0;
+            info["parameters"].push_back(log_param);
+        }
+
+        if(!has_color)
+        {
+            dictionary color_param;
+            color_param["_tag"] = "parameter";
+            color_param["name"] = "color";
+            color_param["type"] = "string";
+            color_param["default"] = "black";
+            color_param["description"] = "Selected ui color";
+            color_param["control"] = "ui_color";
+            info["parameters"].push_back(color_param);
+        }
 
         if (classes[classname].module_creator == nullptr)
         {
@@ -1926,18 +2015,18 @@ if(classes[classname].path.empty())
     void
     Kernel::AddConnection(dictionary info, std::string path)
     {
-        std::string souce = path + "." + std::string(info["source"]); // FIXME: Look for global paths later - string conversion should not be necessary
-        std::string target = path + "." + std::string(info["target"]);
+         std::string source = path+"."+std::string(info["source"]);   // FIXME: Look for global paths later - string conversion should not be necessary
+         std::string target = path+"."+std::string(info["target"]);
 
-        std::string delay_range = info.contains("delay") ? info["delay"] : ""; // FIXME: return "" if name not in dict - or use containts *********
-        std::string alias = info.contains("alias") ? info["alias"] : "";       // FIXME: return "" if name not in dict - or use containts *********
+         std::string delay_range = info.contains("delay") ? info["delay"] : "";// FIXME: return "" if name not in dict - or use contains *********
+         std::string alias = info.contains("alias") ? info["alias"] : "";// FIXME: return "" if name not in dict - or use contains *********
 
         if (delay_range.empty() || delay_range == "null") // FIXME: return "" if name not in dict - or use contains *********
             delay_range = "[1]";
         else if (delay_range[0] != '[')
             delay_range = "[" + delay_range + "]";
         range r(delay_range);
-        connections.push_back(Connection(souce, target, r, alias));
+        connections.push_back(Connection(source, target, r, alias));
     }
 
     void Kernel::LoadExternalGroup(dictionary d)
@@ -1955,10 +2044,10 @@ if(classes[classname].path.empty())
         try
         {
             if(std::string(d["_tag"]) != "group")
-                throw setup_error("Main element is '"+std::string(d["_tag"])+"' but must be 'group' for ikg-file.");
+                throw build_failed("Main element is '"+std::string(d["_tag"])+"' but must be 'group' for ikg-file.");
 
             if(!d.contains("name"))
-                throw setup_error("Groups must have a name.", path);
+                throw build_failed("Groups must have a name.", path);
 
             std::string name = validate_identifier(d["name"]);
             if(!path.empty())
@@ -1981,11 +2070,11 @@ if(classes[classname].path.empty())
         }
         catch(const exception& e)
         {
-            throw setup_error("Build group failed for "+path+": "+e.message());
+            throw build_failed("Build group failed for "+path+": "+e.message());
         }
         catch(const std::exception& e)
         {
-            throw setup_error("Build group failed for "+path+": "+std::string(e.what()), path);
+            throw build_failed("Build group failed for "+path+": "+std::string(e.what()), path);
         }
     }
 
@@ -2047,21 +2136,25 @@ if(classes[classname].path.empty())
                     SetCommandLineParameters(d);
                     BuildGroup(d);
                     info_ = d;
-                    session_id = new_session_id();
-                    SetUp();
+                    session_id = new_session_id(); 
                     Notify(msg_print, u8"Loaded "s+options_.full_path());
-
+                    SetUp();
                     CalculateCheckSum();
                     needs_reload = false;
-                    Pause(); // Rest clocks
+                    Pause(); // Reset clocks
                 }
-                catch(const exception& e)
+
+                catch(const load_failed& e)
                 {
                     throw load_failed(u8"Load file failed for "s+options_.full_path()+". "+e.message(), e.path());
                 }
+                catch(const setup_failed& e)
+                {
+                    throw setup_failed(u8"Set-up file failed for "s+options_.full_path()+". "+e.message(), e.path());
+                }
                 catch(const std::exception& e)
                 {
-                    throw load_failed(u8"Load file failed for "s+options_.full_path()+". "+e.what());
+                    throw load_failed(u8"Load or set-up failed for "s+options_.full_path()+". "+e.what());
                 }
 
         }
@@ -2327,9 +2420,9 @@ if(classes[classname].path.empty())
     std::vector<std::vector<std::string>>
     Kernel::sort(std::vector<std::string> nodes, std::vector<std::pair<std::string, std::string>> edges)
     {
-        if (hasCycle(nodes, edges))
-            throw setup_error("Network has zero-delay loops");
-        else
+        if(hasCycle(nodes, edges)) 
+            throw setup_failed("Network has zero-delay loops");
+        else 
         {
 
             std::vector<std::vector<std::string>> components = findSubgraphs(nodes, edges);
@@ -2430,8 +2523,13 @@ if(classes[classname].path.empty())
                 ts->rethrowIfError();
             }
         } 
-        catch (const std::exception &e) {
+        catch (const std::exception &e) 
+        {
             Notify(msg_fatal_error, "Error during task execution: " + std::string(e.what()));
+        }
+        catch (...) 
+        {
+            Notify(msg_fatal_error, "Error during task execution: Unknown error.");
         }
     }
 
@@ -2482,11 +2580,11 @@ if(classes[classname].path.empty())
         }
         catch (exception &e)
         {
-            throw setup_error("SetUp Failed. "+e.message(), e.path());
+            throw setup_failed("SetUp Failed. "+e.message(), e.path());
         }
         catch(std::exception & e)
         {
-            throw setup_error("SetUp Failed. "+std::string(+e.what()));
+            throw setup_failed("SetUp Failed. "+std::string(+e.what()));
         }
     }
 
@@ -2557,12 +2655,14 @@ if(classes[classname].path.empty())
             static std::mutex mtx;
             std::lock_guard<std::mutex> lock(mtx); // Lock the mutex
 
-        log.push_back(Message(msg, message, path));
+            const std::string timestamped_message = "[" + TimeString(GetTime()) + "] " + message;
 
-        std::cout << "ikaros: " << message;
-        if (!path.empty())
-            std::cout << " (" << path << ")";
-        std::cout << std::endl;
+            log.push_back(Message(msg, timestamped_message, path));
+
+            std::cout << timestamped_message;
+            if(!path.empty())
+                std::cout  << " ("<<path << ")";
+            std::cout << std::endl;
 
         if (msg <= msg_fatal_error)
             global_terminate = true;
@@ -2666,18 +2766,12 @@ if(classes[classname].path.empty())
     void
     Kernel::Realtime()
     {
-        try {
             if(needs_reload)
-                LoadFile();
-        
-            Pause();
-            timer.Continue(); 
-            run_mode = run_mode_realtime;
-        }
-        catch(const load_failed& e)
-        {
-            Notify(msg_warning, e.what(), e.path());
-        }
+            LoadFile();
+    
+        Pause();
+        timer.Continue(); 
+        run_mode = run_mode_realtime;
     }
 
     void
@@ -2685,7 +2779,7 @@ if(classes[classname].path.empty())
     {
         if(needs_reload)
             LoadFile();
-  
+
         run_mode = run_mode_play;
         timer.Continue();
     }
@@ -2782,10 +2876,12 @@ if(classes[classname].path.empty())
         std::string sep;
         for (auto line : log)
         {
-            socket->Send(sep + line.json());
+            std::string s = line.json();
+            socket->Send(sep +line.json());
             sep = ",";
         }
         socket->Send("]");
+        if(!log.empty() )
         log.clear();
     }
 
@@ -2806,11 +2902,10 @@ if(classes[classname].path.empty())
         std::string sep = "";
         bool sent = false;
 
-        while(!data.empty()) // FIXME: Check the we do not run out of time here and break if next tick is about to start.
+        while(!data.empty()) // FIXME: Check that we do not run out of time here and break if next tick is about to start.
         {
             std::string source = head(data, ",");
             std::string key = source;
-
 
             if(source.find("@") != std::string::npos && components.count(root) > 0)
             {
@@ -2901,10 +2996,16 @@ if(classes[classname].path.empty())
             {
                 LoadFile();
             }
+            catch(const setup_failed& e)
+            {
+                //std::cerr << e.what() << '\n';
+                Notify(msg_warning, "File \""+file+"\" could not be set-up: "+e.message()); // FIXME: better error message - alert? HTTP reply with error code
+                // New();
+            }
             catch(const std::exception& e)
             {
                 std::cerr << e.what() << '\n';
-                Notify(msg_warning, "File \""+file+"\" could not be loaded"); // FIXME: better error message - alert? HTTP reply with error code
+                Notify(msg_warning, "File \""+file+"\" could not be loaded, built or set-up"); // FIXME: better error message - alert? HTTP reply with error code
                 New();
             }
             
@@ -2982,12 +3083,23 @@ if(classes[classname].path.empty())
 
         //std::cout << "Sending file: " << file << std::endl;
 
+        if(socket->SendFile(file, user_dir))   // Look in user directory
+            return;
+
         if(socket->SendFile(file, webui_dir))   // Now look in WebUI directory
             return;
-        /*
+
         if(socket->SendFile(file, std::string(webui_dir)+"Images/"))   // Now look in WebUI/Images directory
             return;
 
+        if(socket->SendFile(file, webui_dir+"../"))   // Now look in Source directory
+            return;
+
+    
+
+        /*
+ 
+        
         file = "error." + rcut(file, ".");
         if(socket->SendFile("error." + rcut(file, "."), webui_dir)) // Try to send error file
             return;
@@ -3016,18 +3128,34 @@ if(classes[classname].path.empty())
     Kernel::DoPause(Request &request)
     {
         Notify(msg_print, "pause");
-        Pause();
+        try
+        {
+            Pause();
+        }
+        catch(const exception& e)
+        {
+            Notify(msg_warning, e.what(), e.path());
+        }
         DoSendData(request);
     }
+
+
 
     void
     Kernel::DoStep(Request &request)
     {
         Notify(msg_print, "step");
-        Pause();
-        run_mode = run_mode_pause; // FIXME: Probably not necessary
-        Tick();
-        timer.SetPauseTime(GetTime() + tick_duration);
+        try
+        {
+            Pause();
+            run_mode = run_mode_pause; // FIXME: Probably not necessary
+            Tick();
+            timer.SetPauseTime(GetTime()+tick_duration);
+        }
+        catch(const exception& e)
+        {
+            Notify(msg_warning, e.what(), e.path());
+        }
         DoSendData(request);
     }
 
@@ -3035,7 +3163,14 @@ if(classes[classname].path.empty())
     Kernel::DoRealtime(Request &request)
     {
         Notify(msg_print, "realtime");
-        Realtime();
+        try
+        {
+            Realtime();
+        }
+        catch(const exception& e)
+        {
+             Notify(msg_warning, e.what(), e.path());
+        }
         DoSendData(request);
     }
 
@@ -3043,7 +3178,15 @@ if(classes[classname].path.empty())
     Kernel::DoPlay(Request &request)
     {
         Notify(msg_print, "play");
-        Play();
+        try
+        {
+            Play();
+
+        }
+        catch(const exception& e)
+        {
+            Notify(msg_warning, e.what(), e.path());
+        }
         DoSendData(request);
     }
 
@@ -3227,15 +3370,61 @@ if(classes[classname].path.empty())
         for (auto &c : classes)
         {
             socket->Send(s);
-            socket->Send("\"" + c.first + "\": ");
-            socket->Send(c.second.info_.json());
+            socket->Send("\""+c.first+"\": ");
+            dictionary class_info = c.second.info_.copy();
+            class_info["path"] = std::filesystem::path(c.second.path).parent_path().string();
+            socket->Send(class_info.json());
             s = ",\n\t";
         }
         socket->Send("\n}\n");
     }
 
     void
-    Kernel::DoSendFileList(Request &request)
+    Kernel::DoSendClassReadMe(Request & request)
+    {
+        Dictionary header;
+        header.Set("Content-Type", "text/plain; charset=utf-8");
+        header.Set("Cache-Control", "no-cache");
+        header.Set("Cache-Control", "no-store");
+        header.Set("Pragma", "no-cache");
+        socket->SendHTTPHeader(&header);
+
+        if(!request.parameters.contains("class"))
+        {
+            socket->Send("No class selected.");
+            return;
+        }
+
+        std::string class_name = request.parameters["class"];
+        if(!classes.count(class_name))
+        {
+            socket->Send("Class not found: " + class_name);
+            return;
+        }
+
+        std::filesystem::path class_path = classes[class_name].path;
+        if(class_path.empty())
+        {
+            socket->Send("No class path available for: " + class_name);
+            return;
+        }
+
+        std::filesystem::path readme_path = class_path.parent_path() / "ReadMe.md";
+        std::ifstream readme_file(readme_path);
+        if(!readme_file.is_open())
+        {
+            socket->Send("No ReadMe.md found for: " + class_name);
+            return;
+        }
+
+        std::string content((std::istreambuf_iterator<char>(readme_file)), std::istreambuf_iterator<char>());
+        socket->Send(content);
+    }
+
+
+
+    void
+    Kernel::DoSendFileList(Request & request)
     {
         // Scan for files
 
@@ -3297,8 +3486,7 @@ if(classes[classname].path.empty())
         if(request.parameters.contains("proxy"))
             request.component_path = std::string(request.parameters["proxy"]);
 
-        if(!(request == "update"))
-        std::cout << "Request: " << request.url << std::endl;
+        //std::cout << "Request: " << request.url << std::endl;
 
         if(request == "network")
             DoNetwork(request);
@@ -3336,7 +3524,9 @@ if(classes[classname].path.empty())
             DoSendClasses(request);
         else if (request == "classinfo")
             DoSendClassInfo(request);
-        else if (request == "files")
+        else if(request == "classreadme")
+            DoSendClassReadMe(request);
+        else if(request == "files") 
             DoSendFileList(request);
         else if (request == "")
             DoSendFile("index.html");
@@ -3423,6 +3613,3 @@ if(classes[classname].path.empty())
 }
 
 }; // namespace ikaros
-
-
-

@@ -1,12 +1,13 @@
 # InputVideo
 
-
 <br><br>
 ## Short description
 
 Grabs video using ffmpeg
 
 <br><br>
+
+![InputVideo](InputVideo.svg)
 
 ## Inputs
 

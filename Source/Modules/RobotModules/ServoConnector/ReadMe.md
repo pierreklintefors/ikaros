@@ -1,12 +1,13 @@
 # ServoConnector
 
-
 <br><br>
 ## Short description
 
 Organize servos
 
 <br><br>
+
+![ServoConnector](ServoConnector.svg)
 
 ## Inputs
 

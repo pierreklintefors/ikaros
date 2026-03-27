@@ -1,12 +1,13 @@
 # InputVideoFile
 
-
 <br><br>
 ## Short description
 
 Reads a video file using ffmpeg
 
 <br><br>
+
+![InputVideoFile](InputVideoFile.svg)
 
 ## Inputs
 
