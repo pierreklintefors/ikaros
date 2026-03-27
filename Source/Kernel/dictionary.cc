@@ -338,20 +338,20 @@ namespace ikaros
     }
 
 
-    void
-    dictionary::load_json(std::string filename)
-    {
-        std::ifstream file(filename);
-        if (!file)
-            throw("Error: could not open file.");
+    // void
+    // dictionary::load_json(std::string filename)
+    // {
+    //     std::ifstream file(filename);
+    //     if (!file)
+    //         throw("Error: could not open file.");
 
-        std::string content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
-        value d = parse_json(content);
-        if(!d.is_dictionary())
-            throw("Error: JSON root is not a dictionary."); 
+    //     std::string content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+    //     value d = parse_json(content);
+    //     if(!d.is_dictionary())
+    //         throw("Error: JSON root is not a dictionary."); 
 
-        *this = dictionary(d);
-    }
+    //     *this = dictionary(d);
+    // }
 
 
     void

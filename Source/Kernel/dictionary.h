@@ -96,7 +96,7 @@ namespace ikaros
 
         void print() const { std::cout << this->json() << std::endl; };
 
-        void load_json(std::string filename);
+        //void load_json(std::string filename);
     };
 
     struct list
