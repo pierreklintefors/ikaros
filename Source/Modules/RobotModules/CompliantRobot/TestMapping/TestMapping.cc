@@ -470,7 +470,7 @@ class TestMapping: public Module
         Bind(num_transitions_param, "NumberTransitions");
         number_transitions = num_transitions_param.as_int();
         Bind(robotType, "RobotType");
-        Bind(prediction_model, "CurrentPrediction");
+        Bind(prediction_model, "CurrentPredictionModel");
 
         Bind(static_test_mode, "StaticTestMode");
         Bind(static_countdown, "StaticCountdown");
@@ -545,7 +545,7 @@ class TestMapping: public Module
         // model_prediction size is set by the .ikc file (size="19")
         
         
-        if (std::string(prediction_model) == "ANN") {
+        if (std::string(prediction_model).find("temporal_mlp") != std::string::npos) {
             if (ANN_prediction.connected()) {
                 // Check if present_current has valid size
                 if (present_current.size() == 0) {
@@ -591,7 +591,7 @@ class TestMapping: public Module
             try {
                 std::string scriptPath = __FILE__;
                 std::string scriptDirectory = scriptPath.substr(0, scriptPath.find_last_of("/\\"));
-                std::string resultsDir = scriptDirectory + "/results/static_mode/" +  std::string(prediction_model);
+                std::string resultsDir = scriptDirectory + "/results/" + prediction_model.as_string() + "/static_mode/";
 
                 // Create directory if it doesn't exist
                 if (!std::filesystem::exists(resultsDir)) {
@@ -647,7 +647,7 @@ class TestMapping: public Module
             {
                 std::string scriptPath = __FILE__;
                 std::string scriptDirectory = scriptPath.substr(0, scriptPath.find_last_of("/\\"));
-                std::string resultsDir = scriptDirectory + "/results/moving_mode/" + std::string(prediction_model);
+                std::string resultsDir = scriptDirectory + "/results/" + std::string(prediction_model) + "/moving_mode/";
 
                 // Create directory if it doesn't exist
                 if (!std::filesystem::exists(resultsDir))

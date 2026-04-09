@@ -1,54 +1,20 @@
-<group filename="" name="TestANN" real_time="true" start="=true" stop="-1" tick_duration="0.025" webui_port="8000">
-   <connection delay="1" source="UM7.ProcessedGyro" target="TestMapping.GyroData"/>
-   <connection delay="1" source="UM7.ProcessedAccel" target="TestMapping.AccelData"/>
-   <connection delay="1" source="UM7.EulerAngles" target="TestMapping.EulerAngles"/>
-   <connection delay="1" source="CurrentPrediction.Output" target="TestMapping.ANN_prediction"/>
-   <connection delay="1" source="Servos.PRESENT_POSITION" target="TestMapping.PresentPosition"/>
-   <connection delay="1" source="Servos.PRESENT_CURRENT" target="TestMapping.PresentCurrent"/>
-   <connection delay="1" source="Servos.PRESENT_POSITION" target="GoalSetter.PRESENT_POSITION"/>
-   <connection delay="1" source="GoalSetter.GOAL_POSITION" target="Servos.GOAL_POSITION"/>
-   <connection delay="1" source="GoalSetter.GOAL_POSITION" target="TestMapping.GoalPositionIn"/>
-   <connection delay="1" source="GoalSetter.START_POSITION" target="TestMapping.StartPositionIn"/>
-   <connection delay="1" source="GoalSetter.GOAL_POSITION[0:2]" target="DistToGoal.INPUT2"/>
-   <connection delay="1" source="Servos.PRESENT_POSITION[0:2]" target="DistToGoal.INPUT1"/>
-   <connection delay="1" source="GoalSetter.START_POSITION[0:2]" target="DistToStart.INPUT2"/>
-   <connection delay="1" source="Servos.PRESENT_POSITION[0:2]" target="DistToStart.INPUT1"/>
-   <connection delay="1" source="UM7.ProcessedGyro" target="CurrentPrediction.Input[0:3]"/>
-   <connection delay="1" source="UM7.ProcessedAccel" target="CurrentPrediction.Input[3:6]"/>
-   <connection delay="1" source="UM7.EulerAngles" target="CurrentPrediction.Input[6:9]"/>
-   <connection delay="1" source="Servos.PRESENT_POSITION[0]" target="CurrentPrediction.Input[9]"/>
-   <connection delay="1" source="DistToGoal.OUTPUT[0]" target="CurrentPrediction.Input[10]"/>
-   <connection delay="1" source="DistToStart.OUTPUT[0]" target="CurrentPrediction.Input[11]"/>
-   <connection delay="1" source="GoalSetter.GOAL_POSITION[0]" target="CurrentPrediction.Input[12]"/>
-   <connection delay="1" source="GoalSetter.START_POSITION[0]" target="CurrentPrediction.Input[13]"/>
-   <connection delay="1" source="Servos.PRESENT_CURRENT[0]" target="CurrentPrediction.Input[14]"/>
-   <connection delay="1" source="Servos.PRESENT_POSITION[1]" target="CurrentPrediction.Input[15]"/>
-   <connection delay="1" source="DistToGoal.OUTPUT[1]" target="CurrentPrediction.Input[16]"/>
-   <connection delay="1" source="DistToStart.OUTPUT[1]" target="CurrentPrediction.Input[17]"/>
-   <connection delay="1" source="GoalSetter.GOAL_POSITION[1]" target="CurrentPrediction.Input[18]"/>
-   <connection delay="1" source="GoalSetter.START_POSITION[1]" target="CurrentPrediction.Input[19]"/>
-   <connection delay="1" source="Servos.PRESENT_CURRENT[1]" target="CurrentPrediction.Input[20]"/>
-   <connection delay="1" source="CurrentPrediction.Output" target="TestMapping.ANN_prediction"/>
-   <connection delay="1" source="GoalPosition.OUTPUT" target="GoalSetter.GOAL_POSITION_IN"/>
-   <connection delay="1" source="Servos.PRESENT_CURRENT[0:2]" target="PredictionError.INPUT1"/>
-   <connection delay="1" source="CurrentPrediction.Output" target="PredictionError.INPUT2"/>
-   <connection delay="1" source="TorqueEnable.OUTPUT" target="Servos.TORQUE_ENABLE"/>
-   <module _x="24" _y="48" class="Constant" data="180, 210, 180, 180, 5, 5, 180, 180, 180, 180, 180, 180, 180, 180, 180, 180, 180, 180, 180" log_level="5" name="GoalPosition"/>
-   <module _x="24" _y="96" class="Constant" data="1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1" log_level="5" name="TorqueEnable"/>
-   <module TestingServo="both" PerturbationType="sustained" CurrentPrediction="ANN" NumberTransitions="50" RobotType="Torso" StaticCountdown="1.0" StaticDataCollection="2.0" StaticInterval="1.0" StaticTestMode="true" _x="264" _y="384" class="TestMapping" log_level="7" name="TestMapping">
+<group filename="" webui_port="8000" start="=False" name="TestTemporalMLP" stop="-1" tick_duration="0.025" real_time="true" auto_routing="false">
+   <module name="GoalPosition" _y="948" class="Constant" log_level="5" _x="252" data="180, 150, 180, 180, 5, 5, 180, 180, 180, 180, 180, 180, 180, 180, 180, 180, 180, 180, 180"/>
+   <module name="TorqueEnable" _y="1128" class="Constant" log_level="5" _x="252" data="1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1"/>
+   <module TestingServo="pan" RobotType="Torso" NumberTransitions="50" CurrentPredictionModel="temporal_mlp_TimeSteps3_no_IMU" StaticInterval="1.0" StaticCountdown="1.0" PerturbationType="obstacle" _y="948" class="TestMapping" StaticTestMode="false" log_level="7" StaticDataCollection="2.0" _x="1236" name="TestMapping">
       <files>
          <file/>
          <file/>
       </files>
    </module>
-   <module MaxLimitPosition="235, 240" MinLimitPosition="125,130" NumServos="2" NumTransitions="50" OneCycle="false" PositionMargin="3" RobotType="Torso" StaticTestMode="true" TransitionDelay="1" _x="96" _y="48" class="GoalSetter" log_level="0" name="GoalSetter">
+   <module MinLimitPosition="125,130" log_level="0" NumServos="2" name="GoalSetter" NumTransitions="50" OneCycle="true" PositionMargin="3" _x="696" TransitionDelay="1" RobotType="Torso" MaxLimitPosition="235, 240" StaticTestMode="false" _y="900" class="GoalSetter">
       <files>
          <file/>
          <file/>
       </files>
    </module>
-   <module NumberInputs="21" NumberOutputs="2" ScriptPath="/Users/pierre/ikaros/Source/Modules/RobotModules/CompliantRobot/TestMapping/ANN_prediction.py" SharedMemoryName="ikaros_ann_shm" Timeout="" VenvPath="/Users/pierre/ikaros/Source/Modules/RobotModules/CompliantRobot/TestMapping/.tensorflow_venv/bin/python3.12" _x="264" _y="456" class="PythonScriptCaller" log_level="0" name="CurrentPrediction"/>
-   <module _x="0" _y="504" class="UM7" log_level="0" name="UM7">
+   <module NumberOutputs="2" _y="1068" ScriptPath="/Users/pierre/ikaros/Source/Modules/RobotModules/CompliantRobot/TestMapping/ANN_prediction.py" version="1.0" log_level="7" NumberInputs="21" VenvPath="/Users/pierre/ikaros/Source/Modules/RobotModules/CompliantRobot/TestMapping/.tensorflow_venv/bin/python3.12" _x="996" SharedMemoryName="ikaros_ann_shm" class="PythonScriptCaller" Timeout="" name="CurrentPrediction"/>
+   <module _x="252" _y="1260" class="UM7" log_level="0" name="UM7">
       <example description="A simple example">
          <module class="UM7" name="UM7"/>
       </example>
@@ -59,20 +25,54 @@
       </files>
       <link class="UM7"/>
    </module>
-   <module DataToWrite="Goal Position,Goal Current,Goal PWM" _x="24" _y="288" class="EpiServos" log_level="3" name="Servos" robot="EpiBlack">
+   <module name="Servos" DataToWrite="Goal Position,Goal Current,Goal PWM" _x="444" _y="1068" class="EpiServos" log_level="3" robot="EpiBlack">
       <example description="A simple example">
          <module class="EpiServo" name="EpiServo" robot="EpiWhite" simulate="true"/>
       </example>
    </module>
-   <module _x="336" _y="632" class="Subtract" log_level="0" name="DistToGoal"/>
-   <module _x="168" _y="704" class="Subtract" log_level="0" name="DistToStart"/>
-   <module _x="336" _y="632" class="Subtract" log_level="0" name="PredictionError"/>
-   <parameter control="menu" default="0" name="log_level" type="number" value="0"/>
-   <widget _index_="0" _x="368" _y="106" class="slider-horizontal" count="2" frame-style="" height="121" labels="Tilt, Pan" max="240" min="120" name="GoalPosition" parameter="GoalPosition.data" select="0" show_frame="false" show_title="true" show_values="true" source="" step="1" style="" title="Manual Goal Positions" width="241"/>
-   <widget _index_="2" _x="648" _y="248" buffer_size="100" class="plot" color="" direction="vertical" frame-style="" height="313" max="1000" min="-1000" name="TiltError" select="0" show_frame="false" show_title="true" source="PredictionError.OUTPUT" style="--decimals:0" title="Prediction Deviation Tilt" width="529"/>
-   <widget _index_="4" _x="1252" _y="248" buffer_size="100" class="plot" color="" direction="vertical" frame-style="" height="313" max="1000" min="-1000" name="PanError" select="1" show_frame="false" show_title="true" source="PredictionError.OUTPUT" style="--decimals:0" title="Prediction Deviation Pan" width="529"/>
-   <widget _index_="6" _x="648" _y="584" buffer_size="100" class="plot" color="blue, green" direction="vertical" frame-style="" height="385" max="250" min="-250" name="TiltPosition" select="0" show_frame="false" show_title="true" source="Servos.PRESENT_POSITION" style="--decimals:0" title="Position tilt" width="529"/>
-   <widget _index_="8" _x="1252" _y="548" buffer_size="100" class="plot" color="blue, green" direction="vertical" frame-style="" height="385" max="250" min="-250" name="PanPosition" select="1" show_frame="false" show_title="true" source="Servos.PRESENT_POSITION" style="--decimals:0" title="Position pan" width="529"/>
-   <widget _index_="10" _x="744" _y="48" auto="false" class="bar-graph" color="green" direction="vertical" fill="" frame-style="" height="193" labels="Recording" lineCap="" lineJoin="" lineWidth="1" max="1" min="0" name="recording_bar" select="" show_frame="false" show_title="true" source="TestMapping.RecordIndicator" style="--decimals:0" title="Recording indicator" transpose="false" width="937"/>
-   <widget _index_="12" _x="504" _y="240" auto="false" class="bar-graph" color="green" direction="vertical" fill="" frame-style="" height="697" labels="Remaining" lineCap="" lineJoin="" min="0" max="100" lineWidth="1" name="transitions_bar" select="" show_frame="false" show_title="true" source="TestMapping.TransitionsRemaining" style="--decimals:0" title="Transitions" transpose="false" width="97"/>
+   <module name="DistToGoal" _y="1104" class="Subtract" log_level="0" _x="696"/>
+   <module name="DistToStart" _y="1272" class="Subtract" log_level="0" _x="696"/>
+   <module name="PredictionError" _y="1272" class="Subtract" log_level="0" _x="1236"/>
+   <parameter control="menu" name="log_level" type="number" default="0" value="0"/>
+   <connection delay="1" target="TestMapping.GyroData" line_type="auto_route" source="UM7.ProcessedGyro"/>
+   <connection delay="1" target="TestMapping.AccelData" line_type="auto_route" source="UM7.ProcessedAccel"/>
+   <connection delay="1" target="TestMapping.EulerAngles" line_type="auto_route" source="UM7.EulerAngles"/>
+   <connection delay="1" target="TestMapping.ANN_prediction" line_type="auto_route" source="CurrentPrediction.Output"/>
+   <connection delay="1" target="TestMapping.PresentPosition" line_type="auto_route" source="Servos.PRESENT_POSITION"/>
+   <connection delay="1" target="TestMapping.PresentCurrent" line_type="auto_route" source="Servos.PRESENT_CURRENT"/>
+   <connection delay="1" target="GoalSetter.PRESENT_POSITION" line_type="auto_route" source="Servos.PRESENT_POSITION"/>
+   <connection delay="1" target="Servos.GOAL_POSITION" line_type="auto_route" source="GoalSetter.GOAL_POSITION"/>
+   <connection delay="1" target="TestMapping.GoalPositionIn" line_type="auto_route" source="GoalSetter.GOAL_POSITION"/>
+   <connection delay="1" target="TestMapping.StartPositionIn" line_type="auto_route" source="GoalSetter.START_POSITION"/>
+   <connection delay="1" target="DistToGoal.INPUT2" line_type="auto_route" source="GoalSetter.GOAL_POSITION[0:2]"/>
+   <connection delay="1" target="DistToGoal.INPUT1" line_type="auto_route" source="Servos.PRESENT_POSITION[0:2]"/>
+   <connection delay="1" target="DistToStart.INPUT2" line_type="auto_route" source="GoalSetter.START_POSITION[0:2]"/>
+   <connection delay="1" target="DistToStart.INPUT1" line_type="auto_route" source="Servos.PRESENT_POSITION[0:2]"/>
+   <connection delay="1" target="CurrentPrediction.Input[0:3]" line_type="auto_route" source="UM7.ProcessedGyro"/>
+   <connection delay="1" target="CurrentPrediction.Input[3:6]" line_type="auto_route" source="UM7.ProcessedAccel"/>
+   <connection delay="1" target="CurrentPrediction.Input[6:9]" line_type="auto_route" source="UM7.EulerAngles"/>
+   <connection delay="1" target="CurrentPrediction.Input[9]" line_type="auto_route" source="Servos.PRESENT_POSITION[0]"/>
+   <connection delay="1" target="CurrentPrediction.Input[10]" line_type="auto_route" source="DistToGoal.OUTPUT[0]"/>
+   <connection delay="1" target="CurrentPrediction.Input[11]" line_type="auto_route" source="DistToStart.OUTPUT[0]"/>
+   <connection delay="1" target="CurrentPrediction.Input[12]" line_type="auto_route" source="GoalSetter.GOAL_POSITION[0]"/>
+   <connection delay="1" target="CurrentPrediction.Input[13]" line_type="auto_route" source="GoalSetter.START_POSITION[0]"/>
+   <connection delay="1" target="CurrentPrediction.Input[14]" line_type="auto_route" source="Servos.PRESENT_CURRENT[0]"/>
+   <connection delay="1" target="CurrentPrediction.Input[15]" line_type="auto_route" source="Servos.PRESENT_POSITION[1]"/>
+   <connection delay="1" target="CurrentPrediction.Input[16]" line_type="auto_route" source="DistToGoal.OUTPUT[1]"/>
+   <connection delay="1" target="CurrentPrediction.Input[17]" line_type="auto_route" source="DistToStart.OUTPUT[1]"/>
+   <connection delay="1" target="CurrentPrediction.Input[18]" line_type="auto_route" source="GoalSetter.GOAL_POSITION[1]"/>
+   <connection delay="1" target="CurrentPrediction.Input[19]" line_type="auto_route" source="GoalSetter.START_POSITION[1]"/>
+   <connection delay="1" target="CurrentPrediction.Input[20]" line_type="auto_route" source="Servos.PRESENT_CURRENT[1]"/>
+   <connection delay="1" target="TestMapping.ANN_prediction" line_type="auto_route" source="CurrentPrediction.Output"/>
+   <connection delay="1" target="GoalSetter.GOAL_POSITION_IN" line_type="auto_route" source="GoalPosition.OUTPUT"/>
+   <connection delay="1" target="PredictionError.INPUT1" line_type="auto_route" source="Servos.PRESENT_CURRENT[0:2]"/>
+   <connection delay="1" target="PredictionError.INPUT2" line_type="auto_route" source="CurrentPrediction.Output"/>
+   <connection delay="1" target="Servos.TORQUE_ENABLE" line_type="auto_route" source="TorqueEnable.OUTPUT"/>
+   <widget frame_width="1" frame_color="" background="" _y="156" _index_="0" max="1000" _x="480" auto="true" style="--decimals:0" include_zero="true" color="" title="Prediction Deviation Tilt" frame-style="" buffer_size="100" direction="vertical" source="PredictionError.OUTPUT" class="plot" height="313" show_frame="false" min="-1000" name="TiltError" select="0" show_title="true" width="529"/>
+   <widget frame_width="1" frame_color="" background="" _y="156" _index_="2" max="1000" _x="1080" auto="true" style="--decimals:0" include_zero="true" color="" title="Prediction Deviation Pan" frame-style="" buffer_size="100" direction="vertical" source="PredictionError.OUTPUT" class="plot" height="313" show_frame="false" min="-1000" name="PanError" select="1" show_title="true" width="529"/>
+   <widget frame_width="1" frame_color="" background="" _y="492" _index_="4" max="250" _x="480" auto="true" style="--decimals:0" include_zero="true" color="blue, green" title="Position tilt" frame-style="" buffer_size="100" direction="vertical" source="Servos.PRESENT_POSITION" class="plot" height="385" show_frame="false" min="-250" name="TiltPosition" select="0" show_title="true" width="529"/>
+   <widget frame_width="1" frame_color="" background="" _y="492" _index_="6" max="250" _x="1080" auto="true" style="--decimals:0" include_zero="true" color="blue, green" title="Position pan" frame-style="" buffer_size="100" direction="vertical" source="Servos.PRESENT_POSITION" class="plot" height="385" show_frame="false" min="-250" name="PanPosition" select="1" show_title="true" width="529"/>
+   <widget frame_width="1" frame_color="" background="" include_zero="true" fill="green" _x="492" max="1" _y="0" _index_="8" frame-style="" labels="Recording" auto="false" style="--decimals:0" height="145" show_frame="false" lineCap="" min="0" name="recording_bar" width="1117" lineWidth="1" lineJoin="" select="" class="bar-graph" source="TestMapping.RecordIndicator" direction="vertical" show_title="true" color="black" title="Recording indicator" transpose="false"/>
+   <widget frame_width="1" frame_color="" background="" include_zero="true" fill="" _x="372" max="100" _y="0" _index_="10" frame-style="" labels="Remaining" auto="false" style="--decimals:0" height="697" show_frame="false" lineCap="" min="0" name="transitions_bar" width="97" lineWidth="1" lineJoin="" select="" class="bar-graph" source="TestMapping.TransitionsRemaining" direction="vertical" show_title="true" color="green" title="Transitions" transpose="false"/>
+   <widget frame-style="" frame_width="1" frame_color="" background="" title="goal_position_slider" step="1" _x="72" count="2" parameter="GoalPosition.data" min="100" select_y="0" select="" class="slider-horizontal" source="" select_x="0" show_frame="true" height="85" max="300" show_title="true" width="241" labels="tilt, pan" _index_="12" _y="72" style="" show_values="true" name="Widget_1"/>
 </group>
