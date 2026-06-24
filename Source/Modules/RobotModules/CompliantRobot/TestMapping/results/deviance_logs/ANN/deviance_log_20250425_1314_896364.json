@@ -1,0 +1,1406 @@
+{
+  "deviance_data": [
+    {
+      "tick": 3,
+      "time": 0.0750,
+      "transition": 0,
+      "present_position": [247.7637, 159.3457],
+      "goal_position": [203.0000, 206.0000],
+      "present_current": [0.0000, 0.0000],
+      "model_prediction": [0.0000, 0.0000]
+    },
+    {
+      "tick": 4,
+      "time": 0.1000,
+      "transition": 0,
+      "present_position": [247.7637, 159.3457],
+      "goal_position": [203.0000, 206.0000],
+      "present_current": [-178.0800, 16.8000],
+      "model_prediction": [0.0000, 0.0000]
+    },
+    {
+      "tick": 5,
+      "time": 0.1250,
+      "transition": 0,
+      "present_position": [247.4121, 160.2246],
+      "goal_position": [203.0000, 206.0000],
+      "present_current": [-527.5200, 379.6800],
+      "model_prediction": [0.0000, 0.0000]
+    },
+    {
+      "tick": 6,
+      "time": 0.1500,
+      "transition": 0,
+      "present_position": [246.2695, 164.0039],
+      "goal_position": [203.0000, 206.0000],
+      "present_current": [-917.2800, 191.5200],
+      "model_prediction": [0.0000, 0.0000]
+    },
+    {
+      "tick": 7,
+      "time": 0.1750,
+      "transition": 0,
+      "present_position": [243.9844, 168.9258],
+      "goal_position": [203.0000, 206.0000],
+      "present_current": [-897.1200, 178.0800],
+      "model_prediction": [-487.6156, 311.5536]
+    },
+    {
+      "tick": 8,
+      "time": 0.2000,
+      "transition": 0,
+      "present_position": [240.6445, 175.4297],
+      "goal_position": [203.0000, 206.0000],
+      "present_current": [-843.3600, 191.5200],
+      "model_prediction": [-487.6156, 311.5536]
+    },
+    {
+      "tick": 9,
+      "time": 0.2250,
+      "transition": 0,
+      "present_position": [236.8652, 182.8125],
+      "goal_position": [203.0000, 206.0000],
+      "present_current": [-860.1600, -33.6000],
+      "model_prediction": [-487.6156, 311.5536]
+    },
+    {
+      "tick": 10,
+      "time": 0.2500,
+      "transition": 0,
+      "present_position": [232.2949, 190.8984],
+      "goal_position": [203.0000, 206.0000],
+      "present_current": [-833.2800, -94.0800],
+      "model_prediction": [-487.6156, 311.5536]
+    },
+    {
+      "tick": 11,
+      "time": 0.2750,
+      "transition": 0,
+      "present_position": [228.0762, 196.7871],
+      "goal_position": [203.0000, 206.0000],
+      "present_current": [-766.0800, -188.1600],
+      "model_prediction": [-487.6156, 311.5536]
+    },
+    {
+      "tick": 12,
+      "time": 0.3000,
+      "transition": 0,
+      "present_position": [223.7695, 201.7969],
+      "goal_position": [203.0000, 206.0000],
+      "present_current": [-698.8800, -379.6800],
+      "model_prediction": [-487.6156, 311.5536]
+    },
+    {
+      "tick": 13,
+      "time": 0.3250,
+      "transition": 0,
+      "present_position": [217.8809, 205.1367],
+      "goal_position": [203.0000, 206.0000],
+      "present_current": [-611.5200, -241.9200],
+      "model_prediction": [-487.6156, 311.5536]
+    },
+    {
+      "tick": 14,
+      "time": 0.3500,
+      "transition": 0,
+      "present_position": [213.8379, 205.3125],
+      "goal_position": [203.0000, 206.0000],
+      "present_current": [-611.5200, -10.0800],
+      "model_prediction": [-487.6156, 311.5536]
+    },
+    {
+      "tick": 15,
+      "time": 0.3750,
+      "transition": 0,
+      "present_position": [210.0586, 205.5762],
+      "goal_position": [203.0000, 206.0000],
+      "present_current": [-467.0400, 3.3600],
+      "model_prediction": [-487.6156, 311.5536]
+    },
+    {
+      "tick": 16,
+      "time": 0.4000,
+      "transition": 0,
+      "present_position": [206.6309, 205.5762],
+      "goal_position": [203.0000, 206.0000],
+      "present_current": [241.9200, 63.8400],
+      "model_prediction": [-487.6156, 311.5536]
+    },
+    {
+      "tick": 17,
+      "time": 0.4250,
+      "transition": 1,
+      "present_position": [204.3457, 205.6641],
+      "goal_position": [137.0000, 174.0000],
+      "present_current": [295.6800, 40.3200],
+      "model_prediction": [-487.6156, 311.5536]
+    },
+    {
+      "tick": 18,
+      "time": 0.4500,
+      "transition": 1,
+      "present_position": [203.9062, 205.7520],
+      "goal_position": [137.0000, 174.0000],
+      "present_current": [-238.5600, 13.4400],
+      "model_prediction": [-487.6156, 311.5536]
+    },
+    {
+      "tick": 19,
+      "time": 0.4750,
+      "transition": 1,
+      "present_position": [203.6426, 205.7520],
+      "goal_position": [137.0000, 174.0000],
+      "present_current": [-302.4000, 30.2400],
+      "model_prediction": [-487.6156, 311.5536]
+    },
+    {
+      "tick": 20,
+      "time": 0.5000,
+      "transition": 1,
+      "present_position": [203.6426, 205.6641],
+      "goal_position": [137.0000, 174.0000],
+      "present_current": [-299.0400, 13.4400],
+      "model_prediction": [-487.6156, 311.5536]
+    },
+    {
+      "tick": 21,
+      "time": 0.5250,
+      "transition": 1,
+      "present_position": [203.6426, 205.7520],
+      "goal_position": [137.0000, 174.0000],
+      "present_current": [-282.2400, 0.0000],
+      "model_prediction": [-487.6156, 311.5536]
+    },
+    {
+      "tick": 22,
+      "time": 0.5500,
+      "transition": 1,
+      "present_position": [203.6426, 205.7520],
+      "goal_position": [137.0000, 174.0000],
+      "present_current": [-285.6000, 0.0000],
+      "model_prediction": [-487.6156, 311.5536]
+    },
+    {
+      "tick": 23,
+      "time": 0.5750,
+      "transition": 1,
+      "present_position": [203.6426, 205.7520],
+      "goal_position": [137.0000, 174.0000],
+      "present_current": [-426.7200, -50.4000],
+      "model_prediction": [-487.6156, 311.5536]
+    },
+    {
+      "tick": 24,
+      "time": 0.6000,
+      "transition": 1,
+      "present_position": [203.6426, 205.6641],
+      "goal_position": [137.0000, 174.0000],
+      "present_current": [-456.9600, -57.1200],
+      "model_prediction": [-487.6156, 311.5536]
+    },
+    {
+      "tick": 25,
+      "time": 0.6250,
+      "transition": 1,
+      "present_position": [203.6426, 205.6641],
+      "goal_position": [137.0000, 174.0000],
+      "present_current": [-430.0800, -100.8000],
+      "model_prediction": [106.0998, 421.7667]
+    },
+    {
+      "tick": 26,
+      "time": 0.6500,
+      "transition": 1,
+      "present_position": [203.6426, 205.5762],
+      "goal_position": [137.0000, 174.0000],
+      "present_current": [-322.5600, -26.8800],
+      "model_prediction": [106.0998, 421.7667]
+    },
+    {
+      "tick": 27,
+      "time": 0.6750,
+      "transition": 1,
+      "present_position": [203.4668, 205.4004],
+      "goal_position": [137.0000, 174.0000],
+      "present_current": [-366.2400, -107.5200],
+      "model_prediction": [106.0998, 421.7667]
+    },
+    {
+      "tick": 28,
+      "time": 0.7000,
+      "transition": 1,
+      "present_position": [203.4668, 205.3125],
+      "goal_position": [137.0000, 174.0000],
+      "present_current": [-460.3200, -262.0800],
+      "model_prediction": [106.0998, 421.7667]
+    },
+    {
+      "tick": 29,
+      "time": 0.7250,
+      "transition": 1,
+      "present_position": [203.2910, 204.9609],
+      "goal_position": [137.0000, 174.0000],
+      "present_current": [-480.4800, -342.7200],
+      "model_prediction": [106.0998, 421.7667]
+    },
+    {
+      "tick": 30,
+      "time": 0.7500,
+      "transition": 1,
+      "present_position": [203.2031, 204.5215],
+      "goal_position": [137.0000, 174.0000],
+      "present_current": [-537.6000, -342.7200],
+      "model_prediction": [106.0998, 421.7667]
+    },
+    {
+      "tick": 31,
+      "time": 0.7750,
+      "transition": 1,
+      "present_position": [203.0273, 204.0820],
+      "goal_position": [137.0000, 174.0000],
+      "present_current": [-588.0000, -339.3600],
+      "model_prediction": [106.0998, 421.7667]
+    },
+    {
+      "tick": 32,
+      "time": 0.8000,
+      "transition": 1,
+      "present_position": [202.7637, 203.4668],
+      "goal_position": [137.0000, 174.0000],
+      "present_current": [-591.3600, -305.7600],
+      "model_prediction": [106.0998, 421.7667]
+    },
+    {
+      "tick": 33,
+      "time": 0.8250,
+      "transition": 1,
+      "present_position": [202.5000, 202.7637],
+      "goal_position": [137.0000, 174.0000],
+      "present_current": [-628.3200, -248.6400],
+      "model_prediction": [106.0998, 421.7667]
+    },
+    {
+      "tick": 34,
+      "time": 0.8500,
+      "transition": 1,
+      "present_position": [202.2363, 201.9727],
+      "goal_position": [137.0000, 174.0000],
+      "present_current": [-661.9200, -241.9200],
+      "model_prediction": [106.0998, 421.7667]
+    },
+    {
+      "tick": 35,
+      "time": 0.8750,
+      "transition": 1,
+      "present_position": [201.8848, 201.1816],
+      "goal_position": [137.0000, 174.0000],
+      "present_current": [-574.5600, -228.4800],
+      "model_prediction": [106.0998, 421.7667]
+    },
+    {
+      "tick": 36,
+      "time": 0.9000,
+      "transition": 1,
+      "present_position": [200.0391, 197.3145],
+      "goal_position": [137.0000, 174.0000],
+      "present_current": [-641.7600, -117.6000],
+      "model_prediction": [106.0998, 421.7667]
+    },
+    {
+      "tick": 37,
+      "time": 0.9250,
+      "transition": 1,
+      "present_position": [197.1387, 192.3926],
+      "goal_position": [137.0000, 174.0000],
+      "present_current": [-618.2400, -154.5600],
+      "model_prediction": [106.0998, 421.7667]
+    },
+    {
+      "tick": 38,
+      "time": 0.9500,
+      "transition": 1,
+      "present_position": [193.5352, 186.5918],
+      "goal_position": [137.0000, 174.0000],
+      "present_current": [-571.2000, 13.4400],
+      "model_prediction": [106.0998, 421.7667]
+    },
+    {
+      "tick": 39,
+      "time": 0.9750,
+      "transition": 1,
+      "present_position": [188.7891, 180.7910],
+      "goal_position": [137.0000, 174.0000],
+      "present_current": [-443.5200, 137.7600],
+      "model_prediction": [106.0998, 421.7667]
+    },
+    {
+      "tick": 40,
+      "time": 1.0000,
+      "transition": 1,
+      "present_position": [182.8125, 175.8691],
+      "goal_position": [137.0000, 174.0000],
+      "present_current": [-319.2000, 477.1200],
+      "model_prediction": [106.0998, 421.7667]
+    },
+    {
+      "tick": 41,
+      "time": 1.0250,
+      "transition": 1,
+      "present_position": [177.7148, 174.4629],
+      "goal_position": [137.0000, 174.0000],
+      "present_current": [-144.4800, 245.2800],
+      "model_prediction": [106.0998, 421.7667]
+    },
+    {
+      "tick": 42,
+      "time": 1.0500,
+      "transition": 1,
+      "present_position": [172.0020, 174.3750],
+      "goal_position": [137.0000, 174.0000],
+      "present_current": [-73.9200, 0.0000],
+      "model_prediction": [106.0998, 421.7667]
+    },
+    {
+      "tick": 43,
+      "time": 1.0750,
+      "transition": 1,
+      "present_position": [166.9922, 174.2871],
+      "goal_position": [137.0000, 174.0000],
+      "present_current": [0.0000, -30.2400],
+      "model_prediction": [106.0998, 421.7667]
+    },
+    {
+      "tick": 44,
+      "time": 1.1000,
+      "transition": 1,
+      "present_position": [160.8398, 174.1113],
+      "goal_position": [137.0000, 174.0000],
+      "present_current": [40.3200, 0.0000],
+      "model_prediction": [106.0998, 421.7667]
+    },
+    {
+      "tick": 45,
+      "time": 1.1250,
+      "transition": 1,
+      "present_position": [156.0059, 173.9355],
+      "goal_position": [137.0000, 174.0000],
+      "present_current": [161.2800, 0.0000],
+      "model_prediction": [106.0998, 421.7667]
+    },
+    {
+      "tick": 46,
+      "time": 1.1500,
+      "transition": 1,
+      "present_position": [151.2598, 173.6719],
+      "goal_position": [137.0000, 174.0000],
+      "present_current": [154.5600, 40.3200],
+      "model_prediction": [106.0998, 421.7667]
+    },
+    {
+      "tick": 47,
+      "time": 1.1750,
+      "transition": 1,
+      "present_position": [146.7773, 173.7598],
+      "goal_position": [137.0000, 174.0000],
+      "present_current": [161.2800, 3.3600],
+      "model_prediction": [106.0998, 421.7667]
+    },
+    {
+      "tick": 48,
+      "time": 1.2000,
+      "transition": 1,
+      "present_position": [143.3496, 173.7598],
+      "goal_position": [137.0000, 174.0000],
+      "present_current": [278.8800, 40.3200],
+      "model_prediction": [106.0998, 421.7667]
+    },
+    {
+      "tick": 49,
+      "time": 1.2250,
+      "transition": 2,
+      "present_position": [139.7461, 173.7598],
+      "goal_position": [206.0000, 152.0000],
+      "present_current": [396.4800, 47.0400],
+      "model_prediction": [106.0998, 421.7667]
+    },
+    {
+      "tick": 50,
+      "time": 1.2500,
+      "transition": 2,
+      "present_position": [137.5488, 173.7598],
+      "goal_position": [206.0000, 152.0000],
+      "present_current": [487.2000, 23.5200],
+      "model_prediction": [106.0998, 421.7667]
+    },
+    {
+      "tick": 51,
+      "time": 1.2750,
+      "transition": 2,
+      "present_position": [136.7578, 173.7598],
+      "goal_position": [206.0000, 152.0000],
+      "present_current": [40.3200, 20.1600],
+      "model_prediction": [106.0998, 421.7667]
+    },
+    {
+      "tick": 52,
+      "time": 1.3000,
+      "transition": 2,
+      "present_position": [136.7578, 173.7598],
+      "goal_position": [206.0000, 152.0000],
+      "present_current": [40.3200, 10.0800],
+      "model_prediction": [106.0998, 421.7667]
+    },
+    {
+      "tick": 53,
+      "time": 1.3250,
+      "transition": 2,
+      "present_position": [136.7578, 173.7598],
+      "goal_position": [206.0000, 152.0000],
+      "present_current": [40.3200, 10.0800],
+      "model_prediction": [106.0998, 421.7667]
+    },
+    {
+      "tick": 54,
+      "time": 1.3500,
+      "transition": 2,
+      "present_position": [136.7578, 173.7598],
+      "goal_position": [206.0000, 152.0000],
+      "present_current": [53.7600, 0.0000],
+      "model_prediction": [106.0998, 421.7667]
+    },
+    {
+      "tick": 55,
+      "time": 1.3750,
+      "transition": 2,
+      "present_position": [136.7578, 173.7598],
+      "goal_position": [206.0000, 152.0000],
+      "present_current": [100.8000, -104.1600],
+      "model_prediction": [106.0998, 421.7667]
+    },
+    {
+      "tick": 56,
+      "time": 1.4000,
+      "transition": 2,
+      "present_position": [136.7578, 173.7598],
+      "goal_position": [206.0000, 152.0000],
+      "present_current": [164.6400, -97.4400],
+      "model_prediction": [106.0998, 421.7667]
+    },
+    {
+      "tick": 57,
+      "time": 1.4250,
+      "transition": 2,
+      "present_position": [136.7578, 173.6719],
+      "goal_position": [206.0000, 152.0000],
+      "present_current": [245.2800, -131.0400],
+      "model_prediction": [106.0998, 421.7667]
+    },
+    {
+      "tick": 58,
+      "time": 1.4500,
+      "transition": 2,
+      "present_position": [136.7578, 173.6719],
+      "goal_position": [206.0000, 152.0000],
+      "present_current": [325.9200, 0.0000],
+      "model_prediction": [847.9931, 420.9490]
+    },
+    {
+      "tick": 59,
+      "time": 1.4750,
+      "transition": 2,
+      "present_position": [136.7578, 173.6719],
+      "goal_position": [206.0000, 152.0000],
+      "present_current": [383.0400, -60.4800],
+      "model_prediction": [847.9931, 420.9490]
+    },
+    {
+      "tick": 60,
+      "time": 1.5000,
+      "transition": 2,
+      "present_position": [136.7578, 173.5840],
+      "goal_position": [206.0000, 152.0000],
+      "present_current": [470.4000, -325.9200],
+      "model_prediction": [847.9931, 420.9490]
+    },
+    {
+      "tick": 61,
+      "time": 1.5250,
+      "transition": 2,
+      "present_position": [136.7578, 173.3203],
+      "goal_position": [206.0000, 152.0000],
+      "present_current": [574.5600, -319.2000],
+      "model_prediction": [847.9931, 420.9490]
+    },
+    {
+      "tick": 62,
+      "time": 1.5500,
+      "transition": 2,
+      "present_position": [136.8457, 172.9688],
+      "goal_position": [206.0000, 152.0000],
+      "present_current": [618.2400, -379.6800],
+      "model_prediction": [847.9931, 420.9490]
+    },
+    {
+      "tick": 63,
+      "time": 1.5750,
+      "transition": 2,
+      "present_position": [136.9336, 172.4414],
+      "goal_position": [206.0000, 152.0000],
+      "present_current": [618.2400, -349.4400],
+      "model_prediction": [847.9931, 420.9490]
+    },
+    {
+      "tick": 64,
+      "time": 1.6000,
+      "transition": 2,
+      "present_position": [137.1094, 171.8262],
+      "goal_position": [206.0000, 152.0000],
+      "present_current": [638.4000, -252.0000],
+      "model_prediction": [847.9931, 420.9490]
+    },
+    {
+      "tick": 65,
+      "time": 1.6250,
+      "transition": 2,
+      "present_position": [137.2852, 171.1230],
+      "goal_position": [206.0000, 152.0000],
+      "present_current": [702.2400, -181.4400],
+      "model_prediction": [847.9931, 420.9490]
+    },
+    {
+      "tick": 66,
+      "time": 1.6500,
+      "transition": 2,
+      "present_position": [137.4609, 170.4199],
+      "goal_position": [206.0000, 152.0000],
+      "present_current": [769.4400, -147.8400],
+      "model_prediction": [847.9931, 420.9490]
+    },
+    {
+      "tick": 67,
+      "time": 1.6750,
+      "transition": 2,
+      "present_position": [137.7246, 169.6289],
+      "goal_position": [206.0000, 152.0000],
+      "present_current": [759.3600, -164.6400],
+      "model_prediction": [847.9931, 420.9490]
+    },
+    {
+      "tick": 68,
+      "time": 1.7000,
+      "transition": 2,
+      "present_position": [139.9219, 165.1465],
+      "goal_position": [206.0000, 152.0000],
+      "present_current": [792.9600, -97.4400],
+      "model_prediction": [847.9931, 420.9490]
+    },
+    {
+      "tick": 69,
+      "time": 1.7250,
+      "transition": 2,
+      "present_position": [142.5586, 161.2793],
+      "goal_position": [206.0000, 152.0000],
+      "present_current": [688.8000, -90.7200],
+      "model_prediction": [847.9931, 420.9490]
+    },
+    {
+      "tick": 70,
+      "time": 1.7500,
+      "transition": 2,
+      "present_position": [146.3379, 157.0605],
+      "goal_position": [206.0000, 152.0000],
+      "present_current": [621.6000, 90.7200],
+      "model_prediction": [847.9931, 420.9490]
+    },
+    {
+      "tick": 71,
+      "time": 1.7750,
+      "transition": 2,
+      "present_position": [151.2598, 153.8086],
+      "goal_position": [206.0000, 152.0000],
+      "present_current": [594.7200, 275.5200],
+      "model_prediction": [847.9931, 420.9490]
+    },
+    {
+      "tick": 72,
+      "time": 1.8000,
+      "transition": 2,
+      "present_position": [155.8301, 152.7539],
+      "goal_position": [206.0000, 152.0000],
+      "present_current": [530.8800, 20.1600],
+      "model_prediction": [847.9931, 420.9490]
+    },
+    {
+      "tick": 73,
+      "time": 1.8250,
+      "transition": 2,
+      "present_position": [161.8945, 152.4902],
+      "goal_position": [206.0000, 152.0000],
+      "present_current": [322.5600, -104.1600],
+      "model_prediction": [847.9931, 420.9490]
+    },
+    {
+      "tick": 74,
+      "time": 1.8500,
+      "transition": 2,
+      "present_position": [166.9922, 152.4902],
+      "goal_position": [206.0000, 152.0000],
+      "present_current": [252.0000, -215.0400],
+      "model_prediction": [847.9931, 420.9490]
+    },
+    {
+      "tick": 75,
+      "time": 1.8750,
+      "transition": 2,
+      "present_position": [173.9355, 152.4023],
+      "goal_position": [206.0000, 152.0000],
+      "present_current": [104.1600, -221.7600],
+      "model_prediction": [847.9931, 420.9490]
+    },
+    {
+      "tick": 76,
+      "time": 1.9000,
+      "transition": 2,
+      "present_position": [180.2637, 152.4023],
+      "goal_position": [206.0000, 152.0000],
+      "present_current": [-47.0400, -228.4800],
+      "model_prediction": [847.9931, 420.9490]
+    },
+    {
+      "tick": 77,
+      "time": 1.9250,
+      "transition": 2,
+      "present_position": [185.4492, 152.4023],
+      "goal_position": [206.0000, 152.0000],
+      "present_current": [-107.5200, -221.7600],
+      "model_prediction": [847.9931, 420.9490]
+    },
+    {
+      "tick": 78,
+      "time": 1.9500,
+      "transition": 2,
+      "present_position": [190.0195, 152.4023],
+      "goal_position": [206.0000, 152.0000],
+      "present_current": [-235.2000, -221.7600],
+      "model_prediction": [847.9931, 420.9490]
+    },
+    {
+      "tick": 79,
+      "time": 1.9750,
+      "transition": 2,
+      "present_position": [194.5020, 152.4023],
+      "goal_position": [206.0000, 152.0000],
+      "present_current": [-201.6000, -215.0400],
+      "model_prediction": [847.9931, 420.9490]
+    },
+    {
+      "tick": 80,
+      "time": 2.0000,
+      "transition": 2,
+      "present_position": [198.1934, 152.4023],
+      "goal_position": [206.0000, 152.0000],
+      "present_current": [-272.1600, -221.7600],
+      "model_prediction": [847.9931, 420.9490]
+    },
+    {
+      "tick": 81,
+      "time": 2.0250,
+      "transition": 2,
+      "present_position": [201.7969, 152.4023],
+      "goal_position": [206.0000, 152.0000],
+      "present_current": [-416.6400, -221.7600],
+      "model_prediction": [847.9931, 420.9490]
+    },
+    {
+      "tick": 82,
+      "time": 2.0500,
+      "transition": 3,
+      "present_position": [204.1699, 152.4023],
+      "goal_position": [175.0000, 142.0000],
+      "present_current": [-450.2400, -221.7600],
+      "model_prediction": [847.9931, 420.9490]
+    },
+    {
+      "tick": 83,
+      "time": 2.0750,
+      "transition": 3,
+      "present_position": [205.5762, 152.4023],
+      "goal_position": [175.0000, 142.0000],
+      "present_current": [-369.6000, -221.7600],
+      "model_prediction": [847.9931, 420.9490]
+    },
+    {
+      "tick": 84,
+      "time": 2.1000,
+      "transition": 3,
+      "present_position": [206.1035, 152.4023],
+      "goal_position": [175.0000, 142.0000],
+      "present_current": [-43.6800, -208.3200],
+      "model_prediction": [847.9931, 420.9490]
+    },
+    {
+      "tick": 85,
+      "time": 2.1250,
+      "transition": 3,
+      "present_position": [206.1035, 152.4023],
+      "goal_position": [175.0000, 142.0000],
+      "present_current": [-43.6800, -178.0800],
+      "model_prediction": [847.9931, 420.9490]
+    },
+    {
+      "tick": 86,
+      "time": 2.1500,
+      "transition": 3,
+      "present_position": [206.1035, 152.4023],
+      "goal_position": [175.0000, 142.0000],
+      "present_current": [-70.5600, -127.6800],
+      "model_prediction": [847.9931, 420.9490]
+    },
+    {
+      "tick": 87,
+      "time": 2.1750,
+      "transition": 3,
+      "present_position": [206.1035, 152.4023],
+      "goal_position": [175.0000, 142.0000],
+      "present_current": [-70.5600, -191.5200],
+      "model_prediction": [847.9931, 420.9490]
+    },
+    {
+      "tick": 88,
+      "time": 2.2000,
+      "transition": 3,
+      "present_position": [206.1035, 152.4023],
+      "goal_position": [175.0000, 142.0000],
+      "present_current": [-181.4400, -252.0000],
+      "model_prediction": [847.9931, 420.9490]
+    },
+    {
+      "tick": 89,
+      "time": 2.2250,
+      "transition": 3,
+      "present_position": [206.1035, 152.3145],
+      "goal_position": [175.0000, 142.0000],
+      "present_current": [-188.1600, -265.4400],
+      "model_prediction": [847.9931, 420.9490]
+    },
+    {
+      "tick": 90,
+      "time": 2.2500,
+      "transition": 3,
+      "present_position": [206.1035, 152.3145],
+      "goal_position": [175.0000, 142.0000],
+      "present_current": [-275.5200, -231.8400],
+      "model_prediction": [-307.7355, 116.0843]
+    },
+    {
+      "tick": 91,
+      "time": 2.2750,
+      "transition": 3,
+      "present_position": [206.1035, 152.1387],
+      "goal_position": [175.0000, 142.0000],
+      "present_current": [-346.0800, -262.0800],
+      "model_prediction": [-307.7355, 116.0843]
+    },
+    {
+      "tick": 92,
+      "time": 2.3000,
+      "transition": 3,
+      "present_position": [206.1035, 152.1387],
+      "goal_position": [175.0000, 142.0000],
+      "present_current": [-346.0800, -262.0800],
+      "model_prediction": [-307.7355, 116.0843]
+    },
+    {
+      "tick": 93,
+      "time": 2.3250,
+      "transition": 3,
+      "present_position": [205.9277, 151.1719],
+      "goal_position": [175.0000, 142.0000],
+      "present_current": [-467.0400, -349.4400],
+      "model_prediction": [-307.7355, 116.0843]
+    },
+    {
+      "tick": 94,
+      "time": 2.3500,
+      "transition": 3,
+      "present_position": [205.8398, 150.9082],
+      "goal_position": [175.0000, 142.0000],
+      "present_current": [-500.6400, -473.7600],
+      "model_prediction": [-307.7355, 116.0843]
+    },
+    {
+      "tick": 95,
+      "time": 2.3750,
+      "transition": 3,
+      "present_position": [205.7520, 150.4688],
+      "goal_position": [175.0000, 142.0000],
+      "present_current": [-638.4000, -534.2400],
+      "model_prediction": [-307.7355, 116.0843]
+    },
+    {
+      "tick": 96,
+      "time": 2.4000,
+      "transition": 3,
+      "present_position": [205.5762, 149.9414],
+      "goal_position": [175.0000, 142.0000],
+      "present_current": [-672.0000, -490.5600],
+      "model_prediction": [-307.7355, 116.0843]
+    },
+    {
+      "tick": 97,
+      "time": 2.4250,
+      "transition": 3,
+      "present_position": [205.3125, 149.4141],
+      "goal_position": [175.0000, 142.0000],
+      "present_current": [-672.0000, -524.1600],
+      "model_prediction": [-206.0355, 104.8799]
+    },
+    {
+      "tick": 98,
+      "time": 2.4500,
+      "transition": 3,
+      "present_position": [205.1367, 148.7109],
+      "goal_position": [175.0000, 142.0000],
+      "present_current": [-678.7200, -497.2800],
+      "model_prediction": [-206.0355, 104.8799]
+    },
+    {
+      "tick": 99,
+      "time": 2.4750,
+      "transition": 3,
+      "present_position": [204.9609, 148.2715],
+      "goal_position": [175.0000, 142.0000],
+      "present_current": [-651.8400, -480.4800],
+      "model_prediction": [-206.0355, 104.8799]
+    },
+    {
+      "tick": 100,
+      "time": 2.5000,
+      "transition": 3,
+      "present_position": [204.5215, 147.7441],
+      "goal_position": [175.0000, 142.0000],
+      "present_current": [-638.4000, -446.8800],
+      "model_prediction": [-206.0355, 104.8799]
+    },
+    {
+      "tick": 101,
+      "time": 2.5250,
+      "transition": 3,
+      "present_position": [203.3789, 146.0742],
+      "goal_position": [175.0000, 142.0000],
+      "present_current": [-581.2800, -299.0400],
+      "model_prediction": [-206.0355, 104.8799]
+    },
+    {
+      "tick": 102,
+      "time": 2.5500,
+      "transition": 3,
+      "present_position": [199.1602, 143.5254],
+      "goal_position": [175.0000, 142.0000],
+      "present_current": [-292.3200, 84.0000],
+      "model_prediction": [-206.0355, 104.8799]
+    },
+    {
+      "tick": 103,
+      "time": 2.5750,
+      "transition": 3,
+      "present_position": [195.7324, 143.0859],
+      "goal_position": [175.0000, 142.0000],
+      "present_current": [-248.6400, -329.2800],
+      "model_prediction": [-206.0355, 104.8799]
+    },
+    {
+      "tick": 104,
+      "time": 2.6000,
+      "transition": 3,
+      "present_position": [192.1289, 142.9980],
+      "goal_position": [175.0000, 142.0000],
+      "present_current": [-305.7600, -386.4000],
+      "model_prediction": [-206.0355, 104.8799]
+    },
+    {
+      "tick": 105,
+      "time": 2.6250,
+      "transition": 3,
+      "present_position": [188.2617, 142.9980],
+      "goal_position": [175.0000, 142.0000],
+      "present_current": [-211.6800, -396.4800],
+      "model_prediction": [-206.0355, 104.8799]
+    },
+    {
+      "tick": 106,
+      "time": 2.6500,
+      "transition": 3,
+      "present_position": [184.8340, 142.9102],
+      "goal_position": [175.0000, 142.0000],
+      "present_current": [-50.4000, -332.6400],
+      "model_prediction": [-206.0355, 104.8799]
+    },
+    {
+      "tick": 107,
+      "time": 2.6750,
+      "transition": 3,
+      "present_position": [181.3184, 142.9102],
+      "goal_position": [175.0000, 142.0000],
+      "present_current": [87.3600, -372.9600],
+      "model_prediction": [-206.0355, 104.8799]
+    },
+    {
+      "tick": 108,
+      "time": 2.7000,
+      "transition": 3,
+      "present_position": [178.3301, 142.8223],
+      "goal_position": [175.0000, 142.0000],
+      "present_current": [258.7200, -282.2400],
+      "model_prediction": [-206.0355, 104.8799]
+    },
+    {
+      "tick": 109,
+      "time": 2.7250,
+      "transition": 4,
+      "present_position": [176.2207, 142.8223],
+      "goal_position": [173.0000, 215.0000],
+      "present_current": [349.4400, -275.5200],
+      "model_prediction": [-206.0355, 104.8799]
+    },
+    {
+      "tick": 110,
+      "time": 2.7500,
+      "transition": 4,
+      "present_position": [175.0781, 142.7344],
+      "goal_position": [173.0000, 215.0000],
+      "present_current": [120.9600, -231.8400],
+      "model_prediction": [-206.0355, 104.8799]
+    },
+    {
+      "tick": 111,
+      "time": 2.7750,
+      "transition": 4,
+      "present_position": [174.9023, 142.7344],
+      "goal_position": [173.0000, 215.0000],
+      "present_current": [0.0000, -265.4400],
+      "model_prediction": [-206.0355, 104.8799]
+    },
+    {
+      "tick": 112,
+      "time": 2.8000,
+      "transition": 4,
+      "present_position": [174.9023, 142.7344],
+      "goal_position": [173.0000, 215.0000],
+      "present_current": [0.0000, -262.0800],
+      "model_prediction": [-206.0355, 104.8799]
+    },
+    {
+      "tick": 113,
+      "time": 2.8250,
+      "transition": 4,
+      "present_position": [174.9023, 142.7344],
+      "goal_position": [173.0000, 215.0000],
+      "present_current": [0.0000, -265.4400],
+      "model_prediction": [-206.0355, 104.8799]
+    },
+    {
+      "tick": 114,
+      "time": 2.8500,
+      "transition": 4,
+      "present_position": [174.9023, 142.7344],
+      "goal_position": [173.0000, 215.0000],
+      "present_current": [0.0000, -245.2800],
+      "model_prediction": [-206.0355, 104.8799]
+    },
+    {
+      "tick": 115,
+      "time": 2.8750,
+      "transition": 4,
+      "present_position": [174.8145, 142.7344],
+      "goal_position": [173.0000, 215.0000],
+      "present_current": [0.0000, -157.9200],
+      "model_prediction": [-206.0355, 104.8799]
+    },
+    {
+      "tick": 116,
+      "time": 2.9000,
+      "transition": 4,
+      "present_position": [174.8145, 142.7344],
+      "goal_position": [173.0000, 215.0000],
+      "present_current": [-16.8000, -26.8800],
+      "model_prediction": [-206.0355, 104.8799]
+    },
+    {
+      "tick": 117,
+      "time": 2.9250,
+      "transition": 4,
+      "present_position": [174.8145, 142.7344],
+      "goal_position": [173.0000, 215.0000],
+      "present_current": [-23.5200, 0.0000],
+      "model_prediction": [234.1011, 447.1590]
+    },
+    {
+      "tick": 118,
+      "time": 2.9500,
+      "transition": 4,
+      "present_position": [174.7266, 142.8223],
+      "goal_position": [173.0000, 215.0000],
+      "present_current": [-114.2400, 16.8000],
+      "model_prediction": [234.1011, 447.1590]
+    },
+    {
+      "tick": 119,
+      "time": 2.9750,
+      "transition": 4,
+      "present_position": [174.7266, 142.8223],
+      "goal_position": [173.0000, 215.0000],
+      "present_current": [-114.2400, 16.8000],
+      "model_prediction": [234.1011, 447.1590]
+    },
+    {
+      "tick": 120,
+      "time": 3.0000,
+      "transition": 4,
+      "present_position": [174.5508, 143.4375],
+      "goal_position": [173.0000, 215.0000],
+      "present_current": [-57.1200, 272.1600],
+      "model_prediction": [234.1011, 447.1590]
+    },
+    {
+      "tick": 121,
+      "time": 3.0250,
+      "transition": 4,
+      "present_position": [174.4629, 143.7012],
+      "goal_position": [173.0000, 215.0000],
+      "present_current": [-157.9200, 359.5200],
+      "model_prediction": [234.1011, 447.1590]
+    },
+    {
+      "tick": 122,
+      "time": 3.0500,
+      "transition": 4,
+      "present_position": [174.3750, 144.2285],
+      "goal_position": [173.0000, 215.0000],
+      "present_current": [-144.4800, 416.6400],
+      "model_prediction": [234.1011, 447.1590]
+    },
+    {
+      "tick": 123,
+      "time": 3.0750,
+      "transition": 4,
+      "present_position": [174.1992, 144.7559],
+      "goal_position": [173.0000, 215.0000],
+      "present_current": [6.7200, 453.6000],
+      "model_prediction": [234.1011, 447.1590]
+    },
+    {
+      "tick": 124,
+      "time": 3.1000,
+      "transition": 4,
+      "present_position": [174.0234, 145.3711],
+      "goal_position": [173.0000, 215.0000],
+      "present_current": [40.3200, 409.9200],
+      "model_prediction": [104.9093, 426.6125]
+    },
+    {
+      "tick": 125,
+      "time": 3.1250,
+      "transition": 4,
+      "present_position": [173.9355, 146.1621],
+      "goal_position": [173.0000, 215.0000],
+      "present_current": [53.7600, 470.4000],
+      "model_prediction": [104.9093, 426.6125]
+    },
+    {
+      "tick": 126,
+      "time": 3.1500,
+      "transition": 4,
+      "present_position": [173.7598, 146.8652],
+      "goal_position": [173.0000, 215.0000],
+      "present_current": [107.5200, 416.6400],
+      "model_prediction": [104.9093, 426.6125]
+    },
+    {
+      "tick": 127,
+      "time": 3.1750,
+      "transition": 4,
+      "present_position": [173.5840, 147.8320],
+      "goal_position": [173.0000, 215.0000],
+      "present_current": [70.5600, 372.9600],
+      "model_prediction": [104.9093, 426.6125]
+    },
+    {
+      "tick": 128,
+      "time": 3.2000,
+      "transition": 4,
+      "present_position": [173.2324, 150.6445],
+      "goal_position": [173.0000, 215.0000],
+      "present_current": [26.8800, 285.6000],
+      "model_prediction": [104.9093, 426.6125]
+    },
+    {
+      "tick": 129,
+      "time": 3.2250,
+      "transition": 4,
+      "present_position": [172.8809, 158.6426],
+      "goal_position": [173.0000, 215.0000],
+      "present_current": [0.0000, 322.5600],
+      "model_prediction": [104.9093, 426.6125]
+    },
+    {
+      "tick": 130,
+      "time": 3.2500,
+      "transition": 4,
+      "present_position": [173.2324, 166.2012],
+      "goal_position": [173.0000, 215.0000],
+      "present_current": [-20.1600, 252.0000],
+      "model_prediction": [104.9093, 426.6125]
+    },
+    {
+      "tick": 131,
+      "time": 3.2750,
+      "transition": 4,
+      "present_position": [173.4961, 175.4297],
+      "goal_position": [173.0000, 215.0000],
+      "present_current": [-84.0000, 87.3600],
+      "model_prediction": [104.9093, 426.6125]
+    },
+    {
+      "tick": 132,
+      "time": 3.3000,
+      "transition": 4,
+      "present_position": [173.4082, 183.9551],
+      "goal_position": [173.0000, 215.0000],
+      "present_current": [-151.2000, -3.3600],
+      "model_prediction": [104.9093, 426.6125]
+    },
+    {
+      "tick": 133,
+      "time": 3.3250,
+      "transition": 4,
+      "present_position": [173.1445, 192.1289],
+      "goal_position": [173.0000, 215.0000],
+      "present_current": [-3.3600, -47.0400],
+      "model_prediction": [104.9093, 426.6125]
+    },
+    {
+      "tick": 134,
+      "time": 3.3500,
+      "transition": 4,
+      "present_position": [172.9688, 200.3906],
+      "goal_position": [173.0000, 215.0000],
+      "present_current": [0.0000, -194.8800],
+      "model_prediction": [104.9093, 426.6125]
+    },
+    {
+      "tick": 135,
+      "time": 3.3750,
+      "transition": 4,
+      "present_position": [172.9688, 206.7188],
+      "goal_position": [173.0000, 215.0000],
+      "present_current": [0.0000, -238.5600],
+      "model_prediction": [104.9093, 426.6125]
+    },
+    {
+      "tick": 136,
+      "time": 3.4000,
+      "transition": 5,
+      "present_position": [173.0566, 212.1680],
+      "goal_position": [220.0000, 179.0000],
+      "present_current": [0.0000, -551.0400],
+      "model_prediction": [104.9093, 426.6125]
+    },
+    {
+      "tick": 137,
+      "time": 3.4250,
+      "transition": 5,
+      "present_position": [172.8809, 214.3652],
+      "goal_position": [220.0000, 179.0000],
+      "present_current": [0.0000, -198.2400],
+      "model_prediction": [104.9093, 426.6125]
+    },
+    {
+      "tick": 138,
+      "time": 3.4500,
+      "transition": 5,
+      "present_position": [172.7930, 214.8047],
+      "goal_position": [220.0000, 179.0000],
+      "present_current": [40.3200, 43.6800],
+      "model_prediction": [104.9093, 426.6125]
+    },
+    {
+      "tick": 139,
+      "time": 3.4750,
+      "transition": 5,
+      "present_position": [172.7930, 214.8047],
+      "goal_position": [220.0000, 179.0000],
+      "present_current": [40.3200, 43.6800],
+      "model_prediction": [104.9093, 426.6125]
+    },
+    {
+      "tick": 140,
+      "time": 3.5000,
+      "transition": 5,
+      "present_position": [172.7930, 214.8047],
+      "goal_position": [220.0000, 179.0000],
+      "present_current": [40.3200, 20.1600],
+      "model_prediction": [104.9093, 426.6125]
+    },
+    {
+      "tick": 141,
+      "time": 3.5250,
+      "transition": 5,
+      "present_position": [172.7930, 214.8047],
+      "goal_position": [220.0000, 179.0000],
+      "present_current": [40.3200, 20.1600],
+      "model_prediction": [104.9093, 426.6125]
+    },
+    {
+      "tick": 142,
+      "time": 3.5500,
+      "transition": 5,
+      "present_position": [172.7930, 214.8047],
+      "goal_position": [220.0000, 179.0000],
+      "present_current": [40.3200, 20.1600],
+      "model_prediction": [104.9093, 426.6125]
+    },
+    {
+      "tick": 143,
+      "time": 3.5750,
+      "transition": 5,
+      "present_position": [172.7930, 214.7168],
+      "goal_position": [220.0000, 179.0000],
+      "present_current": [63.8400, -114.2400],
+      "model_prediction": [104.9093, 426.6125]
+    },
+    {
+      "tick": 144,
+      "time": 3.6000,
+      "transition": 5,
+      "present_position": [172.7930, 214.7168],
+      "goal_position": [220.0000, 179.0000],
+      "present_current": [63.8400, -114.2400],
+      "model_prediction": [104.9093, 426.6125]
+    },
+    {
+      "tick": 145,
+      "time": 3.6250,
+      "transition": 5,
+      "present_position": [173.0566, 214.2773],
+      "goal_position": [220.0000, 179.0000],
+      "present_current": [100.8000, -477.1200],
+      "model_prediction": [227.3908, 430.8414]
+    },
+    {
+      "tick": 146,
+      "time": 3.6500,
+      "transition": 5,
+      "present_position": [173.3203, 213.3984],
+      "goal_position": [220.0000, 179.0000],
+      "present_current": [204.9600, -557.7600],
+      "model_prediction": [227.3908, 430.8414]
+    },
+    {
+      "tick": 147,
+      "time": 3.6750,
+      "transition": 5,
+      "present_position": [173.4082, 212.9590],
+      "goal_position": [220.0000, 179.0000],
+      "present_current": [225.1200, -567.8400],
+      "model_prediction": [227.3908, 430.8414]
+    },
+    {
+      "tick": 148,
+      "time": 3.7000,
+      "transition": 5,
+      "present_position": [173.6719, 212.1680],
+      "goal_position": [220.0000, 179.0000],
+      "present_current": [275.5200, -497.2800],
+      "model_prediction": [227.3908, 430.8414]
+    },
+    {
+      "tick": 149,
+      "time": 3.7250,
+      "transition": 5,
+      "present_position": [173.9355, 211.3770],
+      "goal_position": [220.0000, 179.0000],
+      "present_current": [278.8800, -456.9600],
+      "model_prediction": [227.3908, 430.8414]
+    },
+    {
+      "tick": 150,
+      "time": 3.7500,
+      "transition": 5,
+      "present_position": [174.1992, 210.4102],
+      "goal_position": [220.0000, 179.0000],
+      "present_current": [366.2400, -416.6400],
+      "model_prediction": [227.3908, 430.8414]
+    },
+    {
+      "tick": 151,
+      "time": 3.7750,
+      "transition": 5,
+      "present_position": [174.5508, 209.5312],
+      "goal_position": [220.0000, 179.0000],
+      "present_current": [379.6800, -339.3600],
+      "model_prediction": [227.3908, 430.8414]
+    },
+    {
+      "tick": 152,
+      "time": 3.8000,
+      "transition": 5,
+      "present_position": [174.9902, 208.3887],
+      "goal_position": [220.0000, 179.0000],
+      "present_current": [376.3200, -336.0000],
+      "model_prediction": [227.3908, 430.8414]
+    },
+    {
+      "tick": 153,
+      "time": 3.8250,
+      "transition": 5,
+      "present_position": [175.4297, 207.2461],
+      "goal_position": [220.0000, 179.0000],
+      "present_current": [389.7600, -275.5200],
+      "model_prediction": [227.3908, 430.8414]
+    },
+    {
+      "tick": 154,
+      "time": 3.8500,
+      "transition": 5,
+      "present_position": [175.9570, 206.1035],
+      "goal_position": [220.0000, 179.0000],
+      "present_current": [386.4000, -218.4000],
+      "model_prediction": [233.1710, 448.7862]
+    },
+    {
+      "tick": 155,
+      "time": 3.8750,
+      "transition": 5,
+      "present_position": [176.4844, 205.0488],
+      "goal_position": [220.0000, 179.0000],
+      "present_current": [309.1200, -178.0800],
+      "model_prediction": [233.1710, 448.7862]
+    },
+    {
+      "tick": 156,
+      "time": 3.9000,
+      "transition": 5,
+      "present_position": [178.0664, 201.9727],
+      "goal_position": [220.0000, 179.0000],
+      "present_current": [184.8000, -131.0400],
+      "model_prediction": [233.1710, 448.7862]
+    },
+    {
+      "tick": 157,
+      "time": 3.9250,
+      "transition": 5,
+      "present_position": [182.1973, 195.1172],
+      "goal_position": [220.0000, 179.0000],
+      "present_current": [-26.8800, 40.3200],
+      "model_prediction": [233.1710, 448.7862]
+    },
+    {
+      "tick": 158,
+      "time": 3.9500,
+      "transition": 5,
+      "present_position": [185.8887, 189.0527],
+      "goal_position": [220.0000, 179.0000],
+      "present_current": [-161.2800, 168.0000],
+      "model_prediction": [233.1710, 448.7862]
+    }]}

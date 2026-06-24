@@ -1,0 +1,107 @@
+{
+"deviance_data" : [    {
+      "tick": 3,
+      "time": 0.0750,
+      "transition": 0,
+      "present_position": [119.1797, 224.5605],
+      "goal_position": [205.0000, 231.0000],
+      "present_current": [0.0000, 0.0000],
+      "model_prediction": [0.0000, 0.0000],
+      "gyro": [-0.3534, 0.6037, -0.3210],
+      "accel": [0.7926, 0.5079, -0.3118],
+      "angles": [-59.2383, 53.0310, -180.7910],
+      "starting_positions": [119.1797, 224.5605]
+    },
+    {
+      "tick": 4,
+      "time": 0.1000,
+      "transition": 0,
+      "present_position": [119.1797, 224.5605],
+      "goal_position": [205.0000, 231.0000],
+      "present_current": [124.3200, 36.9600],
+      "model_prediction": [0.0000, 0.0000],
+      "gyro": [0.4859, 2.5570, -23.5999],
+      "accel": [0.7859, 0.5232, -0.3106],
+      "angles": [-59.4690, 52.7563, -181.1206],
+      "starting_positions": [119.1797, 224.5605]
+    },
+    {
+      "tick": 5,
+      "time": 0.1250,
+      "transition": 0,
+      "present_position": [119.1797, 225.5273],
+      "goal_position": [205.0000, 231.0000],
+      "present_current": [682.0800, 188.1600],
+      "model_prediction": [0.0000, 0.0000],
+      "gyro": [13.5451, -20.5489, -90.6392],
+      "accel": [0.8500, 0.6053, -0.3488],
+      "angles": [-60.4468, 51.2292, -182.4500],
+      "starting_positions": [119.1797, 224.5605]
+    },
+    {
+      "tick": 6,
+      "time": 0.1500,
+      "transition": 0,
+      "present_position": [120.1465, 228.3398],
+      "goal_position": [205.0000, 231.0000],
+      "present_current": [1192.8000, -231.8400],
+      "model_prediction": [0.0000, 0.0000],
+      "gyro": [30.4814, -46.8560, -48.3264],
+      "accel": [0.8620, 0.6119, -0.3569],
+      "angles": [-59.8535, 47.7905, -183.0212],
+      "starting_positions": [119.1797, 224.5605]
+    },
+    {
+      "tick": 7,
+      "time": 0.1750,
+      "transition": 0,
+      "present_position": [122.7832, 230.3613],
+      "goal_position": [205.0000, 231.0000],
+      "present_current": [987.8400, -299.0400],
+      "model_prediction": [0.0000, 0.0000],
+      "gyro": [63.0632, -75.7123, -12.4121],
+      "accel": [0.8639, 0.6254, -0.3686],
+      "angles": [-57.1289, 46.5271, -181.3184],
+      "starting_positions": [119.1797, 224.5605]
+    },
+    {
+      "tick": 8,
+      "time": 0.2000,
+      "transition": 0,
+      "present_position": [127.6172, 230.8887],
+      "goal_position": [205.0000, 231.0000],
+      "present_current": [887.0400, -43.6800],
+      "model_prediction": [0.0000, 0.0000],
+      "gyro": [82.4457, -93.0425, -0.3133],
+      "accel": [0.8232, 0.6403, -0.3641],
+      "angles": [-51.5588, 44.7253, -177.0996],
+      "starting_positions": [119.1797, 224.5605]
+    },
+    {
+      "tick": 9,
+      "time": 0.2250,
+      "transition": 0,
+      "present_position": [132.0117, 230.9766],
+      "goal_position": [205.0000, 231.0000],
+      "present_current": [823.2000, 0.0000],
+      "model_prediction": [0.0000, 0.0000],
+      "gyro": [100.8390, -120.5345, 1.0576],
+      "accel": [0.8088, 0.6328, -0.3914],
+      "angles": [-46.5381, 42.9565, -173.2434],
+      "starting_positions": [119.1797, 224.5605]
+    },
+    {
+      "tick": 10,
+      "time": 0.2500,
+      "transition": 0,
+      "present_position": [137.5488, 230.8887],
+      "goal_position": [205.0000, 231.0000],
+      "present_current": [749.2800, 0.0000],
+      "model_prediction": [0.0000, 0.0000],
+      "gyro": [114.9232, -132.0302, 2.8023],
+      "accel": [0.7518, 0.6060, -0.4305],
+      "angles": [-39.2981, 39.6167, -167.8162],
+      "starting_positions": [119.1797, 224.5605]
+    }
+  ]
+}
