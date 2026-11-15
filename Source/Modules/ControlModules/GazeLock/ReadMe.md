@@ -58,6 +58,13 @@ limited to `head_max_speed`.
 With `FOLLOW` at 0 the head moves toward `MANUAL_HEAD` at `head_max_speed`. If `MANUAL_HEAD` is not
 connected, the head stays where it is. Switching between the modes never makes the head jump.
 
+In both modes the head speed changes by at most `head_max_acceleration`, so movements start and stop
+smoothly. Close to the goal or a joint limit the speed is also reduced to what can still be braked
+within the remaining distance, so the head does not overshoot. A value of 0 disables the limit.
+
+`eye_smoothing` lets the eye goals follow their target at a rate instead of jumping to it, which
+removes small jitter from detection noise and servo feedback. A rate of 0 follows immediately.
+
 All goals are clipped to the configured limits. The defaults lie inside the `EpiServos` default
 position limits, and `eye_max` is 13 degrees because that is the right eye's default limit.
 
@@ -74,7 +81,7 @@ pupil, followed by the remaining joints, which are set to straight ahead. Angles
 degrees with `position_offset` meaning straight ahead. Pupils are in mm, from `PUPIL_SIZE` or
 `pupil_size`. `HEAD_GOAL`, `EYE_GOAL`, and `TARGET_DIRECTION` are centered on zero.
 
-`update_rate`, `release_rate`, `head_gain`, and `head_max_speed` are Ikaros `rate` parameters given
+`update_rate`, `release_rate`, `head_gain`, `head_max_speed`, and `eye_smoothing` are Ikaros `rate` parameters given
 per second. The kernel converts them to per-tick values, so behavior does not depend on
 `tick_duration`.
 
@@ -105,12 +112,14 @@ per second. The kernel converts them to per-tick values, so behavior does not de
 | head_gain | Head speed per degree of error in 1/s when following the target | rate | 2 |
 | head_dead_zone | Head starts moving when the target is this many degrees away and stops at a quarter of it | number | 6 |
 | head_max_speed | Maximum head goal speed in degrees per second | rate | 60 |
+| head_max_acceleration | Maximum change of head goal speed in degrees per second squared; 0 disables the limit | number | 240 |
 | tilt_min | Minimum neck tilt goal, centered degrees | number | -30 |
 | tilt_max | Maximum neck tilt goal, centered degrees | number | 30 |
 | pan_min | Minimum neck pan goal, centered degrees | number | -45 |
 | pan_max | Maximum neck pan goal, centered degrees | number | 45 |
 | eye_min | Minimum eye pan goal, centered degrees | number | -18 |
 | eye_max | Maximum eye pan goal, centered degrees | number | 13 |
+| eye_smoothing | Rate in 1/s at which the eye goals follow their target while locked; 0 follows immediately | rate | 0 |
 | vergence | Inward eye rotation in degrees, split between the eyes | number | 0 |
 
 The default field of view matches the Raspberry Pi Camera Module v2.
@@ -151,4 +160,4 @@ The default field of view matches the Raspberry Pi Camera Module v2.
 
 The tests in `tests/` feed `GOAL_POSITION` back as `PRESENT_POSITION` to model ideal servos. They
 check eye compensation during a manual head move, release after `hold_time`, the head dead zone,
-eye clipping, the pupil input, and the aim point.
+eye clipping, the pupil input, the aim point, and the acceleration-limited head motion.

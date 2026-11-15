@@ -7,7 +7,7 @@
        expected_output_once="eye = {13, 13}||head = {0, 17.5}">
     <module class="InputFile" name="Script" filename="fixture_GazeLock_follow.jsonl" send_end_of_file="false" />
     <module class="Constant" name="Pupils" data="15, 14" />
-    <module class="GazeLock" name="Gaze" update_rate="0" latency="0" hold_time="10" head_gain="5" head_dead_zone="6" head_max_speed="100" />
+    <module class="GazeLock" name="Gaze" update_rate="0" latency="0" hold_time="10" head_gain="5" head_dead_zone="6" head_max_speed="100" head_max_acceleration="0" />
     <module class="Print" name="Eye" />
     <module class="Print" name="Head" />
     <module class="Print" name="Target" />

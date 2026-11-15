@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <vector>
 
 using namespace ikaros;
 
@@ -14,6 +15,7 @@ class FaceTargetSelector : public Module
     parameter switchRatio;
     parameter holdTime;
     parameter smoothing;
+    parameter ignoreRepeated;
 
     matrix boxes;
 
@@ -28,6 +30,8 @@ class FaceTargetSelector : public Module
     float trackedX = 0;
     float trackedY = 0;
     float missingTime = 0;
+
+    std::vector<float> previousBoxes; // detector output of the previous tick, to recognize repeated frames
 
     int
     BoxCount() const
@@ -90,6 +94,44 @@ class FaceTargetSelector : public Module
     }
 
 
+    // A detector run on the same camera frame produces exactly the same boxes. Identical non-empty
+    // output therefore means that no new frame has arrived since the previous tick.
+    bool
+    RepeatedDetection()
+    {
+        const int n = BoxCount();
+        const std::size_t valueCount = static_cast<std::size_t>(n) * 5;
+        bool repeated = n > 0 && previousBoxes.size() == valueCount;
+
+        if(previousBoxes.size() != valueCount)
+            previousBoxes.resize(valueCount);
+
+        for(int i = 0; i < n; ++i)
+            for(int field = 0; field < 5; ++field)
+            {
+                float & previous = previousBoxes[static_cast<std::size_t>(i) * 5 + field];
+                const float current = Box(i, field);
+                if(previous != current)
+                    repeated = false;
+                previous = current;
+            }
+        return repeated;
+    }
+
+
+    // Keeps the target during a missing or repeated frame; drops it after hold_time.
+    bool
+    HoldTarget()
+    {
+        missingTime += static_cast<float>(GetTickDuration());
+        if(missingTime <= holdTime.as_float())
+            return true;
+        tracking = false;
+        target.reset();
+        return false;
+    }
+
+
     void
     Publish(int index, bool newIdentity)
     {
@@ -127,6 +169,7 @@ public:
         Bind(switchRatio, "switch_ratio");
         Bind(holdTime, "hold_time");
         Bind(smoothing, "smoothing");
+        Bind(ignoreRepeated, "ignore_repeated");
 
         Bind(boxes, "BOXES");
         Bind(target, "TARGET");
@@ -135,6 +178,7 @@ public:
         Bind(count, "COUNT");
 
         boxRow.realloc(5);
+        previousBoxes.reserve(16 * 5);
     }
 
 
@@ -142,9 +186,16 @@ public:
     Tick() override
     {
         valid.reset();
-        count.reset();
         targetBox.clear();
 
+        if(RepeatedDetection() && ignoreRepeated.as_bool())
+        {
+            if(tracking && HoldTarget())
+                targetBox.append(boxRow);
+            return;
+        }
+
+        count.reset();
         const int n = BoxCount();
         int best = -1;
         int matched = -1;
@@ -184,14 +235,8 @@ public:
             return;
         }
 
-        if(tracking)
-        {
-            missingTime += static_cast<float>(GetTickDuration());
-            if(missingTime <= holdTime.as_float())
-                return;
-            tracking = false;
-            target.reset();
-        }
+        if(tracking && HoldTarget())
+            return;
 
         if(best >= 0)
             Publish(best, true);

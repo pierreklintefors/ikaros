@@ -6,7 +6,7 @@
        expected_output_once="count = {0}||target = {0, 0, 0}||target = {0.5, 0, 0.5}"
        expected_output_twice="valid = {1}">
     <module class="InputFile" name="Faces" filename="fixture_FaceTargetSelector_hold.jsonl" send_end_of_file="false" />
-    <module class="FaceTargetSelector" name="Selector" min_width="0.08" min_confidence="0.5" hold_time="0.12" />
+    <module class="FaceTargetSelector" name="Selector" min_width="0.08" min_confidence="0.5" hold_time="0.12" ignore_repeated="false" />
     <module class="Print" name="Count" />
     <module class="Print" name="Valid" />
     <module class="Print" name="Target" />

@@ -28,6 +28,7 @@
     <parameter name="head_gain" type="rate" default="2" min="0" description="Head speed per degree of error in 1/s when following the target" />
     <parameter name="head_dead_zone" type="number" default="6" min="0" description="Head starts moving when the target is this many degrees away and stops at a quarter of it; the eyes cover the rest" />
     <parameter name="head_max_speed" type="rate" default="60" min="0" description="Maximum head goal speed in degrees per second" />
+    <parameter name="head_max_acceleration" type="number" default="240" min="0" description="Maximum change of head goal speed in degrees per second squared; 0 disables the limit" />
 
     <parameter name="tilt_min" type="number" default="-30" description="Minimum neck tilt goal, centered degrees" />
     <parameter name="tilt_max" type="number" default="30" description="Maximum neck tilt goal, centered degrees" />
@@ -35,6 +36,7 @@
     <parameter name="pan_max" type="number" default="45" description="Maximum neck pan goal, centered degrees" />
     <parameter name="eye_min" type="number" default="-18" description="Minimum eye pan goal, centered degrees" />
     <parameter name="eye_max" type="number" default="13" description="Maximum eye pan goal, centered degrees; the default keeps both eyes inside the EpiServos default limits" />
+    <parameter name="eye_smoothing" type="rate" default="0" min="0" description="Rate in 1/s at which the eye goals follow their target while locked; 0 follows immediately" />
     <parameter name="vergence" type="number" default="0" description="Inward eye rotation in degrees, split between the eyes" />
 
     <input name="PRESENT_POSITION" description="Present servo positions in the same order and units as GOAL_POSITION" />

@@ -1,0 +1,16 @@
+<group name="FaceTargetSelectorRepeatedTest"
+       description="Identical detector output is a repeated camera frame: VALID stays 0, the target is held, and it is dropped after hold_time"
+       start="true" stop="5" tick_duration="0.05"
+       cli_args="-u${TEST_DIR}"
+       expected_output_contains="target = {0.5, 0, 0.25}"
+       expected_output_once="target = {0, 0, 0}||target = {0.25, 0, 0.25}"
+       expected_output_twice="valid = {1}">
+    <module class="InputFile" name="Faces" filename="fixture_FaceTargetSelector_repeated.jsonl" send_end_of_file="false" />
+    <module class="FaceTargetSelector" name="Selector" match_distance="0.5" hold_time="0.12" />
+    <module class="Print" name="Valid" />
+    <module class="Print" name="Target" />
+
+    <connection source="Faces.BOXES" target="Selector.BOXES" delay="0" />
+    <connection source="Selector.VALID" target="Valid.INPUT" delay="0" label="valid" />
+    <connection source="Selector.TARGET" target="Target.INPUT" delay="0" label="target" />
+</group>

@@ -14,11 +14,12 @@
     <parameter name="switch_ratio" type="number" default="1.3" min="1" description="Another face replaces the tracked face only when its selection score is this many times higher" />
     <parameter name="hold_time" type="number" default="0.5" min="0" description="Seconds the tracked face may be missing before another face can be selected" />
     <parameter name="smoothing" type="rate" default="0" min="0" description="Exponential smoothing rate for TARGET in 1/s; 0 disables smoothing" />
+    <parameter name="ignore_repeated" type="bool" default="true" description="Treat detector output identical to the previous tick as a repeated camera frame: VALID stays 0 and the target is held" />
 
     <input name="BOXES" description="Face box rows: x, y, width, height, confidence in centered image coordinates" />
 
     <output name="TARGET" size="3" description="Selected face center_x, center_y, width; held during hold_time and zero when no face is tracked" />
     <output name="VALID" size="1" description="1 on ticks where the tracked face was detected, otherwise 0" />
-    <output name="TARGET_BOX" dynamic="yes" capacity="1,5" description="Selected face box row: x, y, width, height, confidence; empty when VALID is 0" />
+    <output name="TARGET_BOX" dynamic="yes" capacity="1,5" description="Selected face box row: x, y, width, height, confidence; empty when no face is tracked" />
     <output name="COUNT" size="1" description="Number of faces that passed the width and confidence filters" />
 </class>

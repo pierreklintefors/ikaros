@@ -53,7 +53,7 @@ The model-level settings below can be changed on the command line:
 | `horizontal_fov` | `62.2` | Horizontal camera field of view in degrees; see Camera settings |
 | `vertical_fov` | `48.8` | Vertical camera field of view in degrees; see Camera settings |
 | `synchronized_framegrabber` | `false` | Grab frames in step with the ticks; set to `true` when testing with a video file |
-| `synchronized_tick` | `true` | Wait for a new camera frame on every tick |
+| `synchronized_tick` | `false` | Wait for a new camera frame on every tick; `false` keeps the ticks, and the motion, steady |
 | `tick_duration` | `0.04` | Seconds per tick |
 | `real_time` | `true` | Run in real time |
 
@@ -113,19 +113,21 @@ Check these on the robot with the room empty, then with one person:
    If it looks above them, lower it.
 3. **Overshoot.** If the head swings past the face, increase `latency` on `Gaze` in steps of 0.05 s.
    If it lags behind, decrease it.
-4. **Calmness.** Raise `head_dead_zone` for fewer, larger head movements, or lower `head_gain` and
-   `head_max_speed` for slower ones.
+4. **Smoothness and speed.** `Gaze` uses `head_gain` 3, `head_max_speed` 90, and
+   `head_max_acceleration` 300. Raise `head_gain` and `head_max_speed` for quicker head turns, lower
+   `head_max_acceleration` for softer starts and stops, raise `head_dead_zone` for fewer, larger
+   head movements, and raise `eye_smoothing` if the eyes still jitter.
 5. **Distance.** Raise `min_width` on `Selector` if the robot reacts to people far in the background.
 6. **Limits.** Confirm that `tilt_min`/`tilt_max`, `pan_min`/`pan_max`, and `eye_min`/`eye_max` on
    `Gaze` keep EpiBlack clear of its mechanical stops.
 
 ## Known limitations
 
-- **Stalled camera stream.** With `synchronized_tick="true"`, the model waits for each new frame. If
-  a camera stream stops, the whole model stops, the robot holds its last position, and the program
-  can only be ended by force. Check that the stream is stable before the demo; the lighter settings
-  under Camera settings make stalls much less likely. Setting `synchronized_tick=false` keeps the
-  robot running but re-detects old frames.
+- **Stalled camera stream.** The model ticks at a steady rate and does not wait for camera frames.
+  If the stream stalls, `FaceTargetSelector` recognizes the repeated frames, the lock is released
+  after the hold times, and the head returns slowly to straight ahead. With `synchronized_tick=true`
+  the model instead waits for each frame, and a stalled stream stops the whole model until it is
+  ended by force.
 - **Video files.** A video file ends, and the model then waits forever for the next frame. Use a
   long file and `synchronized_framegrabber=true` when testing without cameras.
 - **Simulation.** Simulated servos start at 0 degrees and take about four seconds to reach the

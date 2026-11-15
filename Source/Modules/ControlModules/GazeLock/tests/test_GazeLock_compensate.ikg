@@ -5,7 +5,7 @@
        expected_output_contains="target = {0, 10}||locked = {1}||locked = {0}||head = {0, 10}||head = {0, 0}"
        expected_output_twice="eye = {10, 10}||goal = {180, 180, 190, 190, 12, 12, 180">
     <module class="InputFile" name="Script" filename="fixture_GazeLock_compensate.jsonl" send_end_of_file="false" />
-    <module class="GazeLock" name="Gaze" update_rate="0" latency="0" hold_time="0.35" release_rate="0" head_max_speed="100" />
+    <module class="GazeLock" name="Gaze" update_rate="0" latency="0" hold_time="0.35" release_rate="0" head_max_speed="100" head_max_acceleration="0" />
     <module class="Print" name="Eye" />
     <module class="Print" name="Head" />
     <module class="Print" name="Target" />

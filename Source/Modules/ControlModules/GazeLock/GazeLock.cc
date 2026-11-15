@@ -29,6 +29,8 @@ class GazeLock : public Module
     parameter headGain;
     parameter headDeadZone;
     parameter headMaxSpeed;
+    parameter headMaxAcceleration;
+    parameter eyeSmoothing;
 
     parameter tiltMin;
     parameter tiltMax;
@@ -61,6 +63,7 @@ class GazeLock : public Module
     bool isLocked = false;
     bool manualLock = false;
     bool headMoving[2] = {false, false};
+    float headVelocity[2] = {0, 0}; // head goal change per tick
 
     std::atomic<bool> lockRequested{false};
     std::atomic<bool> releaseRequested{false};
@@ -135,25 +138,57 @@ class GazeLock : public Module
     }
 
 
+    // Moves one head axis toward desired. The speed follows the error, is limited to head_max_speed,
+    // and changes by at most head_max_acceleration so that starts and stops are smooth. Near the goal
+    // the speed is also limited to what can still be braked within the remaining distance.
     float
-    StepHead(int axis, float current, float desired, bool following)
+    StepHead(int axis, float current, float desired, bool following, float minimum, float maximum, float dt)
     {
+        // Braking toward a joint limit is as smooth as braking toward the goal.
+        desired = std::clamp(desired, minimum, maximum);
         const float error = desired - current;
         const float maxStep = headMaxSpeed.as_float();
+        float targetVelocity = error;
 
-        if(!following)
-            return current + std::clamp(error, -maxStep, maxStep);
+        if(following)
+        {
+            const float deadZone = headDeadZone.as_float();
+            if(std::fabs(error) > deadZone)
+                headMoving[axis] = true;
+            else if(std::fabs(error) < 0.25f * deadZone)
+                headMoving[axis] = false;
+            targetVelocity = headMoving[axis] ? headGain.as_float() * error : 0.0f;
+        }
+        targetVelocity = std::clamp(targetVelocity, -maxStep, maxStep);
 
-        const float deadZone = headDeadZone.as_float();
-        if(std::fabs(error) > deadZone)
-            headMoving[axis] = true;
-        else if(std::fabs(error) < 0.25f * deadZone)
-            headMoving[axis] = false;
+        float & velocity = headVelocity[axis];
+        const float maxChange = headMaxAcceleration.as_float() * dt * dt;
+        if(maxChange > 0.0f)
+        {
+            // Largest speed from which the head can still stop within the error in whole ticks.
+            const float braking = std::sqrt(2.0f * maxChange * std::fabs(error) + 0.25f * maxChange * maxChange) - 0.5f * maxChange;
+            targetVelocity = std::clamp(targetVelocity, -braking, braking);
+            velocity += std::clamp(targetVelocity - velocity, -maxChange, maxChange);
+        }
+        else
+            velocity = targetVelocity;
 
-        if(!headMoving[axis])
-            return current;
+        // Arriving on the goal ends the movement when the remaining speed can be removed within the
+        // acceleration limit; carrying the speed over would overshoot.
+        const bool canStop = maxChange <= 0.0f || std::fabs(velocity) <= 1.5f * maxChange;
+        if(canStop && velocity * error > 0.0f && std::fabs(velocity) >= std::fabs(error))
+        {
+            velocity = 0;
+            return std::clamp(desired, minimum, maximum);
+        }
 
-        return current + std::clamp(headGain.as_float() * error, -maxStep, maxStep);
+        const float next = current + velocity;
+        if(next < minimum || next > maximum)
+        {
+            velocity = 0;
+            return std::clamp(next, minimum, maximum);
+        }
+        return next;
     }
 
 public:
@@ -178,6 +213,8 @@ public:
         Bind(headGain, "head_gain");
         Bind(headDeadZone, "head_dead_zone");
         Bind(headMaxSpeed, "head_max_speed");
+        Bind(headMaxAcceleration, "head_max_acceleration");
+        Bind(eyeSmoothing, "eye_smoothing");
 
         Bind(tiltMin, "tilt_min");
         Bind(tiltMax, "tilt_max");
@@ -283,13 +320,11 @@ public:
             desiredPan = manualHead(1);
         }
 
-        headGoal(0) = std::clamp(StepHead(0, headGoal(0), desiredTilt, following),
-                                 tiltMin.as_float(), tiltMax.as_float());
-        headGoal(1) = std::clamp(StepHead(1, headGoal(1), desiredPan, following),
-                                 panMin.as_float(), panMax.as_float());
+        headGoal(0) = StepHead(0, headGoal(0), desiredTilt, following, tiltMin.as_float(), tiltMax.as_float(), dt);
+        headGoal(1) = StepHead(1, headGoal(1), desiredPan, following, panMin.as_float(), panMax.as_float(), dt);
 
         if(isLocked)
-            eyeCenter = targetAzimuth - headPan;
+            eyeCenter += Blend(eyeSmoothing) * (targetAzimuth - headPan - eyeCenter);
         else
             eyeCenter -= release * eyeCenter;
         eyeCenter = std::clamp(eyeCenter, eyeMin.as_float(), eyeMax.as_float());
