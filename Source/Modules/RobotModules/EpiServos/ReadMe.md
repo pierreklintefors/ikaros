@@ -24,6 +24,11 @@ Only MX-106 routes support current-based position control. MX-28 eye and hand ro
 mode, and pupil XL-320 servos use their separate protocol path. In torso mode, feedback buffers retain
 the fixed nineteen-element Ikaros 3 interface and indices 6-18 are inactive.
 
+Pupil communication failures are reported once per change, with the bus result or the servo's error
+flags. For a hardware alert the message includes the XL-320 hardware error status, such as overload
+or overheating; such an alert stays latched until the pupil servos are power-cycled. A failing pupil
+does not stop the other pupil from being driven.
+
 The hardware-free audit is complete, but physical commissioning is still required. Do not begin with
 unrestricted or unsupported full-body motion. Follow the controlled gate in [PortReport.md](PortReport.md).
 Detailed findings and test evidence are in [Audit.md](Audit.md) and [Verification.md](Verification.md).

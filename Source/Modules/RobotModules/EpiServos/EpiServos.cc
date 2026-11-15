@@ -160,6 +160,7 @@ class EpiServos : public Module
 
     dynamixel::PortHandler *portHandlerPupil = nullptr;
     dynamixel::PacketHandler *packetHandlerPupil = nullptr;
+    std::string reportedPupilFailure; // last pupil failure reported, to avoid repeating it every tick
     // dynamixel::GroupSyncRead *groupSyncReadPupil;
     // dynamixel::GroupSyncWrite *groupSyncWritePupil;
 
@@ -258,11 +259,46 @@ class EpiServos : public Module
     }
 
 
+    // Describes a failed pupil transfer: the bus result, or the error flags and, for an alert,
+    // the XL-320 hardware error status (address 50; bit 0 overload, 1 overheating, 2 input voltage).
+    std::string DescribePupilFailure(int id, const std::string & operation, int result, uint8_t dxlError)
+    {
+        std::string description = "pupil servo " + std::to_string(id) + " " + operation + ": ";
+        if (result != COMM_SUCCESS)
+            return description + packetHandlerPupil->getTxRxResult(result);
+
+        description += packetHandlerPupil->getRxPacketError(dxlError);
+        if ((dxlError & 0x80) == 0)
+            return description;
+
+        uint8_t status = 0;
+        uint8_t statusError = 0;
+        if (packetHandlerPupil->read1ByteTxRx(portHandlerPupil, id, 50, &status, &statusError) != COMM_SUCCESS)
+            return description + " (hardware error status could not be read)";
+
+        description += " (hardware error status " + std::to_string(status) + ":";
+        if (status & 0x01)
+            description += " overload";
+        if (status & 0x02)
+            description += " overheating";
+        if (status & 0x04)
+            description += " input voltage";
+        return description + "; power-cycle the pupil servos to clear it)";
+    }
+
+
     bool CommunicationPupil()
     {
         int index = PUPIL_INDEX_IO;
+        std::string failures;
 
-        for (int i = PUPIL_ID_MIN; i <= PUPIL_ID_MAX; i++)
+        if (!goalPosition.connected())
+        {
+            Notify(msg_fatal_error, "Running module without a goal position input is not supported.");
+            return false;
+        }
+
+        for (int i = PUPIL_ID_MIN; i <= PUPIL_ID_MAX; i++, index++)
         {
             uint8_t dxl_error = 0;
             const uint8_t enableTorque = !torqueEnable.connected() || torqueEnable(index) != 0 ? 1 : 0;
@@ -270,33 +306,35 @@ class EpiServos : public Module
                                                             enableTorque, &dxl_error);
             if (result != COMM_SUCCESS || dxl_error != 0)
             {
-                Warning("Could not set pupil torque for servo " + std::to_string(i) + ".");
+                failures += (failures.empty() ? "" : "; ") + DescribePupilFailure(i, "torque", result, dxl_error);
                 portHandlerPupil->clearPort();
-                return false;
+                continue;
             }
 
-            if (goalPosition.connected())
+            const uint16_t pupilPosition = static_cast<uint16_t>(
+                std::clamp(goalPosition(index), 0.0f, 1023.0f));
+            dxl_error = 0;
+            result = packetHandlerPupil->write2ByteTxRx(portHandlerPupil, i, 30,
+                                                        pupilPosition, &dxl_error);
+            if (result != COMM_SUCCESS || dxl_error != 0)
             {
-                const uint16_t pupilPosition = static_cast<uint16_t>(
-                    std::clamp(goalPosition(index), 0.0f, 1023.0f));
-                dxl_error = 0;
-                result = packetHandlerPupil->write2ByteTxRx(portHandlerPupil, i, 30,
-                                                            pupilPosition, &dxl_error);
-                if (result != COMM_SUCCESS || dxl_error != 0)
-                {
-                    Warning("Could not set pupil position for servo " + std::to_string(i) + ".");
-                    portHandlerPupil->clearPort();
-                    return false;
-                }
+                failures += (failures.empty() ? "" : "; ") + DescribePupilFailure(i, "position", result, dxl_error);
+                portHandlerPupil->clearPort();
             }
-            else
-            {
-                Notify(msg_fatal_error, "Running module without a goal position input is not supported.");
-                return false;
-            }
-            index++;
         }
-        return true;
+
+        if (failures.empty())
+        {
+            if (!reportedPupilFailure.empty())
+                Notify(msg_print, "Pupil communication restored.");
+            reportedPupilFailure.clear();
+            return true;
+        }
+
+        if (failures != reportedPupilFailure)
+            Warning("Pupil communication failed: " + failures + ".");
+        reportedPupilFailure = failures;
+        return false;
     }
 
     bool Communication(int IDMin, int IDMax, int IOIndex, dynamixel::PortHandler *portHandler, dynamixel::PacketHandler *packetHandler, dynamixel::GroupSyncRead *groupSyncRead, dynamixel::GroupSyncWrite *groupSyncWrite)
@@ -1169,11 +1207,8 @@ class EpiServos : public Module
             portHandlerHead->clearPort();
         }
 
-        if (!pupilThread.get())
-        {
-            Warning("Oops.. Communication glitch with pupil servo");
-            portHandlerPupil->clearPort();
-        }
+        // CommunicationPupil reports its own failures once per change.
+        pupilThread.get();
 
         if (EpiFullMode)
         {

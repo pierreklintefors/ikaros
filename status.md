@@ -1537,3 +1537,18 @@ dashboard. Built from `InputVideoStream`, `AppleVisionFaceDetector`, `EpiServos`
 - The `InputVideoStream` ReadMe does not yet list the uncommitted crop parameters, which the Markdown
   checker reports; those changes were left untouched.
 - The full kernel suite still has the pre-existing failure in WebUI fatal-step test 239.
+
+## EpiBlack face-following robot feedback
+
+Issues reported after the first runs on EpiBlack.
+
+| # | Task | Status | Verification | Commit |
+|---:|---|---|---|---|
+| 1 | Pupil communication fails repeatedly after about five minutes (`Could not set pupil torque for servo 2`); make `EpiServos` report the exact cause, keep driving the other pupil, and stop repeating the same warning every tick. | Completed | Release build; simulated `EpiBlack` run unchanged. The pupil path is skipped in simulation, so the new messages must be confirmed on the robot. The repeated failure after five minutes suggests a latched XL-320 alarm such as overload; the next occurrence will name the cause. | `EpiServos now reports the cause of pupil communication failures` |
+| 2 | Aim the gaze so the face sits below the image center, making the robot look at the eyes instead of the middle of the face box. | Not started |  |  |
+| 3 | Reduce camera lag and stalls: lighter UV4L stream settings, matching field of view, and documentation. | Not started |  |  |
+
+### Constraints
+
+- `EpiServos` changes can only be build-checked here; behavior on the robot must be confirmed by the user.
+- Do not disconnect other clients of the camera server.
