@@ -1,0 +1,50 @@
+<class name="GazeLock" description="Locks the gaze of a pan-tilt head with panning eyes onto a target and compensates head motion with the eyes">
+    <description type="text">
+        GazeLock stores the direction of a visual target in the body frame. The eyes are pointed at that
+        direction every tick from the present head position, so they stay on the target however the head
+        is moved. When FOLLOW is 1 the head turns toward the target with a speed-limited controller; when
+        FOLLOW is 0 the head follows MANUAL_HEAD. GOAL_POSITION is the complete servo goal vector in the
+        Epi order: neck tilt, neck pan, left eye, right eye, left pupil, right pupil, followed by any
+        remaining joints. Angles are internally centered on zero and position_offset is added for the
+        servo module.
+    </description>
+
+    <parameter name="servo_count" type="number" default="19" min="6" description="Size of GOAL_POSITION; 19 matches EpiServos" />
+    <parameter name="position_offset" type="number" default="180" description="Servo position that corresponds to straight ahead, in degrees" />
+    <parameter name="pupil_size" type="number" default="12" description="Pupil goal in mm when PUPIL_SIZE is not connected" />
+
+    <parameter name="horizontal_fov" type="number" default="62.2" min="1" max="179" description="Horizontal camera field of view in degrees" />
+    <parameter name="vertical_fov" type="number" default="48.8" min="1" max="179" description="Vertical camera field of view in degrees" />
+    <parameter name="x_sign" type="number" default="1" description="Sign that maps image x (right positive) to pan angle" />
+    <parameter name="y_sign" type="number" default="-1" description="Sign that maps image y (down positive) to tilt angle" />
+
+    <parameter name="update_rate" type="rate" default="8" min="0" description="Rate in 1/s at which new measurements update the stored target direction; 0 replaces it directly" />
+    <parameter name="latency" type="number" default="0.1" min="0" description="Seconds between image capture and detection; measurements are combined with the gaze direction from this long ago" />
+    <parameter name="hold_time" type="number" default="1.5" min="0" description="Seconds the lock is kept after the target was last seen" />
+    <parameter name="release_rate" type="rate" default="0.5" min="0" description="Rate in 1/s at which the eyes and, in follow mode, the target return to straight ahead when unlocked" />
+
+    <parameter name="head_gain" type="rate" default="2" min="0" description="Head speed per degree of error in 1/s when following the target" />
+    <parameter name="head_dead_zone" type="number" default="6" min="0" description="Head starts moving when the target is this many degrees away and stops at a quarter of it; the eyes cover the rest" />
+    <parameter name="head_max_speed" type="rate" default="60" min="0" description="Maximum head goal speed in degrees per second" />
+
+    <parameter name="tilt_min" type="number" default="-30" description="Minimum neck tilt goal, centered degrees" />
+    <parameter name="tilt_max" type="number" default="30" description="Maximum neck tilt goal, centered degrees" />
+    <parameter name="pan_min" type="number" default="-45" description="Minimum neck pan goal, centered degrees" />
+    <parameter name="pan_max" type="number" default="45" description="Maximum neck pan goal, centered degrees" />
+    <parameter name="eye_min" type="number" default="-18" description="Minimum eye pan goal, centered degrees" />
+    <parameter name="eye_max" type="number" default="13" description="Maximum eye pan goal, centered degrees; the default keeps both eyes inside the EpiServos default limits" />
+    <parameter name="vergence" type="number" default="0" description="Inward eye rotation in degrees, split between the eyes" />
+
+    <input name="PRESENT_POSITION" description="Present servo positions in the same order and units as GOAL_POSITION" />
+    <input name="TARGET" optional="yes" description="Target center x, y in centered image coordinates" />
+    <input name="VALID" optional="yes" size="1" description="1 when TARGET is a new detection" />
+    <input name="FOLLOW" optional="yes" size="1" description="1 turns the head toward the target, 0 uses MANUAL_HEAD; follows when not connected" />
+    <input name="MANUAL_HEAD" optional="yes" size="2" description="Manual head goal tilt, pan in centered degrees" />
+    <input name="PUPIL_SIZE" optional="yes" size="2" description="Pupil goals in mm for the left and right pupil" />
+
+    <output name="GOAL_POSITION" size="@servo_count" description="Servo goal vector for EpiServos" />
+    <output name="HEAD_GOAL" size="2" description="Head goal tilt, pan in centered degrees" />
+    <output name="EYE_GOAL" size="2" description="Left and right eye pan goals in centered degrees" />
+    <output name="TARGET_DIRECTION" size="2" description="Stored target elevation and azimuth in the body frame, degrees" />
+    <output name="LOCKED" size="1" description="1 while the gaze is locked on a target" />
+</class>

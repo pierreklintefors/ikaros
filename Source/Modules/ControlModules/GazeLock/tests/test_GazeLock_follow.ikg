@@ -1,0 +1,27 @@
+<group name="GazeLockFollowTest"
+       description="In follow mode the head turns toward the stored target with a dead zone while the eyes cover the remaining error"
+       start="true" stop="11" tick_duration="0.1"
+       cli_args="-u${TEST_DIR}"
+       expected_output_contains="target = {0, 20}||head = {0, 18.75}||goal = {180, 198.75, 181.25, 181.25, 15, 14, 180"
+       expected_output_not_contains="head = {0, 19.375}"
+       expected_output_once="eye = {13, 13}||head = {0, 17.5}">
+    <module class="InputFile" name="Script" filename="fixture_GazeLock_follow.jsonl" send_end_of_file="false" />
+    <module class="Constant" name="Pupils" data="15, 14" />
+    <module class="GazeLock" name="Gaze" update_rate="0" latency="0" hold_time="10" head_gain="5" head_dead_zone="6" head_max_speed="100" />
+    <module class="Print" name="Eye" />
+    <module class="Print" name="Head" />
+    <module class="Print" name="Target" />
+    <module class="Print" name="Goal" />
+
+    <connection source="Script.TARGET" target="Gaze.TARGET" delay="0" />
+    <connection source="Script.VALID" target="Gaze.VALID" delay="0" />
+    <connection source="Script.FOLLOW" target="Gaze.FOLLOW" delay="0" />
+    <connection source="Script.MANUAL" target="Gaze.MANUAL_HEAD" delay="0" />
+    <connection source="Pupils.OUTPUT" target="Gaze.PUPIL_SIZE" delay="0" />
+    <connection source="Gaze.GOAL_POSITION" target="Gaze.PRESENT_POSITION" delay="1" />
+
+    <connection source="Gaze.EYE_GOAL" target="Eye.INPUT" delay="0" label="eye" />
+    <connection source="Gaze.HEAD_GOAL" target="Head.INPUT" delay="0" label="head" />
+    <connection source="Gaze.TARGET_DIRECTION" target="Target.INPUT" delay="0" label="target" />
+    <connection source="Gaze.GOAL_POSITION" target="Goal.INPUT" delay="0" label="goal" />
+</group>

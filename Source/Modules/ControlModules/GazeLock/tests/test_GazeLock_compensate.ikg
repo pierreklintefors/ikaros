@@ -1,0 +1,26 @@
+<group name="GazeLockCompensateTest"
+       description="Eyes stay on a locked target while a manual head goal moves, and return after hold_time"
+       start="true" stop="7" tick_duration="0.1"
+       cli_args="-u${TEST_DIR}"
+       expected_output_contains="target = {0, 10}||locked = {1}||locked = {0}||head = {0, 10}||head = {0, 0}"
+       expected_output_twice="eye = {10, 10}||goal = {180, 180, 190, 190, 12, 12, 180">
+    <module class="InputFile" name="Script" filename="fixture_GazeLock_compensate.jsonl" send_end_of_file="false" />
+    <module class="GazeLock" name="Gaze" update_rate="0" latency="0" hold_time="0.35" release_rate="0" head_max_speed="100" />
+    <module class="Print" name="Eye" />
+    <module class="Print" name="Head" />
+    <module class="Print" name="Target" />
+    <module class="Print" name="Locked" />
+    <module class="Print" name="Goal" />
+
+    <connection source="Script.TARGET" target="Gaze.TARGET" delay="0" />
+    <connection source="Script.VALID" target="Gaze.VALID" delay="0" />
+    <connection source="Script.FOLLOW" target="Gaze.FOLLOW" delay="0" />
+    <connection source="Script.MANUAL" target="Gaze.MANUAL_HEAD" delay="0" />
+    <connection source="Gaze.GOAL_POSITION" target="Gaze.PRESENT_POSITION" delay="1" />
+
+    <connection source="Gaze.EYE_GOAL" target="Eye.INPUT" delay="0" label="eye" />
+    <connection source="Gaze.HEAD_GOAL" target="Head.INPUT" delay="0" label="head" />
+    <connection source="Gaze.TARGET_DIRECTION" target="Target.INPUT" delay="0" label="target" />
+    <connection source="Gaze.LOCKED" target="Locked.INPUT" delay="0" label="locked" />
+    <connection source="Gaze.GOAL_POSITION" target="Goal.INPUT" delay="0" label="goal" />
+</group>
