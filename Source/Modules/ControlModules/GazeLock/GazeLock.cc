@@ -18,6 +18,8 @@ class GazeLock : public Module
     parameter verticalFov;
     parameter xSign;
     parameter ySign;
+    parameter aimX;
+    parameter aimY;
 
     parameter updateRate;
     parameter latency;
@@ -117,10 +119,13 @@ class GazeLock : public Module
     UpdateTarget(float dt)
     {
         const int row = DelayedHistoryIndex(dt);
+        // The stored direction is where the gaze must point for the target to appear at the aim point.
         const float measuredElevation = gazeHistory(row, 0) +
-            ImageAngle(target(1), verticalFov.as_float(), ySign.as_float());
+            ImageAngle(target(1), verticalFov.as_float(), ySign.as_float()) -
+            ImageAngle(aimY.as_float(), verticalFov.as_float(), ySign.as_float());
         const float measuredAzimuth = gazeHistory(row, 1) + gazeHistory(row, 2) +
-            ImageAngle(target(0), horizontalFov.as_float(), xSign.as_float());
+            ImageAngle(target(0), horizontalFov.as_float(), xSign.as_float()) -
+            ImageAngle(aimX.as_float(), horizontalFov.as_float(), xSign.as_float());
 
         const float blend = isLocked ? Blend(updateRate) : 1.0f;
         targetElevation += blend * (measuredElevation - targetElevation);
@@ -162,6 +167,8 @@ public:
         Bind(verticalFov, "vertical_fov");
         Bind(xSign, "x_sign");
         Bind(ySign, "y_sign");
+        Bind(aimX, "aim_x");
+        Bind(aimY, "aim_y");
 
         Bind(updateRate, "update_rate");
         Bind(latency, "latency");

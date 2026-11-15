@@ -1545,7 +1545,7 @@ Issues reported after the first runs on EpiBlack.
 | # | Task | Status | Verification | Commit |
 |---:|---|---|---|---|
 | 1 | Pupil communication fails repeatedly after about five minutes (`Could not set pupil torque for servo 2`); make `EpiServos` report the exact cause, keep driving the other pupil, and stop repeating the same warning every tick. | Completed | Release build; simulated `EpiBlack` run unchanged. The pupil path is skipped in simulation, so the new messages must be confirmed on the robot. The repeated failure after five minutes suggests a latched XL-320 alarm such as overload; the next occurrence will name the cause. | `EpiServos now reports the cause of pupil communication failures` |
-| 2 | Aim the gaze so the face sits below the image center, making the robot look at the eyes instead of the middle of the face box. | Not started |  |  |
+| 2 | Aim the gaze so the face sits below the image center, making the robot look at the eyes instead of the middle of the face box. | Completed | Release build; new `GazeLock` aim test passes with the other GazeLock tests (a target at the aim point leaves the direction at zero, a centered target gives +10.28 degrees elevation and -8.58 degrees azimuth); demo sets `aim_y=0.4` and runs 60 simulated ticks cleanly; Markdown checker reports no new issue. | `GazeLock can now keep the target at an aim point below the image center` |
 | 3 | Reduce camera lag and stalls: lighter UV4L stream settings, matching field of view, and documentation. | Not started |  |  |
 
 ### Constraints

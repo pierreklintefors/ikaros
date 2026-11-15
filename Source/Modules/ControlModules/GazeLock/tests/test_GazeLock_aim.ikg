@@ -1,0 +1,17 @@
+<group name="GazeLockAimTest"
+       description="A target at the aim point leaves the gaze unchanged; a centered target moves the gaze toward it"
+       start="true" stop="2" tick_duration="0.1"
+       cli_args="-u${TEST_DIR}"
+       expected_output_once="dir = {0, 0}"
+       expected_output_contains="dir = {10.28">
+    <module class="InputFile" name="Script" filename="fixture_GazeLock_aim.jsonl" send_end_of_file="false" />
+    <module class="Constant" name="Follow" data="0" />
+    <module class="GazeLock" name="Gaze" aim_x="0.25" aim_y="0.4" update_rate="0" latency="0" />
+    <module class="Print" name="Direction" />
+
+    <connection source="Script.TARGET" target="Gaze.TARGET" delay="0" />
+    <connection source="Script.VALID" target="Gaze.VALID" delay="0" />
+    <connection source="Follow.OUTPUT" target="Gaze.FOLLOW" delay="0" />
+    <connection source="Gaze.GOAL_POSITION" target="Gaze.PRESENT_POSITION" delay="1" />
+    <connection source="Gaze.TARGET_DIRECTION" target="Direction.INPUT" delay="0" label="dir" />
+</group>

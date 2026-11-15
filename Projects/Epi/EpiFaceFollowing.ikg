@@ -5,6 +5,7 @@
        eye_url="http://RightEye.local:8080/stream/video.mjpeg"
        x_sign="-1"
        y_sign="-1"
+       aim_y="0.4"
        synchronized_framegrabber="false"
        synchronized_tick="true"
        tick_duration="0.04"

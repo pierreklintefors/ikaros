@@ -49,6 +49,7 @@ The model-level settings below can be changed on the command line:
 | `eye_url` | `http://RightEye.local:8080/stream/video.mjpeg` | Eye camera stream that drives the gaze |
 | `x_sign` | `-1` | Direction from image x to neck and eye pan; `-1` is correct for EpiBlack's right eye camera |
 | `y_sign` | `-1` | Direction from image y to neck tilt |
+| `aim_y` | `0.4` | Where the face is kept vertically, from -1 (top) to 1 (bottom); 0.4 keeps it in the lower part of the image so the robot looks at the eyes rather than the middle of the face |
 | `synchronized_framegrabber` | `false` | Grab frames in step with the ticks; set to `true` when testing with a video file |
 | `synchronized_tick` | `true` | Wait for a new camera frame on every tick |
 | `tick_duration` | `0.04` | Seconds per tick |
@@ -72,12 +73,14 @@ Check these on the robot with the room empty, then with one person:
 
 1. **Directions.** Stand to the robot's side. If it turns away from you, invert `x_sign`, for
    example with `x_sign=1` on the command line. If it looks up when you crouch, invert `y_sign`.
-2. **Overshoot.** If the head swings past the face, increase `latency` on `Gaze` in steps of 0.05 s.
+2. **Eye contact.** If the robot looks below a person's eyes, raise `aim_y`, for example `aim_y=0.5`.
+   If it looks above them, lower it.
+3. **Overshoot.** If the head swings past the face, increase `latency` on `Gaze` in steps of 0.05 s.
    If it lags behind, decrease it.
-3. **Calmness.** Raise `head_dead_zone` for fewer, larger head movements, or lower `head_gain` and
+4. **Calmness.** Raise `head_dead_zone` for fewer, larger head movements, or lower `head_gain` and
    `head_max_speed` for slower ones.
-4. **Distance.** Raise `min_width` on `Selector` if the robot reacts to people far in the background.
-5. **Limits.** Confirm that `tilt_min`/`tilt_max`, `pan_min`/`pan_max`, and `eye_min`/`eye_max` on
+5. **Distance.** Raise `min_width` on `Selector` if the robot reacts to people far in the background.
+6. **Limits.** Confirm that `tilt_min`/`tilt_max`, `pan_min`/`pan_max`, and `eye_min`/`eye_max` on
    `Gaze` keep EpiBlack clear of its mechanical stops.
 
 ## Known limitations

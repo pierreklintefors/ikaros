@@ -32,6 +32,12 @@ taken from a short history of the head and eye positions, `latency` seconds back
 detector delays do not make the robot overshoot. New measurements are blended into the stored
 direction at `update_rate`.
 
+`aim_x` and `aim_y` set where in the image the target should end up. With the default 0 the gaze
+centers the target. A positive `aim_y` keeps the target below the image center, so the robot looks
+higher than the center of the face box, for example at a person's eyes instead of at the nose.
+The image angle of the aim point is subtracted from each measurement, so a target that is already
+at the aim point leaves the stored direction unchanged.
+
 `x_sign` and `y_sign` must match the robot's mounting and servo directions. If the robot turns away
 from a face instead of toward it, invert the corresponding sign.
 
@@ -90,6 +96,8 @@ per second. The kernel converts them to per-tick values, so behavior does not de
 | vertical_fov | Vertical camera field of view in degrees | number | 48.8 |
 | x_sign | Sign that maps image x (right positive) to pan angle | number | 1 |
 | y_sign | Sign that maps image y (down positive) to tilt angle | number | -1 |
+| aim_x | Image x where the target should appear; 0 is the image center | number | 0 |
+| aim_y | Image y where the target should appear; positive keeps the target below the center | number | 0 |
 | update_rate | Rate in 1/s at which new measurements update the stored target direction; 0 replaces it directly | rate | 8 |
 | latency | Seconds between image capture and detection | number | 0.1 |
 | hold_time | Seconds the lock is kept after the target was last seen | number | 1.5 |
@@ -143,4 +151,4 @@ The default field of view matches the Raspberry Pi Camera Module v2.
 
 The tests in `tests/` feed `GOAL_POSITION` back as `PRESENT_POSITION` to model ideal servos. They
 check eye compensation during a manual head move, release after `hold_time`, the head dead zone,
-eye clipping, and the pupil input.
+eye clipping, the pupil input, and the aim point.

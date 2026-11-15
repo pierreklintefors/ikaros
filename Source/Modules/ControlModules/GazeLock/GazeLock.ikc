@@ -17,6 +17,8 @@
     <parameter name="vertical_fov" type="number" default="48.8" min="1" max="179" description="Vertical camera field of view in degrees" />
     <parameter name="x_sign" type="number" default="1" description="Sign that maps image x (right positive) to pan angle" />
     <parameter name="y_sign" type="number" default="-1" description="Sign that maps image y (down positive) to tilt angle" />
+    <parameter name="aim_x" type="number" default="0" description="Image x, in centered coordinates, where the target should appear; 0 is the image center" />
+    <parameter name="aim_y" type="number" default="0" description="Image y, in centered coordinates, where the target should appear; positive values keep the target below the center" />
 
     <parameter name="update_rate" type="rate" default="8" min="0" description="Rate in 1/s at which new measurements update the stored target direction; 0 replaces it directly" />
     <parameter name="latency" type="number" default="0.1" min="0" description="Seconds between image capture and detection; measurements are combined with the gaze direction from this long ago" />
