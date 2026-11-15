@@ -46,6 +46,7 @@ Detailed findings and test evidence are in [Audit.md](Audit.md) and [Verificatio
 | Name | Description | Type | Default |
 | --- | --- | --- | --- |
 | robot |  | string | EpiWhite |
+| require_pupils | Fail startup when the pupil servos cannot be set up; when false, warn and run without pupils. Pupil setup writes are retried three times and a failure names the servo, register, and cause. | bool | true |
 | simulate | Simulation mode. No connecting is made to servos. The PRESENT POSITION output is calculated using previous position, goal position, maximum velocoty (no acceleration) and the time base of the simulation. | bool | False |
 | MinLimitPosition | The minimum limit of the position in degrees of the servos. Not including pupils | matrix | 122, 130, 161, 156, 53, 73, 87, 53, 70, 0, 53, 79, 88, 158, 70, 0, 9 |
 | MaxLimitPosition | The maximum limit of the position of the servos in degrees. Not including pupils | matrix | 237, 240, 202, 193, 281, 281, 263, 202, 342, 360, 281, 290, 264, 316, 343, 360, 343 |

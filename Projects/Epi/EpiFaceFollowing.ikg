@@ -27,7 +27,7 @@
     <module class="EpiExpression" name="Expression" _x="408" _y="456" />
 
     <!-- Hardware -->
-    <module class="EpiServos" name="Servos" _x="408" _y="24" />
+    <module class="EpiServos" name="Servos" require_pupils="false" _x="408" _y="24" />
     <module class="FadeCandy" name="LEDs" _x="600" _y="456" />
 
     <connection source="Eye.OUTPUT" target="Faces.INPUT" delay="0" />
