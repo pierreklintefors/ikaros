@@ -1500,7 +1500,7 @@ dashboard. Built from `InputVideoStream`, `AppleVisionFaceDetector`, `EpiServos`
 | 1 | Add `FaceTargetSelector`, which turns detector boxes into one stable target (largest face, identity matching, hysteresis, hold). | Completed | Release build; `tests/` switch and hold tests pass through `kernel_test.py` (largest-face selection, no switch below `switch_ratio`, switch above it, width/confidence filtering, hold then reacquire); detector-to-selector smoke run on `UserData/pierre.jpg` selects the face; Markdown checker reports no issue for the new ReadMe; `git diff --check`. | `FaceTargetSelector now selects one stable face target` |
 | 2 | Add `GazeLock`, which stores the target direction in the body frame, compensates head motion with the eyes, moves the head, and outputs the `EpiServos` goal vector. | Completed | Release build; `tests/` compensation and follow tests pass through `kernel_test.py` (eyes rotate by the head displacement while locked, release after `hold_time`, head dead-zone start and stop, eye clipping, pupil input, full 19-element goal vector); 150-tick integration run with simulated `EpiServos robot="EpiBlack"` settles on the manual head goal without warnings; Markdown checker reports no issue for the new ReadMe; `git diff --check`. | `GazeLock now keeps the eyes on a target while the head moves` |
 | 3 | Add `EpiExpression`, which fades eye LEDs and pupil size between idle and engaged states for `FadeCandy` and `GazeLock`. | Completed | Release build; `tests/` fade test passes through `kernel_test.py` (instant attack, per-second release independent of tick duration, eye color and pupil interpolation, simulated `FadeCandy` accepts all four LED outputs without size warnings); Markdown checker reports no issue for the new ReadMe; `git diff --check`. | `EpiExpression now animates the Epi eye LEDs and pupils` |
-| 4 | Add the `Projects/Epi/EpiFaceFollowing.ikg` demo model with documentation and a WebUI dashboard. | Not started |  |  |
+| 4 | Add the `Projects/Epi/EpiFaceFollowing.ikg` demo model with documentation and a WebUI dashboard. | Completed | Release build; XML parses; 300-tick simulated run (`simulate=true`, synthetic moving-face video for both eyes, `synchronized_framegrabber=true`) ends cleanly; probed run shows detections, `VALID`, lock, rising expression level, pupils opening from 5 to 15 mm, and head and eye goals moving; static layout check finds no widget overlaps, consistent `x/_x` and `y/_y`, and all widgets right of the component graph; WebUI server answers. Visual WebUI inspection was not possible: headless Firefox only captured the loading screen and no other browser automation is installed. No hardware run. | `Added the EpiBlack face-following demo` |
 
 ### Constraints
 
@@ -1515,3 +1515,23 @@ dashboard. Built from `InputVideoStream`, `AppleVisionFaceDetector`, `EpiServos`
 |---|---|---|
 | `FaceTargetSelector` multiplied the per-tick `smoothing` rate by the tick duration a second time; it now uses the kernel's per-tick value. Found while implementing task 2. | New smoothing test passes with the other selector tests through `kernel_test.py`. | `Fixed FaceTargetSelector smoothing rate scaling` |
 | `EpiServos` was not compiled because commit `ad8057dd` removed it from `Source/Modules/RobotModules/CMakeLists.txt`; the demo requires it, so it is built again when the Dynamixel SDK is found. | Release build compiles `EpiServos.cc`; 150-tick simulated `EpiBlack` run with `GazeLock`; full kernel suite passes except the pre-existing WebUI fatal-step test 239. | `EpiServos is now included in the build again` |
+
+### Outstanding issues and questions
+
+- Not tested on EpiBlack: `x_sign`, `y_sign`, the camera field of view, `latency`, head gains, and the
+  `GazeLock` limits must be checked on the robot as listed in `Projects/Epi/EpiFaceFollowing.md`.
+- The dashboard has not been inspected in a browser; check alignment, clipping, and console errors.
+- `InputVideoStream` with `synchronized_tick="true"` waits forever when a stream stalls or a file
+  ends, and the program then cannot be stopped normally. This is a possible Ikaros issue; a GitHub
+  issue has been proposed to the user but not created.
+- Decide whether the demo should use `synchronized_tick=false` to survive stream dropouts at the cost
+  of re-detecting old frames.
+- `EpiServos` simulation starts at 0 degrees, so simulated gaze measurements are wrong for the first
+  seconds.
+- `Print` showed detector `BOXES` and `FaceTargetSelector.TARGET_BOX` as empty although downstream
+  modules received rows; the dynamic-output display in `Print` may be incomplete.
+- The `pan-tilt-hud` widget reads only the first element of a source, so it could not show pan from
+  `GazeLock.HEAD_GOAL`; plots are used instead.
+- The `InputVideoStream` ReadMe does not yet list the uncommitted crop parameters, which the Markdown
+  checker reports; those changes were left untouched.
+- The full kernel suite still has the pre-existing failure in WebUI fatal-step test 239.

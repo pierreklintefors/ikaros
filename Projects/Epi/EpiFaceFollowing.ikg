@@ -1,0 +1,107 @@
+<group name="EpiFaceFollowing"
+       title="EpiBlack face following"
+       robot="EpiBlack"
+       simulate="false"
+       left_eye_url="http://LeftEye.local:8080/stream/video.mjpeg"
+       right_eye_url="http://RightEye.local:8080/stream/video.mjpeg"
+       synchronized_framegrabber="false"
+       synchronized_tick="true"
+       tick_duration="0.04"
+       real_time="true">
+
+    <!-- Vision: the left eye camera drives the gaze, the right eye is shown for reference -->
+    <module class="InputVideoStream" name="LeftEye" url="@left_eye_url" size_x="640" size_y="480" _x="24" _y="48" />
+    <module class="InputVideoStream" name="RightEye" url="@right_eye_url" size_x="640" size_y="480" _x="24" _y="456" />
+    <module class="AppleVisionFaceDetector" name="LeftFaces" max_faces="8" downsample="1" _x="216" _y="48" />
+    <module class="AppleVisionFaceDetector" name="RightFaces" max_faces="8" downsample="1" _x="216" _y="456" />
+    <module class="FaceTargetSelector" name="Selector" selection="largest" min_width="0.08" min_confidence="0.5" hold_time="0.5" _x="408" _y="168" />
+
+    <!-- Controls -->
+    <module class="Constant" name="Follow" data="1" _x="408" _y="312" />
+    <module class="Constant" name="ManualHead" data="0, 0" _x="408" _y="384" />
+
+    <!-- Gaze and expression -->
+    <module class="GazeLock" name="Gaze" _x="600" _y="96" />
+    <module class="EpiExpression" name="Expression" _x="408" _y="456" />
+
+    <!-- Hardware -->
+    <module class="EpiServos" name="Servos" _x="408" _y="24" />
+    <module class="FadeCandy" name="LEDs" _x="600" _y="456" />
+
+    <connection source="LeftEye.OUTPUT" target="LeftFaces.INPUT" delay="0" />
+    <connection source="RightEye.OUTPUT" target="RightFaces.INPUT" delay="0" />
+    <connection source="LeftFaces.BOXES" target="Selector.BOXES" delay="0" />
+
+    <connection source="Servos.PRESENT_POSITION" target="Gaze.PRESENT_POSITION" delay="1" />
+    <connection source="Selector.TARGET" target="Gaze.TARGET" delay="0" />
+    <connection source="Selector.VALID" target="Gaze.VALID" delay="0" />
+    <connection source="Follow.OUTPUT" target="Gaze.FOLLOW" delay="0" />
+    <connection source="ManualHead.OUTPUT" target="Gaze.MANUAL_HEAD" delay="0" />
+    <connection source="Expression.PUPIL_SIZE" target="Gaze.PUPIL_SIZE" delay="1" />
+
+    <connection source="Gaze.GOAL_POSITION" target="Servos.GOAL_POSITION" delay="0" />
+    <connection source="Gaze.LOCKED" target="Expression.ENGAGED" delay="0" />
+
+    <connection source="Expression.LEFT_EYE" target="LEDs.LEFT_EYE" delay="0" />
+    <connection source="Expression.RIGHT_EYE" target="LEDs.RIGHT_EYE" delay="0" />
+    <connection source="Expression.MOUTH_HIGH" target="LEDs.MOUTH_HIGH" delay="0" />
+    <connection source="Expression.MOUTH_LOW" target="LEDs.MOUTH_LOW" delay="0" />
+
+    <!-- Dashboard: controls -->
+    <widget class="text" name="Title" text="EpiBlack face following" style="font-size:20px;font-weight:bold;"
+            x="840" y="24" _x="840" _y="24" width="976" height="32" show_title="no" show_frame="no" />
+
+    <widget class="switch" name="FollowSwitch" title="Head" labels="Head follows face" parameter="Follow.data" select_x="0" control_count="1" value="1"
+            x="840" y="72" _x="840" _y="72" width="236" height="48" show_title="no" show_frame="no" />
+    <widget class="button" name="LockButton" label="Lock gaze" command="Gaze.lock" type="push"
+            x="1084" y="72" _x="1084" _y="72" width="114" height="48" show_title="no" show_frame="no" />
+    <widget class="button" name="ReleaseButton" label="Release" command="Gaze.release" type="push"
+            x="1206" y="72" _x="1206" _y="72" width="114" height="48" show_title="no" show_frame="no" />
+
+    <widget class="table" name="FacesTable" title="Faces" source="Selector.COUNT" decimals="0" colorize="no"
+            x="840" y="128" _x="840" _y="128" width="114" height="56" show_title="yes" show_frame="yes" />
+    <widget class="table" name="ValidTable" title="Seen" source="Selector.VALID" decimals="0" colorize="no"
+            x="962" y="128" _x="962" _y="128" width="114" height="56" show_title="yes" show_frame="yes" />
+    <widget class="table" name="LockedTable" title="Locked" source="Gaze.LOCKED" decimals="0" colorize="no"
+            x="1084" y="128" _x="1084" _y="128" width="114" height="56" show_title="yes" show_frame="yes" />
+    <widget class="table" name="LevelTable" title="Expression" source="Expression.LEVEL" decimals="2" colorize="no"
+            x="1206" y="128" _x="1206" _y="128" width="114" height="56" show_title="yes" show_frame="yes" />
+
+    <widget class="slider-horizontal" name="ManualHeadSliders" title="Manual head (tilt, pan)" labels="Tilt,Pan" parameter="ManualHead.data"
+            select_x="0" control_count="2" min="-45" max="45" step="0.5" show_values="yes"
+            x="1336" y="72" _x="1336" _y="72" width="480" height="112" show_title="yes" show_frame="yes" />
+
+    <!-- Dashboard: cameras with all faces (green) and the followed face (magenta) -->
+    <widget class="text" name="LeftCaption" text="Left eye camera (drives the gaze)"
+            x="840" y="200" _x="840" _y="200" width="480" height="24" show_title="no" show_frame="no" />
+    <widget class="text" name="RightCaption" text="Right eye camera"
+            x="1336" y="200" _x="1336" _y="200" width="480" height="24" show_title="no" show_frame="no" />
+
+    <widget class="image" name="LeftImage" source="LeftEye.OUTPUT" format="rgb" scale="both"
+            x="840" y="224" _x="840" _y="224" width="480" height="360" show_title="no" show_frame="no" />
+    <widget class="target-boxes" name="LeftBoxes" source="LeftFaces.BOXES" box_color="#00ff66" line_width="2" show_score="no"
+            x="840" y="224" _x="840" _y="224" width="480" height="360" show_title="no" show_frame="no" />
+    <widget class="target-boxes" name="LeftTarget" source="Selector.TARGET_BOX" box_color="#ff00cc" line_width="4" show_score="no"
+            x="840" y="224" _x="840" _y="224" width="480" height="360" show_title="no" show_frame="no" />
+
+    <widget class="image" name="RightImage" source="RightEye.OUTPUT" format="rgb" scale="both"
+            x="1336" y="224" _x="1336" _y="224" width="480" height="360" show_title="no" show_frame="no" />
+    <widget class="target-boxes" name="RightBoxes" source="RightFaces.BOXES" box_color="#00ff66" line_width="2" show_score="no"
+            x="1336" y="224" _x="1336" _y="224" width="480" height="360" show_title="no" show_frame="no" />
+
+    <!-- Dashboard: robot state -->
+    <widget class="epi-head" name="Head" title="Expression and gaze" epi_name="EpiBlack"
+            eye_direction_source="Gaze.EYE_GOAL" pupil_size_source="Expression.PUPIL_SIZE" head_position_source="Gaze.HEAD_GOAL"
+            left_eye_color_source="Expression.LEFT_EYE" right_eye_color_source="Expression.RIGHT_EYE"
+            top_mouth_color_source="Expression.MOUTH_HIGH" lower_mouth_color_source="Expression.MOUTH_LOW"
+            x="840" y="600" _x="840" _y="600" width="236" height="240" show_title="yes" show_frame="yes" />
+    <widget class="plot" name="TargetPlot" title="Target direction (elevation, azimuth)" source="Gaze.TARGET_DIRECTION"
+            buffer_size="200" auto_range="no" y_min="-60" y_max="60" include_zero="yes"
+            x="1084" y="600" _x="1084" _y="600" width="236" height="240" show_title="yes" show_frame="yes" />
+    <widget class="plot" name="HeadPlot" title="Head goal (tilt, pan)" source="Gaze.HEAD_GOAL"
+            buffer_size="200" auto_range="no" y_min="-45" y_max="45" include_zero="yes"
+            x="1336" y="600" _x="1336" _y="600" width="480" height="112" show_title="yes" show_frame="yes" />
+    <widget class="plot" name="EyePlot" title="Eye goal (left, right)" source="Gaze.EYE_GOAL"
+            buffer_size="200" auto_range="no" y_min="-20" y_max="20" include_zero="yes"
+            x="1336" y="728" _x="1336" _y="728" width="480" height="112" show_title="yes" show_frame="yes" />
+</group>
