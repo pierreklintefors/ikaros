@@ -2,18 +2,15 @@
        title="EpiBlack face following"
        robot="EpiBlack"
        simulate="false"
-       left_eye_url="http://LeftEye.local:8080/stream/video.mjpeg"
-       right_eye_url="http://RightEye.local:8080/stream/video.mjpeg"
+       eye_url="http://RightEye.local:8080/stream/video.mjpeg"
        synchronized_framegrabber="false"
        synchronized_tick="true"
        tick_duration="0.04"
        real_time="true">
 
-    <!-- Vision: the left eye camera drives the gaze, the right eye is shown for reference -->
-    <module class="InputVideoStream" name="LeftEye" url="@left_eye_url" size_x="640" size_y="480" _x="24" _y="48" />
-    <module class="InputVideoStream" name="RightEye" url="@right_eye_url" size_x="640" size_y="480" _x="24" _y="456" />
-    <module class="AppleVisionFaceDetector" name="LeftFaces" max_faces="8" downsample="1" _x="216" _y="48" />
-    <module class="AppleVisionFaceDetector" name="RightFaces" max_faces="8" downsample="1" _x="216" _y="456" />
+    <!-- Vision: one eye camera drives the gaze (the right eye by default) -->
+    <module class="InputVideoStream" name="Eye" url="@eye_url" size_x="640" size_y="480" _x="24" _y="168" />
+    <module class="AppleVisionFaceDetector" name="Faces" max_faces="8" downsample="1" _x="216" _y="168" />
     <module class="FaceTargetSelector" name="Selector" selection="largest" min_width="0.08" min_confidence="0.5" hold_time="0.5" _x="408" _y="168" />
 
     <!-- Controls -->
@@ -28,9 +25,8 @@
     <module class="EpiServos" name="Servos" _x="408" _y="24" />
     <module class="FadeCandy" name="LEDs" _x="600" _y="456" />
 
-    <connection source="LeftEye.OUTPUT" target="LeftFaces.INPUT" delay="0" />
-    <connection source="RightEye.OUTPUT" target="RightFaces.INPUT" delay="0" />
-    <connection source="LeftFaces.BOXES" target="Selector.BOXES" delay="0" />
+    <connection source="Eye.OUTPUT" target="Faces.INPUT" delay="0" />
+    <connection source="Faces.BOXES" target="Selector.BOXES" delay="0" />
 
     <connection source="Servos.PRESENT_POSITION" target="Gaze.PRESENT_POSITION" delay="1" />
     <connection source="Selector.TARGET" target="Gaze.TARGET" delay="0" />
@@ -71,37 +67,29 @@
             select_x="0" control_count="2" min="-45" max="45" step="0.5" show_values="yes"
             x="1336" y="72" _x="1336" _y="72" width="480" height="112" show_title="yes" show_frame="yes" />
 
-    <!-- Dashboard: cameras with all faces (green) and the followed face (magenta) -->
-    <widget class="text" name="LeftCaption" text="Left eye camera (drives the gaze)"
+    <!-- Dashboard: camera with all faces (green) and the followed face (magenta) -->
+    <widget class="text" name="CameraCaption" text="Eye camera (drives the gaze)"
             x="840" y="200" _x="840" _y="200" width="480" height="24" show_title="no" show_frame="no" />
-    <widget class="text" name="RightCaption" text="Right eye camera"
-            x="1336" y="200" _x="1336" _y="200" width="480" height="24" show_title="no" show_frame="no" />
-
-    <widget class="image" name="LeftImage" source="LeftEye.OUTPUT" format="rgb" scale="both"
+    <widget class="image" name="CameraImage" source="Eye.OUTPUT" format="rgb" scale="both"
             x="840" y="224" _x="840" _y="224" width="480" height="360" show_title="no" show_frame="no" />
-    <widget class="target-boxes" name="LeftBoxes" source="LeftFaces.BOXES" box_color="#00ff66" line_width="2" show_score="no"
+    <widget class="target-boxes" name="FaceBoxes" source="Faces.BOXES" box_color="#00ff66" line_width="2" show_score="no"
             x="840" y="224" _x="840" _y="224" width="480" height="360" show_title="no" show_frame="no" />
-    <widget class="target-boxes" name="LeftTarget" source="Selector.TARGET_BOX" box_color="#ff00cc" line_width="4" show_score="no"
+    <widget class="target-boxes" name="TargetBox" source="Selector.TARGET_BOX" box_color="#ff00cc" line_width="4" show_score="no"
             x="840" y="224" _x="840" _y="224" width="480" height="360" show_title="no" show_frame="no" />
-
-    <widget class="image" name="RightImage" source="RightEye.OUTPUT" format="rgb" scale="both"
-            x="1336" y="224" _x="1336" _y="224" width="480" height="360" show_title="no" show_frame="no" />
-    <widget class="target-boxes" name="RightBoxes" source="RightFaces.BOXES" box_color="#00ff66" line_width="2" show_score="no"
-            x="1336" y="224" _x="1336" _y="224" width="480" height="360" show_title="no" show_frame="no" />
 
     <!-- Dashboard: robot state -->
     <widget class="epi-head" name="Head" title="Expression and gaze" epi_name="EpiBlack"
             eye_direction_source="Gaze.EYE_GOAL" pupil_size_source="Expression.PUPIL_SIZE" head_position_source="Gaze.HEAD_GOAL"
             left_eye_color_source="Expression.LEFT_EYE" right_eye_color_source="Expression.RIGHT_EYE"
             top_mouth_color_source="Expression.MOUTH_HIGH" lower_mouth_color_source="Expression.MOUTH_LOW"
-            x="840" y="600" _x="840" _y="600" width="236" height="240" show_title="yes" show_frame="yes" />
+            x="1336" y="200" _x="1336" _y="200" width="236" height="248" show_title="yes" show_frame="yes" />
     <widget class="plot" name="TargetPlot" title="Target direction (elevation, azimuth)" source="Gaze.TARGET_DIRECTION"
             buffer_size="200" auto_range="no" y_min="-60" y_max="60" include_zero="yes"
-            x="1084" y="600" _x="1084" _y="600" width="236" height="240" show_title="yes" show_frame="yes" />
+            x="1580" y="200" _x="1580" _y="200" width="236" height="248" show_title="yes" show_frame="yes" />
     <widget class="plot" name="HeadPlot" title="Head goal (tilt, pan)" source="Gaze.HEAD_GOAL"
             buffer_size="200" auto_range="no" y_min="-45" y_max="45" include_zero="yes"
-            x="1336" y="600" _x="1336" _y="600" width="480" height="112" show_title="yes" show_frame="yes" />
+            x="1336" y="456" _x="1336" _y="456" width="480" height="128" show_title="yes" show_frame="yes" />
     <widget class="plot" name="EyePlot" title="Eye goal (left, right)" source="Gaze.EYE_GOAL"
             buffer_size="200" auto_range="no" y_min="-20" y_max="20" include_zero="yes"
-            x="1336" y="728" _x="1336" _y="728" width="480" height="112" show_title="yes" show_frame="yes" />
+            x="840" y="600" _x="840" _y="600" width="976" height="128" show_title="yes" show_frame="yes" />
 </group>

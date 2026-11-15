@@ -1515,6 +1515,7 @@ dashboard. Built from `InputVideoStream`, `AppleVisionFaceDetector`, `EpiServos`
 |---|---|---|
 | `FaceTargetSelector` multiplied the per-tick `smoothing` rate by the tick duration a second time; it now uses the kernel's per-tick value. Found while implementing task 2. | New smoothing test passes with the other selector tests through `kernel_test.py`. | `Fixed FaceTargetSelector smoothing rate scaling` |
 | `EpiServos` was not compiled because commit `ad8057dd` removed it from `Source/Modules/RobotModules/CMakeLists.txt`; the demo requires it, so it is built again when the Dynamixel SDK is found. | Release build compiles `EpiServos.cc`; 150-tick simulated `EpiBlack` run with `GazeLock`; full kernel suite passes except the pre-existing WebUI fatal-step test 239. | `EpiServos is now included in the build again` |
+| The demo now uses one eye camera, the right eye by default, because the left eye stream does not connect; `eye_url` selects the camera. | 300-tick simulated run ends cleanly; probe shows detection, lock, and expression on every tick; static layout check finds no overlaps. | `EpiBlack face following now uses a single eye camera` |
 
 ### Outstanding issues and questions
 

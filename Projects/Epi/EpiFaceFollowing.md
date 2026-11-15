@@ -5,9 +5,9 @@ robot has found someone, its eye LEDs change color and its pupils open.
 
 ## How it works
 
-1. `InputVideoStream` reads both eye cameras. The left eye camera controls the gaze; the right eye is
-   shown for reference only.
-2. `AppleVisionFaceDetector` finds all faces in each image.
+1. `InputVideoStream` reads one eye camera, the right eye by default. Both eyes turn together, so
+   one camera is enough to control the gaze.
+2. `AppleVisionFaceDetector` finds all faces in the image.
 3. `FaceTargetSelector` chooses one face to follow. It prefers the largest face, which is usually
    the closest child, and keeps following that face until another one is clearly larger or the
    followed face has been gone for half a second.
@@ -20,7 +20,7 @@ robot has found someone, its eye LEDs change color and its pupils open.
 
 ## Running
 
-Start with simulated motors and LEDs to check the cameras and the dashboard:
+Start with simulated motors and LEDs to check the camera and the dashboard:
 
 ```sh
 ./Bin/ikaros simulate=true Projects/Epi/EpiFaceFollowing.ikg
@@ -34,14 +34,19 @@ Run on the robot:
 
 The model does not start by itself. Press play in the WebUI when the robot is clear of people.
 
+To use the left eye camera instead, for example when its stream works again:
+
+```sh
+./Bin/ikaros eye_url=http://LeftEye.local:8080/stream/video.mjpeg Projects/Epi/EpiFaceFollowing.ikg
+```
+
 The model-level settings below can be changed on the command line:
 
 | Name | Default | Meaning |
 | --- | --- | --- |
 | `robot` | `EpiBlack` | Robot entry used by `EpiServos` |
 | `simulate` | `false` | Simulate the servos and LEDs |
-| `left_eye_url` | `http://LeftEye.local:8080/stream/video.mjpeg` | Left eye stream |
-| `right_eye_url` | `http://RightEye.local:8080/stream/video.mjpeg` | Right eye stream |
+| `eye_url` | `http://RightEye.local:8080/stream/video.mjpeg` | Eye camera stream that drives the gaze |
 | `synchronized_framegrabber` | `false` | Grab frames in step with the ticks; set to `true` when testing with a video file |
 | `synchronized_tick` | `true` | Wait for a new camera frame on every tick |
 | `tick_duration` | `0.04` | Seconds per tick |
@@ -55,7 +60,7 @@ The model-level settings below can be changed on the command line:
   off, press it, and move the pan slider to show the eye compensation. **Release** drops the lock.
 - **Faces**, **Seen**, **Locked**, and **Expression** show how many faces passed the filters,
   whether the followed face was seen this tick, whether the gaze is locked, and the expression level.
-- The camera views show all faces in green and the followed face in magenta.
+- The camera view shows all faces in green and the followed face in magenta.
 - The robot view shows eye direction, pupils, and LED colors. The plots show the stored target
   direction and the head and eye goals.
 
@@ -77,7 +82,7 @@ Check these on the robot with the room empty, then with one person:
 
 - **Stalled camera stream.** With `synchronized_tick="true"`, the model waits for each new frame. If
   a camera stream stops, the whole model stops, the robot holds its last position, and the program
-  can only be ended by force. Check that both streams are stable before the demo. Setting
+  can only be ended by force. Check that the stream is stable before the demo. Setting
   `synchronized_tick=false` keeps the robot running but re-detects old frames.
 - **Video files.** A video file ends, and the model then waits forever for the next frame. Use a
   long file and `synchronized_framegrabber=true` when testing without cameras.
