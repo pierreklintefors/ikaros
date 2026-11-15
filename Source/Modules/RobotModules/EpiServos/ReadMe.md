@@ -24,10 +24,11 @@ Only MX-106 routes support current-based position control. MX-28 eye and hand ro
 mode, and pupil XL-320 servos use their separate protocol path. In torso mode, feedback buffers retain
 the fixed nineteen-element Ikaros 3 interface and indices 6-18 are inactive.
 
-Pupil communication failures are reported once per change, with the bus result or the servo's error
-flags. For a hardware alert the message includes the XL-320 hardware error status, such as overload
-or overheating; such an alert stays latched until the pupil servos are power-cycled. A failing pupil
-does not stop the other pupil from being driven.
+Pupil communication problems are reported once per change. A failed transfer names the bus result
+or the instruction error. A hardware alert, such as overload, overheating, or a supply voltage outside
+the XL-320 range of 6.0 to 8.4 V, is reported with its cause, but the pupils are still driven because
+the servo executes instructions while the alert flag is set. A failing pupil does not stop the other
+pupil from being driven.
 
 The servos are released, with the power-off ramp and torque off, when the model stops: when Ikaros
 quits, including with Ctrl-C, and when the model is stopped from the WebUI. Releasing them there,

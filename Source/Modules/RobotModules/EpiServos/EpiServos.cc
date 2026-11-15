@@ -160,7 +160,8 @@ class EpiServos : public Module
 
     dynamixel::PortHandler *portHandlerPupil = nullptr;
     dynamixel::PacketHandler *packetHandlerPupil = nullptr;
-    std::string reportedPupilFailure; // last pupil failure reported, to avoid repeating it every tick
+    std::string reportedPupilFailure; // last pupil problem reported, to avoid repeating it every tick
+    std::string pupilAlert[2];        // cached hardware-alert description per pupil servo, empty when none
     // dynamixel::GroupSyncRead *groupSyncReadPupil;
     // dynamixel::GroupSyncWrite *groupSyncWritePupil;
 
@@ -259,31 +260,57 @@ class EpiServos : public Module
     }
 
 
-    // Describes a failed pupil transfer: the bus result, or the error flags and, for an alert,
-    // the XL-320 hardware error status (address 50; bit 0 overload, 1 overheating, 2 input voltage).
+    // Protocol 2.0 status packets set bit 7 (alert) when the servo has a hardware error, but the
+    // instruction is still executed. Only the lower bits mean that the instruction was rejected.
+    static bool PupilInstructionRejected(uint8_t dxlError)
+    {
+        return (dxlError & 0x7F) != 0;
+    }
+
+
     std::string DescribePupilFailure(int id, const std::string & operation, int result, uint8_t dxlError)
     {
         std::string description = "pupil servo " + std::to_string(id) + " " + operation + ": ";
         if (result != COMM_SUCCESS)
             return description + packetHandlerPupil->getTxRxResult(result);
+        return description + packetHandlerPupil->getRxPacketError(dxlError);
+    }
 
-        description += packetHandlerPupil->getRxPacketError(dxlError);
-        if ((dxlError & 0x80) == 0)
-            return description;
 
+    // Reads the XL-320 hardware error status (address 50; bit 0 overload, 1 overheating, 2 input
+    // voltage) and the present voltage (address 45, in 0.1 V).
+    std::string DescribePupilAlert(int id)
+    {
+        std::string description = "pupil servo " + std::to_string(id) + ":";
         uint8_t status = 0;
+        uint8_t voltage = 0;
         uint8_t statusError = 0;
         if (packetHandlerPupil->read1ByteTxRx(portHandlerPupil, id, 50, &status, &statusError) != COMM_SUCCESS)
-            return description + " (hardware error status could not be read)";
+            return description + " hardware error status could not be read";
 
-        description += " (hardware error status " + std::to_string(status) + ":";
         if (status & 0x01)
-            description += " overload";
+            description += " overload (power-cycle the pupil servos to clear it)";
         if (status & 0x02)
             description += " overheating";
         if (status & 0x04)
+        {
             description += " input voltage";
-        return description + "; power-cycle the pupil servos to clear it)";
+            if (packetHandlerPupil->read1ByteTxRx(portHandlerPupil, id, 45, &voltage, &statusError) == COMM_SUCCESS)
+                description += " " + std::to_string(voltage / 10) + "." + std::to_string(voltage % 10) +
+                               " V, outside the XL-320 range of 6.0 to 8.4 V; check the pupil power supply";
+        }
+        if ((status & 0x07) == 0)
+            description += " status " + std::to_string(status);
+        return description;
+    }
+
+
+    void UpdatePupilAlert(int slot, int id, uint8_t dxlError)
+    {
+        if ((dxlError & 0x80) == 0)
+            pupilAlert[slot].clear();
+        else if (pupilAlert[slot].empty())
+            pupilAlert[slot] = DescribePupilAlert(id);
     }
 
 
@@ -300,41 +327,51 @@ class EpiServos : public Module
 
         for (int i = PUPIL_ID_MIN; i <= PUPIL_ID_MAX; i++, index++)
         {
+            const int slot = i - PUPIL_ID_MIN;
             uint8_t dxl_error = 0;
             const uint8_t enableTorque = !torqueEnable.connected() || torqueEnable(index) != 0 ? 1 : 0;
             int result = packetHandlerPupil->write1ByteTxRx(portHandlerPupil, i, 24,
                                                             enableTorque, &dxl_error);
-            if (result != COMM_SUCCESS || dxl_error != 0)
+            if (result != COMM_SUCCESS || PupilInstructionRejected(dxl_error))
             {
                 failures += (failures.empty() ? "" : "; ") + DescribePupilFailure(i, "torque", result, dxl_error);
                 portHandlerPupil->clearPort();
                 continue;
             }
+            UpdatePupilAlert(slot, i, dxl_error);
 
             const uint16_t pupilPosition = static_cast<uint16_t>(
                 std::clamp(goalPosition(index), 0.0f, 1023.0f));
             dxl_error = 0;
             result = packetHandlerPupil->write2ByteTxRx(portHandlerPupil, i, 30,
                                                         pupilPosition, &dxl_error);
-            if (result != COMM_SUCCESS || dxl_error != 0)
+            if (result != COMM_SUCCESS || PupilInstructionRejected(dxl_error))
             {
                 failures += (failures.empty() ? "" : "; ") + DescribePupilFailure(i, "position", result, dxl_error);
                 portHandlerPupil->clearPort();
             }
         }
 
-        if (failures.empty())
+        std::string alerts;
+        for (const std::string & alert : pupilAlert)
+            if (!alert.empty())
+                alerts += (alerts.empty() ? "" : "; ") + alert;
+
+        std::string report;
+        if (!failures.empty())
+            report = "Pupil communication failed: " + failures + ".";
+        if (!alerts.empty())
+            report += (report.empty() ? "" : " ") + std::string("Pupil hardware alert, the pupils are still driven: ") + alerts + ".";
+
+        if (report.empty())
         {
             if (!reportedPupilFailure.empty())
                 Notify(msg_print, "Pupil communication restored.");
-            reportedPupilFailure.clear();
-            return true;
         }
-
-        if (failures != reportedPupilFailure)
-            Warning("Pupil communication failed: " + failures + ".");
-        reportedPupilFailure = failures;
-        return false;
+        else if (report != reportedPupilFailure)
+            Warning(report);
+        reportedPupilFailure = report;
+        return failures.empty();
     }
 
     bool Communication(int IDMin, int IDMax, int IOIndex, dynamixel::PortHandler *portHandler, dynamixel::PacketHandler *packetHandler, dynamixel::GroupSyncRead *groupSyncRead, dynamixel::GroupSyncWrite *groupSyncWrite)
@@ -581,7 +618,7 @@ class EpiServos : public Module
     }
 
 
-    void Init()
+    void Init() override
     {
 
         // Robots configurations
@@ -1150,7 +1187,7 @@ class EpiServos : public Module
         return (-(mm - minMM) / deltaMM * deltDeg + maxDeg); // Higher goal position gives smaller pupil
     }
 
-    void Tick()
+    void Tick() override
     {
         const std::size_t activeServoCount = EpiTorsoMode ? EPI_TORSO_NR_SERVOS : EPI_NR_SERVOS;
         goalPosition(PUPIL_INDEX_IO) = clip(goalPosition(PUPIL_INDEX_IO), 5, 16);
