@@ -29,6 +29,11 @@ flags. For a hardware alert the message includes the XL-320 hardware error statu
 or overheating; such an alert stays latched until the pupil servos are power-cycled. A failing pupil
 does not stop the other pupil from being driven.
 
+The servos are released, with the power-off ramp and torque off, when the model stops: when Ikaros
+quits, including with Ctrl-C, and when the model is stopped from the WebUI. Releasing them there,
+rather than in the destructor, keeps the shutdown out of process exit, where it crashed Ikaros and
+left the servos in a state that made the next start fail.
+
 The hardware-free audit is complete, but physical commissioning is still required. Do not begin with
 unrestricted or unsupported full-body motion. Follow the controlled gate in [PortReport.md](PortReport.md).
 Detailed findings and test evidence are in [Audit.md](Audit.md) and [Verification.md](Verification.md).

@@ -3146,11 +3146,27 @@ class EpiServos : public Module
 
         return true;
     }
+    // Called by the kernel when the model stops or Ikaros quits, while logging and the rest of the
+    // kernel are still available. Releasing the servos here keeps the power-off ramp out of the
+    // destructor, which may run during process exit when the kernel is already being torn down.
+    void Stop() override
+    {
+        if (simulate || !hardwarePowered)
+            return;
+
+        hardwarePowered = false;
+        Notify(msg_print, "EpiServos releasing the servos.");
+        if (!PowerOffRobot())
+            Warning("EpiServos could not complete its shutdown power ramp.");
+    }
+
+
     ~EpiServos()
     {
         if (simulate)
             return;
 
+        // Fallback for a module destroyed without Stop(); normally the servos are already released.
         if (hardwarePowered)
             if (!PowerOffRobot())
                 Warning("EpiServos could not complete its shutdown power ramp.");
