@@ -1,0 +1,26 @@
+<class name="EpiExpression" description="Fades the Epi eye LEDs and pupils between an idle and an engaged expression">
+    <description type="text">
+        EpiExpression gives the Epi robot a simple attentive expression. While ENGAGED is 1 the eye LEDs
+        fade toward engaged_color and the pupils open toward engaged_pupil; when it returns to 0 they fade
+        back to the idle values. The LED outputs have the shapes FadeCandy expects and the pupil output can
+        be connected to GazeLock.PUPIL_SIZE.
+    </description>
+
+    <parameter name="idle_color" type="matrix" default="0.8, 0.7, 0.1" description="Eye LED red, green, blue in 0..1 when idle" />
+    <parameter name="engaged_color" type="matrix" default="0.1, 0.6, 1.0" description="Eye LED red, green, blue in 0..1 when engaged" />
+    <parameter name="mouth_color" type="matrix" default="0.8, 0.7, 0.1" description="Mouth LED red, green, blue in 0..1" />
+    <parameter name="intensity" type="number" default="0.6" min="0" max="1" description="Brightness factor applied to all LEDs" />
+    <parameter name="idle_pupil" type="number" default="9" description="Pupil size in mm when idle" />
+    <parameter name="engaged_pupil" type="number" default="15" description="Pupil size in mm when engaged; EpiServos clips pupils to 5..16 mm" />
+    <parameter name="attack_rate" type="rate" default="4" min="0" description="Rate in 1/s at which the expression moves toward engaged; 0 changes immediately" />
+    <parameter name="release_rate" type="rate" default="1" min="0" description="Rate in 1/s at which the expression returns to idle; 0 changes immediately" />
+
+    <input name="ENGAGED" size="1" description="1 while the robot attends to someone, otherwise 0" />
+
+    <output name="LEFT_EYE" size="3,12" description="Left eye LED colors as rows of red, green, blue" />
+    <output name="RIGHT_EYE" size="3,12" description="Right eye LED colors as rows of red, green, blue" />
+    <output name="MOUTH_HIGH" size="3,8" description="Upper mouth LED colors as rows of red, green, blue" />
+    <output name="MOUTH_LOW" size="3,8" description="Lower mouth LED colors as rows of red, green, blue" />
+    <output name="PUPIL_SIZE" size="2" description="Left and right pupil goals in mm" />
+    <output name="LEVEL" size="1" description="Smoothed engagement level from 0 (idle) to 1 (engaged)" />
+</class>

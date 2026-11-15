@@ -1,0 +1,27 @@
+<group name="EpiExpressionFadeTest"
+       description="Eye colors and pupils move to the engaged values and fade back at the release rate; outputs fit FadeCandy"
+       start="true" stop="4" tick_duration="0.1"
+       cli_args="-u${TEST_DIR}"
+       expected_output_contains="Simulate fadecandy"
+       expected_output_not_contains="size is not"
+       expected_output_once="level = {0}||level = {1}||level = {0.5}||level = {0.25}||pupils = {9, 9}||pupils = {15, 15}||pupils = {12, 12}||pupils = {10.5, 10.5}">
+    <module class="InputFile" name="Script" filename="fixture_EpiExpression_engaged.jsonl" send_end_of_file="false" />
+    <module class="EpiExpression" name="Expression" idle_color="1, 0.5, 0" engaged_color="0, 0.5, 1" mouth_color="0.25, 0.25, 0.25" intensity="1"
+            idle_pupil="9" engaged_pupil="15" attack_rate="0" release_rate="6.931471805599453" />
+    <module class="FadeCandy" name="LEDs" simulate="true" />
+    <module class="Print" name="Level" />
+    <module class="Print" name="Pupils" />
+    <module class="Print" name="Eye" />
+    <module class="Print" name="Mouth" />
+
+    <connection source="Script.ENGAGED" target="Expression.ENGAGED" delay="0" />
+    <connection source="Expression.LEFT_EYE" target="LEDs.LEFT_EYE" delay="0" />
+    <connection source="Expression.RIGHT_EYE" target="LEDs.RIGHT_EYE" delay="0" />
+    <connection source="Expression.MOUTH_HIGH" target="LEDs.MOUTH_HIGH" delay="0" />
+    <connection source="Expression.MOUTH_LOW" target="LEDs.MOUTH_LOW" delay="0" />
+
+    <connection source="Expression.LEVEL" target="Level.INPUT" delay="0" label="level" />
+    <connection source="Expression.PUPIL_SIZE" target="Pupils.INPUT" delay="0" label="pupils" />
+    <connection source="Expression.LEFT_EYE" target="Eye.INPUT" delay="0" label="eye" />
+    <connection source="Expression.MOUTH_LOW" target="Mouth.INPUT" delay="0" label="mouth" />
+</group>
