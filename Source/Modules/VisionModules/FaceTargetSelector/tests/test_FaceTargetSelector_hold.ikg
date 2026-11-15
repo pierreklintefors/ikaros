@@ -1,0 +1,18 @@
+<group name="FaceTargetSelectorHoldTest"
+       description="Small and low-confidence faces are ignored, a lost face is held for hold_time, then another face is selected"
+       start="true" stop="5" tick_duration="0.05"
+       cli_args="-u${TEST_DIR}"
+       expected_output_contains="target = {-0.5, 0, 0.25}"
+       expected_output_once="count = {0}||target = {0, 0, 0}||target = {0.5, 0, 0.5}"
+       expected_output_twice="valid = {1}">
+    <module class="InputFile" name="Faces" filename="fixture_FaceTargetSelector_hold.jsonl" send_end_of_file="false" />
+    <module class="FaceTargetSelector" name="Selector" min_width="0.08" min_confidence="0.5" hold_time="0.12" />
+    <module class="Print" name="Count" />
+    <module class="Print" name="Valid" />
+    <module class="Print" name="Target" />
+
+    <connection source="Faces.BOXES" target="Selector.BOXES" delay="0" />
+    <connection source="Selector.COUNT" target="Count.INPUT" delay="0" label="count" />
+    <connection source="Selector.VALID" target="Valid.INPUT" delay="0" label="valid" />
+    <connection source="Selector.TARGET" target="Target.INPUT" delay="0" label="target" />
+</group>

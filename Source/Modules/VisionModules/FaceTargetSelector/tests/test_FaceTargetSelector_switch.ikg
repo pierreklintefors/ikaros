@@ -1,0 +1,12 @@
+<group name="FaceTargetSelectorSwitchTest"
+       description="Largest face is selected and a different face takes over only beyond switch_ratio"
+       start="true" stop="4" tick_duration="0.05"
+       cli_args="-u${TEST_DIR}"
+       expected_output_twice="target = {0.5, 0, 0.375}||target = {-0.5, 0, 0.625}">
+    <module class="InputFile" name="Faces" filename="fixture_FaceTargetSelector_switch.jsonl" send_end_of_file="false" />
+    <module class="FaceTargetSelector" name="Selector" switch_ratio="1.3" />
+    <module class="Print" name="Target" />
+
+    <connection source="Faces.BOXES" target="Selector.BOXES" delay="0" />
+    <connection source="Selector.TARGET" target="Target.INPUT" delay="0" label="target" />
+</group>

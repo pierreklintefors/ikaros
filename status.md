@@ -1488,3 +1488,23 @@ functionality must be evaluated before adding any new data structure or numerica
 ### Outstanding issues and questions
 
 None.
+
+## EpiBlack face-following demo
+
+Face following for EpiBlack with eye/head gaze compensation, LED and pupil expression, and a WebUI
+dashboard. Built from `InputVideoStream`, `AppleVisionFaceDetector`, `EpiServos`, `FadeCandy`, and
+`Constant` plus three new C++ modules.
+
+| # | Task | Status | Verification | Commit |
+|---:|---|---|---|---|
+| 1 | Add `FaceTargetSelector`, which turns detector boxes into one stable target (largest face, identity matching, hysteresis, hold). | Completed | Release build; `tests/` switch and hold tests pass through `kernel_test.py` (largest-face selection, no switch below `switch_ratio`, switch above it, width/confidence filtering, hold then reacquire); detector-to-selector smoke run on `UserData/pierre.jpg` selects the face; Markdown checker reports no issue for the new ReadMe; `git diff --check`. | `FaceTargetSelector now selects one stable face target` |
+| 2 | Add `GazeLock`, which stores the target direction in the body frame, compensates head motion with the eyes, moves the head, and outputs the `EpiServos` goal vector. | Not started |  |  |
+| 3 | Add `EpiExpression`, which fades eye LEDs and pupil size between idle and engaged states for `FadeCandy` and `GazeLock`. | Not started |  |  |
+| 4 | Add the `Projects/Epi/EpiFaceFollowing.ikg` demo model with documentation and a WebUI dashboard. | Not started |  |  |
+
+### Constraints
+
+- C++ modules only; no kernel changes, Python, or external libraries.
+- Keep `PIDController`, `ServoConnector`, `Arbiter`, and `HeadServos` out of the servo loop; they are untested on the robot.
+- Do not include the uncommitted `InputVideoStream` changes or `.Rhistory` in any commit.
+- Do not move the physical robot without the user present.
