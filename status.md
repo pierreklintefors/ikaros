@@ -1508,3 +1508,9 @@ dashboard. Built from `InputVideoStream`, `AppleVisionFaceDetector`, `EpiServos`
 - Keep `PIDController`, `ServoConnector`, `Arbiter`, and `HeadServos` out of the servo loop; they are untested on the robot.
 - Do not include the uncommitted `InputVideoStream` changes or `.Rhistory` in any commit.
 - Do not move the physical robot without the user present.
+
+### Additional fixes found during the tasks
+
+| Fix | Verification | Commit |
+|---|---|---|
+| `FaceTargetSelector` multiplied the per-tick `smoothing` rate by the tick duration a second time; it now uses the kernel's per-tick value. Found while implementing task 2. | New smoothing test passes with the other selector tests through `kernel_test.py`. | `Fixed FaceTargetSelector smoothing rate scaling` |

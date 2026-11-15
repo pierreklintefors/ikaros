@@ -97,9 +97,9 @@ class FaceTargetSelector : public Module
         const float y = CenterY(index);
         const float width = Box(index, 2);
 
-        const float rate = smoothing.as_float();
-        const float dt = static_cast<float>(GetTickDuration());
-        const float blend = newIdentity || rate <= 0.0f ? 1.0f : 1.0f - std::exp(-rate * dt);
+        // Rate parameters are delivered per tick by the kernel.
+        const float ratePerTick = smoothing.as_float();
+        const float blend = newIdentity || ratePerTick <= 0.0f ? 1.0f : 1.0f - std::exp(-ratePerTick);
 
         target(0) += blend * (x - target(0));
         target(1) += blend * (y - target(1));
