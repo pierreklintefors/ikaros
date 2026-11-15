@@ -47,6 +47,8 @@ The model-level settings below can be changed on the command line:
 | `robot` | `EpiBlack` | Robot entry used by `EpiServos` |
 | `simulate` | `false` | Simulate the servos and LEDs |
 | `eye_url` | `http://RightEye.local:8080/stream/video.mjpeg` | Eye camera stream that drives the gaze |
+| `x_sign` | `-1` | Direction from image x to neck and eye pan; `-1` is correct for EpiBlack's right eye camera |
+| `y_sign` | `-1` | Direction from image y to neck tilt |
 | `synchronized_framegrabber` | `false` | Grab frames in step with the ticks; set to `true` when testing with a video file |
 | `synchronized_tick` | `true` | Wait for a new camera frame on every tick |
 | `tick_duration` | `0.04` | Seconds per tick |
@@ -68,8 +70,8 @@ The model-level settings below can be changed on the command line:
 
 Check these on the robot with the room empty, then with one person:
 
-1. **Directions.** Stand to the robot's side. If it turns away from you, invert `x_sign` on `Gaze`.
-   If it looks up when you crouch, invert `y_sign`.
+1. **Directions.** Stand to the robot's side. If it turns away from you, invert `x_sign`, for
+   example with `x_sign=1` on the command line. If it looks up when you crouch, invert `y_sign`.
 2. **Overshoot.** If the head swings past the face, increase `latency` on `Gaze` in steps of 0.05 s.
    If it lags behind, decrease it.
 3. **Calmness.** Raise `head_dead_zone` for fewer, larger head movements, or lower `head_gain` and

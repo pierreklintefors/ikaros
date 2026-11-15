@@ -3,6 +3,8 @@
        robot="EpiBlack"
        simulate="false"
        eye_url="http://RightEye.local:8080/stream/video.mjpeg"
+       x_sign="-1"
+       y_sign="-1"
        synchronized_framegrabber="false"
        synchronized_tick="true"
        tick_duration="0.04"

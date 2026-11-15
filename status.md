@@ -1516,10 +1516,11 @@ dashboard. Built from `InputVideoStream`, `AppleVisionFaceDetector`, `EpiServos`
 | `FaceTargetSelector` multiplied the per-tick `smoothing` rate by the tick duration a second time; it now uses the kernel's per-tick value. Found while implementing task 2. | New smoothing test passes with the other selector tests through `kernel_test.py`. | `Fixed FaceTargetSelector smoothing rate scaling` |
 | `EpiServos` was not compiled because commit `ad8057dd` removed it from `Source/Modules/RobotModules/CMakeLists.txt`; the demo requires it, so it is built again when the Dynamixel SDK is found. | Release build compiles `EpiServos.cc`; 150-tick simulated `EpiBlack` run with `GazeLock`; full kernel suite passes except the pre-existing WebUI fatal-step test 239. | `EpiServos is now included in the build again` |
 | The demo now uses one eye camera, the right eye by default, because the left eye stream does not connect; `eye_url` selects the camera. | 300-tick simulated run ends cleanly; probe shows detection, lock, and expression on every tick; static layout check finds no overlaps. | `EpiBlack face following now uses a single eye camera` |
+| On EpiBlack the head and eyes turned away from the face; the demo now sets `x_sign=-1` and exposes `x_sign` and `y_sign` as model-level settings. | Simulated probe: a face right of center now gives a negative stored azimuth, and `x_sign=1` on the command line restores the previous direction. To be confirmed on the robot. | `EpiBlack face following now turns toward the face` |
 
 ### Outstanding issues and questions
 
-- Not tested on EpiBlack: `x_sign`, `y_sign`, the camera field of view, `latency`, head gains, and the
+- Partly tested on EpiBlack: face following runs and `x_sign` was inverted after the first robot run; `y_sign`, the camera field of view, `latency`, head gains, and the
   `GazeLock` limits must be checked on the robot as listed in `Projects/Epi/EpiFaceFollowing.md`.
 - The dashboard has not been inspected in a browser; check alignment, clipping, and console errors.
 - `InputVideoStream` with `synchronized_tick="true"` waits forever when a stream stalls or a file
