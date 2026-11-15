@@ -50,10 +50,46 @@ The model-level settings below can be changed on the command line:
 | `x_sign` | `-1` | Direction from image x to neck and eye pan; `-1` is correct for EpiBlack's right eye camera |
 | `y_sign` | `-1` | Direction from image y to neck tilt |
 | `aim_y` | `0.4` | Where the face is kept vertically, from -1 (top) to 1 (bottom); 0.4 keeps it in the lower part of the image so the robot looks at the eyes rather than the middle of the face |
+| `horizontal_fov` | `62.2` | Horizontal camera field of view in degrees; see Camera settings |
+| `vertical_fov` | `48.8` | Vertical camera field of view in degrees; see Camera settings |
 | `synchronized_framegrabber` | `false` | Grab frames in step with the ticks; set to `true` when testing with a video file |
 | `synchronized_tick` | `true` | Wait for a new camera frame on every tick |
 | `tick_duration` | `0.04` | Seconds per tick |
 | `real_time` | `true` | Run in real time |
+
+## Camera settings
+
+The eye cameras run a UV4L streaming server. With its original settings, 1280 x 720 MJPEG at
+JPEG quality 85, the right eye sent about 420 kB per frame, roughly 100 Mbit/s. That is more than
+the network handles smoothly and causes the lag and stalls. Use these settings instead:
+
+| Setting | Value |
+| --- | --- |
+| Resolution | 640 x 480 |
+| Frame rate | 30 |
+| JPEG quality | 70 |
+| Format | MJPEG |
+
+At 640 x 480 and 30 frames per second the Pi Camera Module v2 uses its full field of view, which
+matches the default `horizontal_fov` and `vertical_fov` of 62.2 and 48.8 degrees.
+
+To change the settings until the Pi restarts, close every client of the stream, including Ikaros and
+browser tabs, open `http://RightEye.local:8080/panel`, enter the values, and press Apply. UV4L
+cannot change the resolution while any stream is open.
+
+To keep the settings, set these options in the UV4L raspicam configuration file on the Pi, usually
+`/etc/uv4l/uv4l-raspicam.conf`, and restart the UV4L service:
+
+```text
+encoding = mjpeg
+width = 640
+height = 480
+framerate = 30
+quality = 70
+```
+
+If the camera stays at 1280 x 720, its image is 16:9 and the vertical field of view is smaller,
+roughly 37 degrees at 30 frames per second. Start the model with `vertical_fov=37` in that case.
 
 ## Dashboard
 
@@ -87,8 +123,9 @@ Check these on the robot with the room empty, then with one person:
 
 - **Stalled camera stream.** With `synchronized_tick="true"`, the model waits for each new frame. If
   a camera stream stops, the whole model stops, the robot holds its last position, and the program
-  can only be ended by force. Check that the stream is stable before the demo. Setting
-  `synchronized_tick=false` keeps the robot running but re-detects old frames.
+  can only be ended by force. Check that the stream is stable before the demo; the lighter settings
+  under Camera settings make stalls much less likely. Setting `synchronized_tick=false` keeps the
+  robot running but re-detects old frames.
 - **Video files.** A video file ends, and the model then waits forever for the next frame. Use a
   long file and `synchronized_framegrabber=true` when testing without cameras.
 - **Simulation.** Simulated servos start at 0 degrees and take about four seconds to reach the

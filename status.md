@@ -1546,9 +1546,22 @@ Issues reported after the first runs on EpiBlack.
 |---:|---|---|---|---|
 | 1 | Pupil communication fails repeatedly after about five minutes (`Could not set pupil torque for servo 2`); make `EpiServos` report the exact cause, keep driving the other pupil, and stop repeating the same warning every tick. | Completed | Release build; simulated `EpiBlack` run unchanged. The pupil path is skipped in simulation, so the new messages must be confirmed on the robot. The repeated failure after five minutes suggests a latched XL-320 alarm such as overload; the next occurrence will name the cause. | `EpiServos now reports the cause of pupil communication failures` |
 | 2 | Aim the gaze so the face sits below the image center, making the robot look at the eyes instead of the middle of the face box. | Completed | Release build; new `GazeLock` aim test passes with the other GazeLock tests (a target at the aim point leaves the direction at zero, a centered target gives +10.28 degrees elevation and -8.58 degrees azimuth); demo sets `aim_y=0.4` and runs 60 simulated ticks cleanly; Markdown checker reports no new issue. | `GazeLock can now keep the target at an aim point below the image center` |
-| 3 | Reduce camera lag and stalls: lighter UV4L stream settings, matching field of view, and documentation. | Not started |  |  |
+| 3 | Reduce camera lag and stalls: lighter UV4L stream settings, matching field of view, and documentation. | Completed | Measured the right eye stream at 1280 x 720, JPEG quality 85: 34 frames/s, about 420 kB per frame, about 114 Mbit/s. Applied frame rate 30 and quality 70 through the UV4L panel at runtime (old values 45 and 85); the stream then ran at 30 frames/s, still about 418 kB per frame. UV4L refused the 640 x 480 resolution because another client was streaming. Demo now exposes `horizontal_fov` and `vertical_fov`; the guide documents the recommended settings, how to apply and persist them, and the field of view per mode; 60 simulated ticks run cleanly. | `EpiBlack face following now documents lighter camera settings` |
 
 ### Constraints
 
 - `EpiServos` changes can only be build-checked here; behavior on the robot must be confirmed by the user.
 - Do not disconnect other clients of the camera server.
+
+### Outstanding issues and questions
+
+- The camera resolution is still 1280 x 720 because another client held the stream. Close all viewers
+  and apply 640 x 480 in the UV4L panel, and persist it in the Pi's UV4L configuration.
+- The JPEG quality change did not reduce the frame size of the open stream; check the frame size again
+  after the resolution change.
+- The UV4L runtime changes (30 frames/s, quality 70) are lost when the Pi restarts.
+- The pupil failure cause is still unknown; the next occurrence will name it. If it reports overload,
+  consider a smaller pupil range in `EpiExpression` than 9 to 15 mm.
+- A pupil bus that stops answering now costs two timeouts per tick instead of one, because the second
+  pupil is still tried.
+- `aim_y=0.4` is a first guess for eye contact and should be tuned on the robot.
