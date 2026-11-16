@@ -1,0 +1,24 @@
+<group name="ArousalTest"
+       description="A stimulus raises arousal by its boost, the excitation fades at decay_rate, ENGAGED raises the resting level, response_rate smooths the level, and MAPPED follows the level"
+       start="true" stop="8" tick_duration="0.1" threads="1"
+       cli_args="-u${TEST_DIR}"
+       expected_output_contains="tick = {1}&#10;smooth = {0.2}&#10;mapped = {0.9, 0.2}&#10;direct = {0.2}||tick = {2}&#10;smooth = {0.4}&#10;mapped = {1.1, 0.6}&#10;direct = {0.6}||tick = {3}&#10;smooth = {0.4}&#10;mapped = {1, 0.4}&#10;direct = {0.4}||tick = {4}&#10;smooth = {0.35}&#10;mapped = {0.95, 0.3}&#10;direct = {0.3}||tick = {6}&#10;smooth = {0.2625}&#10;mapped = {1.0625, 0.525}&#10;direct = {0.525}">
+    <module class="InputFile" name="Script" filename="fixture_Arousal.jsonl" send_end_of_file="false" />
+    <module class="Arousal" name="Direct" idle_level="0.2" engaged_level="0.5" boosts="0.4" decay_rate="6.931471805599453"
+            response_rate="0" low="0.8, 0" high="1.3, 1" />
+    <module class="Arousal" name="Smooth" idle_level="0.2" engaged_level="0.5" boosts="0.4" decay_rate="6.931471805599453"
+            response_rate="6.931471805599453" />
+    <module class="Print" name="Tick" />
+    <module class="Print" name="DirectOut" />
+    <module class="Print" name="DirectMapped" />
+    <module class="Print" name="SmoothOut" />
+
+    <connection source="Script.STIMULUS" target="Direct.STIMULUS" delay="0" />
+    <connection source="Script.ENGAGED" target="Direct.ENGAGED" delay="0" />
+    <connection source="Script.STIMULUS" target="Smooth.STIMULUS" delay="0" />
+
+    <connection source="Script.TICK" target="Tick.INPUT" delay="0" label="tick" />
+    <connection source="Direct.AROUSAL" target="DirectOut.INPUT" delay="0" label="direct" />
+    <connection source="Direct.MAPPED" target="DirectMapped.INPUT" delay="0" label="mapped" />
+    <connection source="Smooth.AROUSAL" target="SmoothOut.INPUT" delay="0" label="smooth" />
+</group>

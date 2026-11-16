@@ -1,0 +1,26 @@
+<class name="Arousal" description="Keeps an excitement level that rises with events and company and settles back over time">
+    <description type="text">
+        Arousal models how excited a robot is, from 0 (calm) to 1 (very excited). Its resting level is
+        idle_level, or engaged_level while ENGAGED is 1. A change from 0 to 1 in element i of STIMULUS adds
+        boosts[i] to an excitation that fades at decay_rate, and DRIVE adds drive_gain times its value,
+        for example the closeness of a person. AROUSAL follows the sum at response_rate. MAPPED turns the
+        level into any number of ranges from low to high, for example animation tempo, movement size,
+        sound volume, and pupil dilation, so that one level sets the robot's whole energy.
+    </description>
+
+    <parameter name="idle_level" type="number" default="0.2" min="0" max="1" description="Resting level while ENGAGED is 0 or not connected" />
+    <parameter name="engaged_level" type="number" default="0.45" min="0" max="1" description="Resting level while ENGAGED is 1" />
+    <parameter name="boosts" type="matrix" default="0.3" description="Excitation added by a rising edge of each STIMULUS element; elements beyond the list use the last value" />
+    <parameter name="drive_gain" type="number" default="0" description="Excitation per unit of DRIVE" />
+    <parameter name="decay_rate" type="rate" default="0.15" min="0" description="Rate in 1/s at which the excitation fades; 0.15 halves it in about 4.6 s" />
+    <parameter name="response_rate" type="rate" default="3" min="0" description="Rate in 1/s at which AROUSAL follows the resting level plus excitation; 0 follows immediately" />
+    <parameter name="low" type="matrix" default="0" description="MAPPED values at arousal 0; the number of values sets the size of MAPPED" />
+    <parameter name="high" type="matrix" default="1" description="MAPPED values at arousal 1; must have as many values as low" />
+
+    <input name="ENGAGED" optional="yes" size="1" description="1 while the robot has company, for example GazeLock.LOCKED" />
+    <input name="STIMULUS" optional="yes" description="Event pulses; a change from 0 to 1 in an element adds its boost" />
+    <input name="DRIVE" optional="yes" size="1" description="Continuous excitation, for example the size of the nearest face" />
+
+    <output name="AROUSAL" size="1" description="Excitement from 0 (calm) to 1 (very excited)" />
+    <output name="MAPPED" size="low.size" description="low + AROUSAL * (high - low), element by element" />
+</class>
