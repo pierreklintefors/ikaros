@@ -49,11 +49,13 @@ starts only after the fade-out has ended, so the old and new offsets are never m
 
 The pose is low-pass filtered with `pose_smoothing` and kept through ticks without a new detection.
 
-`tilt_dead_zone` and `pan_dead_zone` turn many small corrections into fewer, larger movements. While
-`HEAD_GOAL` drives the head, each axis keeps its goal until the wanted position is more than the
-dead zone away and then moves there in one step, which `GazeLock` turns into one smooth movement.
-This helps a joint with play in its gears, where small back-and-forth corrections cause jitter. With
-the default of 0 the goal changes on every tick.
+`tilt_dead_zone` and `pan_dead_zone` make the head ignore small movements and follow large ones
+completely. While `HEAD_GOAL` drives the head, each axis holds its goal as long as the wanted
+position stays within the dead zone. When it moves further, the goal follows it on every tick until
+it has stayed within a quarter of the dead zone for `settle_time`, so a nod or turn is followed to
+its end in one movement, and the axis then holds still again. This avoids the small back-and-forth
+corrections that make a joint with play in its gears jitter. With the default of 0 the goal follows
+every change.
 
 `view_compensation` subtracts the angle of the face from the image center, computed from `TARGET`
 and the fields of view, from the measured yaw and pitch. Use it if the measured pose changes when
@@ -72,6 +74,7 @@ only the robot's head moves. Its sign depends on the camera and must be measured
 | pose_smoothing | Pose filter rate in 1/s; 0 follows immediately | rate | 6 |
 | tilt_dead_zone | While mirroring, smallest tilt goal change in degrees; 0 updates every tick | number | 0 |
 | pan_dead_zone | While mirroring, smallest pan goal change in degrees; 0 updates every tick | number | 0 |
+| settle_time | Seconds the goal must stay within a quarter of a dead zone before the axis holds still again | number | 0.2 |
 | engage_time | Seconds before mirroring starts | number | 1 |
 | min_width | Smallest face width from `TARGET` for mirroring to start; 0 disables | number | 0 |
 | facing_limit | Largest yaw in degrees for mirroring to start | number | 35 |
@@ -125,5 +128,5 @@ only the robot's head moves. Its sign depends on the camera and must be measured
 `DIRECTION` and `LOCKED` need a delay of 1 because `GazeLock` depends on `HeadMirror` in the same tick.
 `Projects/Epi/EpiHeadMirroring.ikg` shows the complete model. The tests in `tests/` check the start
 conditions, gains and limits, the handover to a new person, loss of the person, the fades, and that
-a new person is mirrored only after the previous fade-out, and that the dead zone holds the tilt goal
-until it would move by more than the dead zone.
+a new person is mirrored only after the previous fade-out, and that the dead zone ignores small
+changes but follows a larger one to its end.

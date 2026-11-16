@@ -1,11 +1,11 @@
 <group name="HeadMirrorDeadZoneTest"
-       description="With tilt_dead_zone the tilt goal is held until the desired tilt is more than the dead zone away and then moves to it in one step"
-       start="true" stop="10" tick_duration="0.1"
+       description="With tilt_dead_zone small pitch changes do not move the tilt goal, a larger change is followed to its end, and after settle_time small changes are ignored again"
+       start="true" stop="11" tick_duration="0.1"
        cli_args="-u${TEST_DIR}"
-       expected_output_contains="head = {0, 0}||head = {-2.5, 0}||head = {-5, 0}"
-       expected_output_not_contains="head = {-0.5, 0}||head = {-1, 0}||head = {-2, 0}||head = {-3, 0}||head = {-4, 0}">
+       expected_output_contains="head = {0, 0}||head = {-4, 0}||head = {-5, 0}"
+       expected_output_not_contains="head = {-1.5, 0}||head = {1.5, 0}||head = {-5.5, 0}||head = {-4.5, 0}">
     <module class="InputFile" name="Script" filename="fixture_HeadMirror_deadzone.jsonl" send_end_of_file="false" />
-    <module class="HeadMirror" name="Mirror" engage_time="0" pose_smoothing="0" fade_in="0" tilt_dead_zone="2" />
+    <module class="HeadMirror" name="Mirror" engage_time="0" pose_smoothing="0" fade_in="0" tilt_dead_zone="2" settle_time="0.2" />
     <module class="Print" name="Head" />
 
     <connection source="Script.POSE" target="Mirror.POSE" delay="0" />

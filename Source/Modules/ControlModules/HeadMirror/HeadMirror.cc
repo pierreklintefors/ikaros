@@ -26,6 +26,7 @@ class HeadMirror : public Module
     parameter poseSmoothing;
     parameter tiltDeadZone;
     parameter panDeadZone;
+    parameter settleTime;
 
     parameter engageTime;
     parameter minWidth;
@@ -63,8 +64,15 @@ class HeadMirror : public Module
     float mirrorTilt = 0;       // offset before weighting; held while not mirroring
     float mirrorPan = 0;
     float weight = 0;
-    float heldTilt = 0;         // head goal, changed only in steps larger than the dead zones
-    float heldPan = 0;
+    // Dead-zone state per axis: 0 tilt, 1 pan.
+    struct Axis
+    {
+        float held = 0;         // head goal sent to GazeLock
+        bool tracking = false;  // following the goal after it left the dead zone
+        float anchor = 0;       // goal value the settle time is measured from
+        float settled = 0;      // seconds the goal has stayed near the anchor
+    };
+    Axis axes[2];
 
     // Rate parameters are delivered per tick by the kernel.
     static float
@@ -121,6 +129,43 @@ class HeadMirror : public Module
     }
 
 
+    // The goal is held while the desired value stays within the dead zone. Once it leaves the dead zone
+    // the goal follows it every tick until it has stayed within a quarter of the dead zone for
+    // settle_time, so a movement is followed to its end in one go and then held still.
+    float
+    StepAxis(Axis & axis, float desired, float deadZone, bool driving, float dt)
+    {
+        if(!driving)
+        {
+            axis.tracking = false;
+            axis.held = desired;
+            return axis.held;
+        }
+
+        if(!axis.tracking && std::fabs(desired - axis.held) > deadZone)
+        {
+            axis.tracking = true;
+            axis.anchor = desired;
+            axis.settled = 0;
+        }
+
+        if(axis.tracking)
+        {
+            axis.held = desired;
+            if(std::fabs(desired - axis.anchor) > 0.25f * deadZone)
+            {
+                axis.anchor = desired;
+                axis.settled = 0;
+            }
+            else
+                axis.settled += dt;
+            if(deadZone > 0.0f && axis.settled >= settleTime.as_float())
+                axis.tracking = false;
+        }
+        return axis.held;
+    }
+
+
     bool
     CloseEnough() const
     {
@@ -143,6 +188,7 @@ public:
         Bind(poseSmoothing, "pose_smoothing");
         Bind(tiltDeadZone, "tilt_dead_zone");
         Bind(panDeadZone, "pan_dead_zone");
+        Bind(settleTime, "settle_time");
 
         Bind(engageTime, "engage_time");
         Bind(minWidth, "min_width");
@@ -229,12 +275,8 @@ public:
         const bool driving = isMirroring || weight > followThreshold;
         const float desiredTilt = direction(0) + offset(0);
         const float desiredPan = direction(1) + offset(1);
-        if(!driving || std::fabs(desiredTilt - heldTilt) > tiltDeadZone.as_float())
-            heldTilt = desiredTilt;
-        if(!driving || std::fabs(desiredPan - heldPan) > panDeadZone.as_float())
-            heldPan = desiredPan;
-        headGoal(0) = heldTilt;
-        headGoal(1) = heldPan;
+        headGoal(0) = StepAxis(axes[0], desiredTilt, tiltDeadZone.as_float(), driving, dt);
+        headGoal(1) = StepAxis(axes[1], desiredPan, panDeadZone.as_float(), driving, dt);
 
         follow(0) = driving ? 0.0f : 1.0f;
         mirroringFlag(0) = isMirroring ? 1.0f : 0.0f;

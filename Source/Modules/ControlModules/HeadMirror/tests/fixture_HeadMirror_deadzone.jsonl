@@ -1,10 +1,11 @@
 {"POSE": [0, 0, 0], "VALID": [1], "TARGET": [0, 0, 0.3], "DIRECTION": [0, 0]}
-{"POSE": [0, 1, 0], "VALID": [1], "TARGET": [0, 0, 0.3], "DIRECTION": [0, 0]}
-{"POSE": [0, 2, 0], "VALID": [1], "TARGET": [0, 0, 0.3], "DIRECTION": [0, 0]}
 {"POSE": [0, 3, 0], "VALID": [1], "TARGET": [0, 0, 0.3], "DIRECTION": [0, 0]}
-{"POSE": [0, 4, 0], "VALID": [1], "TARGET": [0, 0, 0.3], "DIRECTION": [0, 0]}
-{"POSE": [0, 5, 0], "VALID": [1], "TARGET": [0, 0, 0.3], "DIRECTION": [0, 0]}
-{"POSE": [0, 6, 0], "VALID": [1], "TARGET": [0, 0, 0.3], "DIRECTION": [0, 0]}
+{"POSE": [0, -3, 0], "VALID": [1], "TARGET": [0, 0, 0.3], "DIRECTION": [0, 0]}
+{"POSE": [0, 3, 0], "VALID": [1], "TARGET": [0, 0, 0.3], "DIRECTION": [0, 0]}
 {"POSE": [0, 8, 0], "VALID": [1], "TARGET": [0, 0, 0.3], "DIRECTION": [0, 0]}
 {"POSE": [0, 10, 0], "VALID": [1], "TARGET": [0, 0, 0.3], "DIRECTION": [0, 0]}
+{"POSE": [0, 10, 0], "VALID": [1], "TARGET": [0, 0, 0.3], "DIRECTION": [0, 0]}
+{"POSE": [0, 10, 0], "VALID": [1], "TARGET": [0, 0, 0.3], "DIRECTION": [0, 0]}
+{"POSE": [0, 11, 0], "VALID": [1], "TARGET": [0, 0, 0.3], "DIRECTION": [0, 0]}
+{"POSE": [0, 9, 0], "VALID": [1], "TARGET": [0, 0, 0.3], "DIRECTION": [0, 0]}
 {"POSE": [0, 10, 0], "VALID": [1], "TARGET": [0, 0, 0.3], "DIRECTION": [0, 0]}

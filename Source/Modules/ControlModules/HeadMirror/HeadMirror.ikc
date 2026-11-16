@@ -17,8 +17,9 @@
     <parameter name="max_pan" type="number" default="10" min="0" description="Largest pan offset from the person's direction in degrees; keep it inside the range the eyes can compensate" />
     <parameter name="max_tilt" type="number" default="10" min="0" description="Largest tilt offset from the person's direction in degrees; keep the face inside the vertical field of view" />
     <parameter name="pose_smoothing" type="rate" default="6" min="0" description="Rate in 1/s at which the filtered pose follows new measurements; 0 follows immediately" />
-    <parameter name="tilt_dead_zone" type="number" default="0" min="0" description="While mirroring, the tilt goal changes only when it would move by more than this many degrees, giving fewer, larger tilt movements; 0 updates every tick" />
-    <parameter name="pan_dead_zone" type="number" default="0" min="0" description="While mirroring, the pan goal changes only when it would move by more than this many degrees; 0 updates every tick" />
+    <parameter name="tilt_dead_zone" type="number" default="0" min="0" description="While mirroring, tilt changes smaller than this many degrees are ignored; a larger change is followed to its end, then the tilt holds still again; 0 follows every change" />
+    <parameter name="pan_dead_zone" type="number" default="0" min="0" description="While mirroring, pan changes smaller than this many degrees are ignored; a larger change is followed to its end, then the pan holds still again; 0 follows every change" />
+    <parameter name="settle_time" type="number" default="0.2" min="0" description="Seconds the goal must stay within a quarter of a dead zone before the head holds still again" />
 
     <parameter name="engage_time" type="number" default="1" min="0" description="Seconds a person must be tracked, close enough, and facing the robot before mirroring starts" />
     <parameter name="min_width" type="number" default="0" min="0" description="Smallest face width from TARGET, where the image width is 2, at which mirroring starts; 0 disables the check" />
