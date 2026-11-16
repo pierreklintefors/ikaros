@@ -1,0 +1,27 @@
+<group name="GlanceGeneratorTest"
+       description="Glances follow the interval, keep their minimum size, return after return_time, move at rate, and wait while INHIBIT is 1"
+       start="true" stop="30" tick_duration="0.1" threads="1"
+       cli_args="-u${TEST_DIR}"
+       expected_output_contains="tick = {8}&#10;inhibited = {0}&#10;jump = {0, 0}&#10;smooth = {0}||tick = {9}&#10;inhibited = {0}&#10;jump = {10, 4}&#10;smooth = {4}||tick = {11}&#10;inhibited = {0}&#10;jump = {10, 4}&#10;smooth = {7}||tick = {12}&#10;inhibited = {0}&#10;jump = {0, 0}&#10;smooth = {7.5}||tick = {23}&#10;inhibited = {0}||tick = {24}&#10;inhibited = {10}||tick = {26}&#10;inhibited = {10}||tick = {27}&#10;inhibited = {0}">
+    <module class="InputFile" name="Script" filename="fixture_GlanceGenerator.jsonl" send_end_of_file="false" />
+    <module class="GlanceGenerator" name="Jump" amplitude="10, 4" min_fraction="1" center_probability="0" return_time="0.3" min_interval="1" max_interval="1" seed="1" />
+    <module class="GlanceGenerator" name="Smooth" amplitude="8" min_fraction="1" center_probability="0" min_interval="1" max_interval="1" rate="6.931471805599453" seed="1" />
+    <module class="GlanceGenerator" name="Inhibited" amplitude="10" min_fraction="1" center_probability="0" return_time="0.3" min_interval="1" max_interval="1" seed="1" />
+    <module class="Abs" name="JumpAbs" />
+    <module class="Abs" name="SmoothAbs" />
+    <module class="Abs" name="InhibitedAbs" />
+    <module class="Print" name="Tick" />
+    <module class="Print" name="JumpOut" />
+    <module class="Print" name="SmoothOut" />
+    <module class="Print" name="InhibitedOut" />
+
+    <connection source="Script.INHIBIT" target="Inhibited.INHIBIT" delay="0" />
+    <connection source="Jump.OUTPUT" target="JumpAbs.INPUT" delay="0" />
+    <connection source="Smooth.OUTPUT" target="SmoothAbs.INPUT" delay="0" />
+    <connection source="Inhibited.OUTPUT" target="InhibitedAbs.INPUT" delay="0" />
+
+    <connection source="Script.TICK" target="Tick.INPUT" delay="0" label="tick" />
+    <connection source="JumpAbs.OUTPUT" target="JumpOut.INPUT" delay="0" label="jump" />
+    <connection source="SmoothAbs.OUTPUT" target="SmoothOut.INPUT" delay="0" label="smooth" />
+    <connection source="InhibitedAbs.OUTPUT" target="InhibitedOut.INPUT" delay="0" label="inhibited" />
+</group>

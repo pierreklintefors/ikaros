@@ -1,0 +1,24 @@
+<class name="GlanceGenerator" description="Generates random gaze shifts, such as glances and looking around, in any number of dimensions">
+    <description type="text">
+        GlanceGenerator makes a robot look around by itself. At random intervals between min_interval and
+        max_interval it chooses a new offset: back to the center with center_probability, otherwise a
+        random offset in every dimension with a size between min_fraction and 1 times amplitude and a
+        random sign. A glance can return to the center after return_time, which gives a quick look away
+        and back. The output moves toward the chosen offset at rate, or jumps when rate is 0. While
+        INHIBIT is above 0.5 the output returns to the center and no new glances start.
+    </description>
+
+    <parameter name="amplitude" type="matrix" default="10" description="Largest offset in each dimension; the number of values sets the size of OUTPUT" />
+    <parameter name="min_fraction" type="number" default="0.3" min="0" max="1" description="Smallest glance as a fraction of amplitude, so glances are not too small to notice" />
+    <parameter name="min_interval" type="number" default="1" min="0" description="Shortest time in seconds between two glances" />
+    <parameter name="max_interval" type="number" default="3" min="0" description="Longest time in seconds between two glances" />
+    <parameter name="center_probability" type="number" default="0.3" min="0" max="1" description="Probability that a new offset is the center" />
+    <parameter name="return_time" type="number" default="0" min="0" description="Seconds after which a glance returns to the center; 0 keeps it until the next glance" />
+    <parameter name="rate" type="rate" default="0" min="0" description="Rate in 1/s at which the output moves toward the chosen offset; 0 jumps" />
+    <parameter name="seed" type="number" default="-1" min="-1" description="Random seed; negative selects nondeterministic seeding" />
+
+    <input name="INHIBIT" optional="yes" size="1" description="While above 0.5 the output returns to the center and no new glances start" />
+
+    <output name="OUTPUT" size="amplitude.size" description="Present offset in each dimension, for example for GazeLock.EYE_OFFSET or GazeLock.HEAD_OFFSET" />
+    <output name="SHIFT" size="1" description="1 on the tick a new offset is chosen, including returns to the center" />
+</class>
