@@ -63,7 +63,7 @@ Arousal rises when someone new is found and when a reaction plays, and sets the 
 <connection source="Animator.PLAYING" target="Arousal.STIMULUS[1:2]" />
 <connection source="Arousal.MAPPED[0:1]" target="Animator.SPEED" />
 <connection source="Arousal.MAPPED[1:2]" target="Animator.INTENSITY" />
-<connection source="Arousal.MAPPED[2:3]" target="Sounds.VOLUME" />
+<connection source="Arousal.MAPPED[2:3]" target="Sounds.GAIN" />
 ```
 
 The test in `tests/` checks the boost, the decay of the excitation, the engaged resting level,
