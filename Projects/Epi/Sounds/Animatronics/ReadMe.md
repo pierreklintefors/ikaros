@@ -4,16 +4,21 @@ Non-verbal robot sounds for `Projects/Epi/EpiAnimatronics.ikg`, played by `Sound
 speak. It chirps and whistles, and its feelings come across through intonation: how the pitch
 moves, how fast, and how each sound starts and ends.
 
-| File | Used for | Sound |
+Every sound exists in three variants, `name_1.wav` to `name_3.wav`, and the demo picks one at random
+each time, so Epi never says the same thing twice in a row. The variants are different utterances
+with the same meaning: a hello always ends high, a question always rises, but the number of
+syllables, their contours, the pitch, the vibrato, the brightness, and the loudness change.
+
+| Sound | Used for | Description |
 | --- | --- | --- |
-| `hi.wav` | greet | three bouncy chirps that end high and open |
-| `wow.wav` | surprise in mind blown | a long whistle that starts low and climbs while its vibrato widens, then a bright "eep" |
-| `poof.wav` | mind blown | a sputtering whistle that powers down inside a soft puff of air and a thump |
-| `giggle.wav` | found you, giggle | eight quick chirps that hop between high and low, speed up, and drift down |
-| `hehe.wav` | mischief | a sly, low "he-he-heh" of three clipped chirps that slide down, and a sneaky rise at the end |
-| `hmm.wav` | cross-eyed and curious | a thoughtful hum, then a chirp that rises like a question |
-| `aww.wav` | shy | a soft, slow whistle that lifts a little and sinks away |
-| `sparkle.wav` | found you | bright blips that climb into a happy trill |
+| `hi` | greet | three bouncy chirps that end high and open |
+| `wow` | surprise in mind blown | a long whistle that starts low and climbs while its vibrato widens, then a bright "eep" |
+| `poof` | mind blown | a sputtering whistle that powers down inside a soft puff of air and a thump |
+| `giggle` | found you, giggle | eight quick chirps that hop between high and low, speed up, and drift down |
+| `hehe` | mischief | a sly, low "he-he-heh" of three clipped chirps that slide down, and a sneaky rise at the end |
+| `hmm` | cross-eyed and curious | a thoughtful hum, then a chirp that rises like a question |
+| `aww` | shy | a soft, slow whistle that lifts a little and sinks away |
+| `sparkle` | found you | bright blips that climb into a happy trill |
 
 ## Design
 
@@ -49,7 +54,9 @@ sound on time. In the demo, `Arousal` sets the playback volume through `SoundOut
 same sound is softer when Epi is calm and louder when it is excited.
 
 The giggle and "he-he-heh" onsets are listed in `render_sounds.py`; `EpiAnimations.json` flashes the
-mouth and bobs the head on those beats, so motion and sound land together.
+mouth and bobs the head on those beats, so motion and sound land together. Their variants therefore
+keep the rhythm and vary only in pitch, glides, and timbre, and the pooof keeps its timing for the
+flash.
 
 ## Rendering again
 
@@ -61,14 +68,15 @@ UserData/venvs/sounds/bin/pip install numpy
 UserData/venvs/sounds/bin/python Projects/Epi/Sounds/Animatronics/render_sounds.py
 ```
 
-Each sound is a short function at the end of the script that lists its syllables with their
-timing, pitch points, attack, decay, vibrato, warble, and brightness. `--only` renders some sounds,
-and `--seed` changes the warbles. To compare takes, render variants into
-`UserData/output/animatronics_sounds` and listen with `afplay`:
+Each sound is a short function at the end of the script that draws its syllables, timing, pitch
+points, attack, decay, vibrato, warble, and brightness from a random generator. `--only` renders
+some sounds, `--variants` sets how many variants are written, and `--seed` gives other variants. To
+compare other takes without replacing the demo files, render them elsewhere and listen with
+`afplay`:
 
 ```sh
-UserData/venvs/sounds/bin/python Projects/Epi/Sounds/Animatronics/render_sounds.py --variants 4
-afplay UserData/output/animatronics_sounds/poof_seed2.wav
+UserData/venvs/sounds/bin/python Projects/Epi/Sounds/Animatronics/render_sounds.py --seed 10 --out-dir UserData/output
+afplay UserData/output/giggle_2.wav
 ```
 
 ## Sources
