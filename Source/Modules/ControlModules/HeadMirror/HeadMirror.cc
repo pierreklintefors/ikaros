@@ -24,6 +24,8 @@ class HeadMirror : public Module
     parameter maxPan;
     parameter maxTilt;
     parameter poseSmoothing;
+    parameter tiltDeadZone;
+    parameter panDeadZone;
 
     parameter engageTime;
     parameter minWidth;
@@ -61,6 +63,8 @@ class HeadMirror : public Module
     float mirrorTilt = 0;       // offset before weighting; held while not mirroring
     float mirrorPan = 0;
     float weight = 0;
+    float heldTilt = 0;         // head goal, changed only in steps larger than the dead zones
+    float heldPan = 0;
 
     // Rate parameters are delivered per tick by the kernel.
     static float
@@ -137,6 +141,8 @@ public:
         Bind(maxPan, "max_pan");
         Bind(maxTilt, "max_tilt");
         Bind(poseSmoothing, "pose_smoothing");
+        Bind(tiltDeadZone, "tilt_dead_zone");
+        Bind(panDeadZone, "pan_dead_zone");
 
         Bind(engageTime, "engage_time");
         Bind(minWidth, "min_width");
@@ -218,10 +224,19 @@ public:
 
         offset(0) = weight * mirrorTilt + 0.0f; // + 0 turns -0 into 0 for display
         offset(1) = weight * mirrorPan + 0.0f;
-        headGoal(0) = direction(0) + offset(0);
-        headGoal(1) = direction(1) + offset(1);
+        // While HEAD_GOAL drives the head, it moves only when the goal is more than a dead zone away,
+        // which turns many small corrections into fewer, larger movements.
+        const bool driving = isMirroring || weight > followThreshold;
+        const float desiredTilt = direction(0) + offset(0);
+        const float desiredPan = direction(1) + offset(1);
+        if(!driving || std::fabs(desiredTilt - heldTilt) > tiltDeadZone.as_float())
+            heldTilt = desiredTilt;
+        if(!driving || std::fabs(desiredPan - heldPan) > panDeadZone.as_float())
+            heldPan = desiredPan;
+        headGoal(0) = heldTilt;
+        headGoal(1) = heldPan;
 
-        follow(0) = isMirroring || weight > followThreshold ? 0.0f : 1.0f;
+        follow(0) = driving ? 0.0f : 1.0f;
         mirroringFlag(0) = isMirroring ? 1.0f : 0.0f;
         weightOutput(0) = weight;
         state(0) = static_cast<float>(isMirroring ? mirroring : present ? tracked : noPerson);

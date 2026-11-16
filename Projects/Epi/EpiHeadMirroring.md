@@ -18,7 +18,8 @@ The model works with every Epi robot that `EpiServos` knows. Choose the robot wi
    does not take the robot's attention. It passes on the pose of the chosen face.
 4. `HeadMirror` waits until the person has been followed for one second, is close enough, and
    roughly faces the robot. It then fades in a mirrored head offset: half of the person's yaw and
-   pitch, limited to 10 degrees. When another person takes over or the person leaves, the offset
+   pitch, limited to 10 degrees. The head tilt moves only in steps of more than 3 degrees, so the
+   play in the tilt gears does not turn small corrections into jitter. When another person takes over or the person leaves, the offset
    fades out completely before the robot starts mirroring anyone else.
 5. `GazeLock` keeps the eyes on the person and moves the head smoothly, limiting its speed and
    acceleration. While the robot mirrors, the head follows the mirrored goal from `HeadMirror`, and
@@ -141,7 +142,9 @@ Check these on each robot with the room empty, then with one person in front of 
    `switch_ratio` and `switch_delay` on `Selector` and `engage_time` on `Mirror` for the room.
 7. **Distance.** Raise `min_width` on `Mirror` if the robot mirrors people who are too far away to
    notice it, and `min_width` on `Selector` if it reacts to the background.
-8. **Limits.** Confirm that the `GazeLock` limits keep the robot clear of its mechanical stops.
+8. **Tilt jitter.** If the tilt still jitters, raise `tilt_dead_zone` on `Mirror`, for example to 4.
+   If nodding looks too coarse, lower it. `pan_dead_zone` does the same for pan and is 0 by default.
+9. **Limits.** Confirm that the `GazeLock` limits keep the robot clear of its mechanical stops.
 
 ## Known limitations
 
