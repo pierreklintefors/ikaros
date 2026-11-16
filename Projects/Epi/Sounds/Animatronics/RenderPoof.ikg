@@ -1,0 +1,40 @@
+<group name="RenderPoof"
+       title="Render the pooof sound"
+       description="Renders poof.wav with the Ikaros synthesizer: a burst of filtered noise whose brightness and loudness fall together, over a short low thump. Run with -b and -u set to this folder."
+       sample_rate="24000"
+       tick_duration="0.01"
+       stop="110"
+       start="true"
+       real_time="false">
+
+    <!-- One-tick trigger at the start -->
+    <module class="TimeSeries" name="Start" data="1; 0" base_duration="0.01" _x="24" _y="24" />
+
+    <!-- Breath: white noise through a low-pass filter that closes as the envelope falls -->
+    <module class="AudioOscillator" name="Silence" volume="0" _x="24" _y="120" />
+    <module class="Noise" name="White" type="gaussian" mean="0" stddev="0.52" seed="7" _x="216" _y="120" />
+    <module class="ADSREnvelope" name="BreathEnvelope" attack="0.03" decay="0.9" sustain="0" release="0.05" _x="216" _y="24" />
+    <module class="AudioFilter" name="Breath" cutoff="220" envelope_amount="4.2" resonance="0.2" _x="408" _y="120" />
+    <module class="Multiply" name="BreathLevel" _x="600" _y="120" />
+
+    <!-- Thump: a low sine with a fast decay -->
+    <module class="AudioOscillator" name="Low" wave_shape="sine" frequency="72" volume="0.5" _x="24" _y="264" />
+    <module class="ADSREnvelope" name="ThumpEnvelope" attack="0.004" decay="0.18" sustain="0" release="0.02" _x="216" _y="336" />
+    <module class="Multiply" name="Thump" _x="408" _y="264" />
+
+    <module class="Add" name="Mix" _x="792" _y="192" />
+    <module class="OutputAudioFile" name="File" filename="poof.wav" bits_per_sample="16" _x="984" _y="192" />
+
+    <connection source="Start.OUTPUT" target="BreathEnvelope.TRIG" />
+    <connection source="Start.OUTPUT" target="ThumpEnvelope.TRIG" />
+    <connection source="Silence.OUTPUT" target="White.INPUT" />
+    <connection source="White.OUTPUT" target="Breath.INPUT" />
+    <connection source="BreathEnvelope.OUTPUT" target="Breath.CUTOFF_MOD" />
+    <connection source="Breath.OUTPUT" target="BreathLevel.INPUT1" />
+    <connection source="BreathEnvelope.OUTPUT" target="BreathLevel.INPUT2" />
+    <connection source="Low.OUTPUT" target="Thump.INPUT1" />
+    <connection source="ThumpEnvelope.OUTPUT" target="Thump.INPUT2" />
+    <connection source="BreathLevel.OUTPUT" target="Mix.INPUT1" />
+    <connection source="Thump.OUTPUT" target="Mix.INPUT2" />
+    <connection source="Mix.OUTPUT" target="File.INPUT" />
+</group>

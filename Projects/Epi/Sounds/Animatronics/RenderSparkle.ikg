@@ -1,0 +1,32 @@
+<group name="RenderSparkle"
+       title="Render the sparkle sound"
+       description="Renders sparkle.wav with the Ikaros synthesizer: three quick rising bell-like notes. Run with -b and -u set to this folder."
+       sample_rate="24000"
+       tick_duration="0.01"
+       stop="42"
+       start="true"
+       real_time="false">
+
+    <!-- Notes E6, G6, C7, 70 ms apart; TRIG restarts the envelope on each note -->
+    <module class="TimeSeries" name="Notes" data="1318.51; 1567.98; 2093.00" base_duration="0.07" _x="24" _y="24" />
+    <module class="TimeSeries" name="Start" data="1; 0" base_duration="0.01" _x="24" _y="168" />
+    <module class="Maximum" name="Retrigger" _x="216" _y="168" />
+
+    <module class="AudioOscillator" name="Tone" wave_shape="triangle" volume="0.85" _x="216" _y="24" />
+    <module class="AudioOscillator" name="Shimmer" wave_shape="sine" multiplier="2" volume="0.28" _x="216" _y="96" />
+    <module class="Add" name="Bell" _x="408" _y="48" />
+    <module class="ADSREnvelope" name="Envelope" attack="0.004" decay="0.22" sustain="0" release="0.03" _x="408" _y="168" />
+    <module class="Multiply" name="Level" _x="600" _y="96" />
+    <module class="OutputAudioFile" name="File" filename="sparkle.wav" bits_per_sample="16" _x="792" _y="96" />
+
+    <connection source="Notes.OUTPUT" target="Tone.INPUT" />
+    <connection source="Notes.OUTPUT" target="Shimmer.INPUT" />
+    <connection source="Tone.OUTPUT" target="Bell.INPUT1" />
+    <connection source="Shimmer.OUTPUT" target="Bell.INPUT2" />
+    <connection source="Notes.TRIG" target="Retrigger.INPUT1" />
+    <connection source="Start.OUTPUT" target="Retrigger.INPUT2" />
+    <connection source="Retrigger.OUTPUT" target="Envelope.TRIG" />
+    <connection source="Bell.OUTPUT" target="Level.INPUT1" />
+    <connection source="Envelope.OUTPUT" target="Level.INPUT2" />
+    <connection source="Level.OUTPUT" target="File.INPUT" />
+</group>
