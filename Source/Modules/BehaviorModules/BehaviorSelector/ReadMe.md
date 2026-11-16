@@ -45,6 +45,12 @@ the middle of a spontaneous behaviour; a `KeyframeAnimator` then blends into the
 a greeting or farewell, no other reaction starts for `reaction_cooldown` seconds, so a person who is
 lost for a moment is not greeted again. Set `greeting` or `farewell` to -1 to turn them off.
 
+`REQUEST` lets other modules ask for a particular behaviour. A change from 0 to 1 in element i
+starts behaviour i at once, interrupting like a reaction, unless it started less than `cooldown`
+seconds ago. Connect a detector to one element with a target range, for example
+`OscillationDetector.DETECTED` to `REQUEST[10:11]`, so that a person who pans their head starts a
+mirroring game.
+
 `ENABLE` at 0 stops all triggers, for example from a switch on a dashboard.
 
 `TRIGGER` has `count` elements. The element of a starting behaviour is 1 for one tick. `SELECTED`
@@ -80,6 +86,7 @@ spontaneous one.
 | BUSY | 1 while a behaviour plays; spontaneous behaviours wait | yes |
 | ENABLE | 1 allows behaviours, 0 stops all triggers; enabled when not connected | yes |
 | AROUSAL | Present excitement from 0 to 1; selects by arousal_levels and scales the interval | yes |
+| REQUEST | A change from 0 to 1 in element i starts behaviour i at once, unless it is cooling down | yes |
 
 ## Outputs
 
@@ -103,4 +110,5 @@ spontaneous one.
 
 The tests in `tests/` check the weighted choice in each state, the greeting delay, the cooldown,
 the wait while `BUSY` is 1, the farewell, and the reaction cooldown, and the mood test checks
-the choice by arousal, `memory`, and the shorter interval when excited.
+the choice by arousal, `memory`, and the shorter interval when excited. The request test checks
+that a request starts its behaviour while `BUSY` is 1 and is ignored during the cooldown.

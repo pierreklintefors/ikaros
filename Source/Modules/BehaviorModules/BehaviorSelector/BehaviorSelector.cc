@@ -32,6 +32,7 @@ class BehaviorSelector : public Module
     matrix busy;
     matrix enable;
     matrix arousal;
+    matrix request;
 
     matrix trigger;
     matrix selected;
@@ -47,6 +48,7 @@ class BehaviorSelector : public Module
     bool wasEngaged = false;
     float lastNewTarget = 0;
     std::deque<int> recent; // most recent spontaneous behaviours, newest first
+    matrix lastRequest;
 
     float
     Uniform(float low, float high)
@@ -167,6 +169,7 @@ public:
         Bind(busy, "BUSY");
         Bind(enable, "ENABLE");
         Bind(arousal, "AROUSAL");
+        Bind(request, "REQUEST");
 
         Bind(trigger, "TRIGGER");
         Bind(selected, "SELECTED");
@@ -180,6 +183,11 @@ public:
         else
             randomGenerator.seed(static_cast<std::mt19937::result_type>(seed.as_int()));
 
+        if(request.connected())
+        {
+            lastRequest.realloc(request.size());
+            lastRequest.set(0.0f);
+        }
         sinceChosen.realloc(trigger.size());
         sinceChosen.set(cooldown.as_float());
         weights.realloc(trigger.size());
@@ -228,6 +236,19 @@ public:
                 sinceReaction = 0;
             }
         }
+
+        // A request starts its behaviour at once, unless that behaviour is still cooling down.
+        if(request.connected())
+            for(int i = 0; i < request.size(); ++i)
+            {
+                const float value = request.data()[i];
+                if(value > 0.5f && lastRequest(i) <= 0.5f && i < trigger.size() && sinceChosen(i) >= cooldown.as_float() - epsilon)
+                {
+                    greetingPending = false;
+                    Fire(i);
+                }
+                lastRequest(i) = value;
+            }
 
         // Reactions do not wait for BUSY, so the robot responds to people at once.
         // The countdown can pass zero between ticks, so the pending flag, not its sign, marks a greeting.

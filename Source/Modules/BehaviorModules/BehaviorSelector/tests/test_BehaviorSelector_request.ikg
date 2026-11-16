@@ -1,0 +1,18 @@
+<group name="BehaviorSelectorRequestTest"
+       description="A REQUEST edge on one element starts that behaviour at once, also while BUSY, and not again during its cooldown"
+       start="true" stop="30" tick_duration="0.1" threads="1"
+       cli_args="-u${TEST_DIR}"
+       expected_output_contains="tick = {3}&#10;trigger = {0, 0, 1}||tick = {25}&#10;trigger = {0, 0, 1}"
+       expected_output_twice="trigger = {0, 0, 1}">
+    <module class="InputFile" name="Script" filename="fixture_BehaviorSelector_request.jsonl" send_end_of_file="false" />
+    <module class="Constant" name="Idle" data="0" />
+    <module class="BehaviorSelector" name="Behaviors" count="3" idle_weights="1, 1, 0" cooldown="2" min_interval="100" max_interval="100" seed="1" />
+    <module class="Print" name="Tick" />
+    <module class="Print" name="Trigger" />
+
+    <connection source="Idle.OUTPUT" target="Behaviors.ENGAGED" delay="0" />
+    <connection source="Script.BUSY" target="Behaviors.BUSY" delay="0" />
+    <connection source="Script.REQ" target="Behaviors.REQUEST[2:3]" delay="0" />
+    <connection source="Script.TICK" target="Tick.INPUT" delay="0" label="tick" />
+    <connection source="Behaviors.TRIGGER" target="Trigger.INPUT" delay="0" label="trigger" />
+</group>
