@@ -7,6 +7,8 @@
        eye_url="http://RightEye.local:8080/stream/video.mjpeg"
        camera_eye="right"
        vergence_sign="-1"
+       mirror_sign="-1"
+       mirror_gain="0.5"
        x_sign="-1"
        y_sign="1"
        aim_y="0.3"
@@ -25,18 +27,18 @@
 
     <!-- Behaviour: when to do what, and how it looks -->
     <module class="Constant" name="BehaviorsEnable" data="1" _x="24" _y="264" />
-    <module class="BehaviorSelector" name="Behaviors" count="10" greeting="0" greeting_delay="0.3" farewell="6"
-            idle_weights="0, 0, 0.4, 1, 0, 0, 2, 0, 0.4, 3" engaged_weights="0, 1, 1.5, 1, 1.5, 1, 0.6, 1, 1.5, 0.3"
-            arousal_levels="0.8, 0.5, 0.6, 0.5, 0.75, 0.9, 0.3, 0.35, 0.55, 0.15" arousal_width="0.3" memory="3"
+    <module class="BehaviorSelector" name="Behaviors" count="11" greeting="0" greeting_delay="0.3" farewell="6"
+            idle_weights="0, 0, 0.4, 1, 0, 0, 2, 0, 0.4, 3, 0" engaged_weights="0, 1, 1.5, 1, 1.5, 1, 0.6, 1, 1.5, 0.3, 1.5"
+            arousal_levels="0.8, 0.5, 0.6, 0.5, 0.75, 0.9, 0.3, 0.35, 0.55, 0.15, 0.6" arousal_width="0.3" memory="3"
             min_interval="5" max_interval="10" excited_interval_scale="0.6" cooldown="15" reaction_cooldown="10" _x="216" _y="264" />
     <module class="KeyframeAnimator" name="Animator" file="../Projects/Epi/EpiAnimations.json"
-            channels="eye_offset, vergence, head_tilt, head_pan, pupil, eye_r, eye_g, eye_b, eye_mix, mouth_r, mouth_g, mouth_b, mouth_mix, brightness, lid"
-            rest="0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0"
-            events="blink, hi, wow, poof, giggle, hmm, aww, sparkle, hehe" event_count="9" release_rate="4"
+            channels="eye_offset, vergence, head_tilt, head_pan, pupil, eye_r, eye_g, eye_b, eye_mix, mouth_r, mouth_g, mouth_b, mouth_mix, brightness, lid, mirror, hold"
+            rest="0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0"
+            events="blink, hi_1, hi_2, hi_3, wow_1, wow_2, wow_3, poof_1, poof_2, poof_3, giggle_1, giggle_2, giggle_3, hmm_1, hmm_2, hmm_3, aww_1, aww_2, aww_3, sparkle_1, sparkle_2, sparkle_3, hehe_1, hehe_2, hehe_3" event_count="25" release_rate="4"
             intensity_channels="eye_offset, vergence, head_tilt, head_pan, pupil, lid" mirror_channels="eye_offset, head_pan"
             speed_variation="0.12" intensity_variation="0.15" _x="408" _y="264" />
     <module class="SoundOutput" name="Sounds"
-            sounds="../Projects/Epi/Sounds/Animatronics/hi.wav, ../Projects/Epi/Sounds/Animatronics/wow.wav, ../Projects/Epi/Sounds/Animatronics/poof.wav, ../Projects/Epi/Sounds/Animatronics/giggle.wav, ../Projects/Epi/Sounds/Animatronics/hmm.wav, ../Projects/Epi/Sounds/Animatronics/aww.wav, ../Projects/Epi/Sounds/Animatronics/sparkle.wav, ../Projects/Epi/Sounds/Animatronics/hehe.wav"
+            sounds="../Projects/Epi/Sounds/Animatronics/hi_1.wav, ../Projects/Epi/Sounds/Animatronics/hi_2.wav, ../Projects/Epi/Sounds/Animatronics/hi_3.wav, ../Projects/Epi/Sounds/Animatronics/wow_1.wav, ../Projects/Epi/Sounds/Animatronics/wow_2.wav, ../Projects/Epi/Sounds/Animatronics/wow_3.wav, ../Projects/Epi/Sounds/Animatronics/poof_1.wav, ../Projects/Epi/Sounds/Animatronics/poof_2.wav, ../Projects/Epi/Sounds/Animatronics/poof_3.wav, ../Projects/Epi/Sounds/Animatronics/giggle_1.wav, ../Projects/Epi/Sounds/Animatronics/giggle_2.wav, ../Projects/Epi/Sounds/Animatronics/giggle_3.wav, ../Projects/Epi/Sounds/Animatronics/hmm_1.wav, ../Projects/Epi/Sounds/Animatronics/hmm_2.wav, ../Projects/Epi/Sounds/Animatronics/hmm_3.wav, ../Projects/Epi/Sounds/Animatronics/aww_1.wav, ../Projects/Epi/Sounds/Animatronics/aww_2.wav, ../Projects/Epi/Sounds/Animatronics/aww_3.wav, ../Projects/Epi/Sounds/Animatronics/sparkle_1.wav, ../Projects/Epi/Sounds/Animatronics/sparkle_2.wav, ../Projects/Epi/Sounds/Animatronics/sparkle_3.wav, ../Projects/Epi/Sounds/Animatronics/hehe_1.wav, ../Projects/Epi/Sounds/Animatronics/hehe_2.wav, ../Projects/Epi/Sounds/Animatronics/hehe_3.wav"
             lag="0" _x="600" _y="816" />
 
     <!-- Mood: excitement rises when someone new is found, with a close face, and with each reaction,
@@ -58,10 +60,15 @@
     <module class="Add" name="HeadOffset" _x="600" _y="264" />
     <module class="Maximum" name="Lid" _x="600" _y="720" />
 
+    <!-- Copycat game: while the animation's mirror channel is 1, HeadMirror copies the person's head -->
+    <module class="HeadMirror" name="Mirror" yaw_sign="@mirror_sign" yaw_gain="@mirror_gain" pitch_gain="@mirror_gain"
+            pitch_sign="@y_sign" tilt_dead_zone="3" pan_dead_zone="3" settle_time="0.2" max_pan="10" max_tilt="10" engage_time="0.6"
+            min_width="0.12" facing_limit="35" lost_time="0.6" fade_in="2" fade_out="4" pose_smoothing="8" _x="216" _y="768" />
+
     <!-- Gaze and expression -->
     <module class="GazeLock" name="Gaze" head_gain="3" head_max_speed="90" head_max_acceleration="300" head_dead_zone="5" eye_smoothing="20"
             tilt_speed_scale="1" tilt_acceleration_scale="0.6" _x="792" _y="24" />
-    <module class="EpiExpression" name="Expression" idle_color="0.5, 0.35, 0.05" engaged_color="1, 0.8, 0.35" mouth_color="0.25, 0.2, 0.05"
+    <module class="EpiExpression" name="Expression" idle_color="0.5, 0.35, 0.05" engaged_color="1, 0.8, 0.35" mouth_color="0.25, 0.2, 0.05" mouth_idle_color="0.25, 0.2, 0.05"
             idle_pupil="9" engaged_pupil="12" attack_rate="4" release_rate="1" _x="792" _y="360" />
 
     <!-- Hardware -->
@@ -70,6 +77,7 @@
 
     <connection source="Eye.OUTPUT" target="Faces.INPUT" delay="0" />
     <connection source="Faces.BOXES" target="Target.BOXES" delay="0" />
+    <connection source="Faces.POSES" target="Target.POSES" delay="0" />
 
     <connection source="Gaze.LOCKED" target="Behaviors.ENGAGED" delay="1" />
     <connection source="Target.NEW_TARGET" target="Behaviors.NEW_TARGET" delay="0" />
@@ -85,10 +93,10 @@
     <connection source="Animator.PLAYING" target="Arousal.STIMULUS[1:2]" delay="1" />
     <connection source="Target.TARGET[2:3]" target="Arousal.DRIVE" delay="0" />
 
-    <connection source="Animator.EVENTS[1:9]" target="Sounds.TRIG" delay="0" />
+    <connection source="Animator.EVENTS[1:25]" target="Sounds.TRIG" delay="0" />
     <connection source="Arousal.MAPPED[2:3]" target="Sounds.GAIN" delay="0" />
     <connection source="Animator.EVENTS[0:1]" target="Blinker.TRIGGER" delay="0" />
-    <connection source="Animator.PLAYING" target="Blinker.INHIBIT" delay="0" />
+    <connection source="Animator.OUTPUT[16:17]" target="Blinker.INHIBIT" delay="0" />
     <connection source="Animator.PLAYING" target="EyeGlances.INHIBIT" delay="0" />
     <connection source="Gaze.LOCKED" target="HeadIdle.INPUT1" delay="1" />
     <connection source="Animator.PLAYING" target="HeadIdle.INPUT2" delay="0" />
@@ -101,7 +109,17 @@
     <connection source="Animator.OUTPUT[14:15]" target="Lid.INPUT1" delay="0" />
     <connection source="Blinker.LID" target="Lid.INPUT2" delay="0" />
 
+    <connection source="Target.TARGET_POSE" target="Mirror.POSE" delay="0" />
+    <connection source="Target.VALID" target="Mirror.VALID" delay="0" />
+    <connection source="Gaze.TARGET_DIRECTION" target="Mirror.DIRECTION" delay="1" />
+    <connection source="Target.NEW_TARGET" target="Mirror.NEW_TARGET" delay="0" />
+    <connection source="Target.TARGET" target="Mirror.TARGET" delay="0" />
+    <connection source="Gaze.LOCKED" target="Mirror.LOCKED" delay="1" />
+    <connection source="Animator.OUTPUT[15:16]" target="Mirror.ENABLE" delay="0" />
+
     <connection source="Servos.PRESENT_POSITION" target="Gaze.PRESENT_POSITION" delay="1" />
+    <connection source="Mirror.FOLLOW" target="Gaze.FOLLOW" delay="0" />
+    <connection source="Mirror.HEAD_GOAL" target="Gaze.MANUAL_HEAD" delay="0" />
     <connection source="Target.TARGET" target="Gaze.TARGET" delay="0" />
     <connection source="Target.VALID" target="Gaze.VALID" delay="0" />
     <connection source="Expression.PUPIL_SIZE" target="Gaze.PUPIL_SIZE" delay="1" />
@@ -110,6 +128,7 @@
     <connection source="HeadOffset.OUTPUT" target="Gaze.HEAD_OFFSET" delay="0" />
 
     <connection source="Gaze.LOCKED" target="Expression.ENGAGED" delay="0" />
+    <connection source="Mirror.MIRRORING" target="Expression.MIRRORING" delay="0" />
     <connection source="Lid.OUTPUT" target="Expression.BLINK" delay="0" />
     <connection source="Animator.OUTPUT[5:9]" target="Expression.EYE_OVERLAY" delay="0" />
     <connection source="Animator.OUTPUT[9:13]" target="Expression.MOUTH_OVERLAY" delay="0" />
@@ -143,26 +162,29 @@
             x="1792" y="72" _x="1792" _y="72" width="120" height="56" show_title="yes" show_frame="yes" />
 
 
+
     <widget class="button" name="FoundYouButton" label="0 Found you" command="Animator.play" select_x="0" type="push"
-            x="1032" y="144" _x="1032" _y="144" width="168" height="40" show_title="no" show_frame="no" />
+            x="1032" y="144" _x="1032" _y="144" width="140" height="40" show_title="no" show_frame="no" />
     <widget class="button" name="GreetButton" label="1 Greet" command="Animator.play" select_x="1" type="push"
-            x="1210" y="144" _x="1210" _y="144" width="168" height="40" show_title="no" show_frame="no" />
+            x="1180" y="144" _x="1180" _y="144" width="140" height="40" show_title="no" show_frame="no" />
     <widget class="button" name="CrossEyedButton" label="2 Cross-eyed" command="Animator.play" select_x="2" type="push"
-            x="1388" y="144" _x="1388" _y="144" width="168" height="40" show_title="no" show_frame="no" />
+            x="1328" y="144" _x="1328" _y="144" width="140" height="40" show_title="no" show_frame="no" />
     <widget class="button" name="EyeDartButton" label="3 Eye dart" command="Animator.play" select_x="3" type="push"
-            x="1566" y="144" _x="1566" _y="144" width="168" height="40" show_title="no" show_frame="no" />
+            x="1476" y="144" _x="1476" _y="144" width="140" height="40" show_title="no" show_frame="no" />
     <widget class="button" name="GiggleButton" label="4 Giggle" command="Animator.play" select_x="4" type="push"
-            x="1744" y="144" _x="1744" _y="144" width="168" height="40" show_title="no" show_frame="no" />
+            x="1624" y="144" _x="1624" _y="144" width="140" height="40" show_title="no" show_frame="no" />
     <widget class="button" name="MindBlownButton" label="5 Mind blown" command="Animator.play" select_x="5" type="push"
-            x="1032" y="192" _x="1032" _y="192" width="168" height="40" show_title="no" show_frame="no" />
+            x="1772" y="144" _x="1772" _y="144" width="140" height="40" show_title="no" show_frame="no" />
     <widget class="button" name="CuriousButton" label="6 Curious" command="Animator.play" select_x="6" type="push"
-            x="1210" y="192" _x="1210" _y="192" width="168" height="40" show_title="no" show_frame="no" />
+            x="1032" y="192" _x="1032" _y="192" width="140" height="40" show_title="no" show_frame="no" />
     <widget class="button" name="ShyButton" label="7 Shy" command="Animator.play" select_x="7" type="push"
-            x="1388" y="192" _x="1388" _y="192" width="168" height="40" show_title="no" show_frame="no" />
+            x="1180" y="192" _x="1180" _y="192" width="140" height="40" show_title="no" show_frame="no" />
     <widget class="button" name="MischiefButton" label="8 Mischief" command="Animator.play" select_x="8" type="push"
-            x="1566" y="192" _x="1566" _y="192" width="168" height="40" show_title="no" show_frame="no" />
+            x="1328" y="192" _x="1328" _y="192" width="140" height="40" show_title="no" show_frame="no" />
     <widget class="button" name="LookAroundButton" label="9 Look around" command="Animator.play" select_x="9" type="push"
-            x="1744" y="192" _x="1744" _y="192" width="168" height="40" show_title="no" show_frame="no" />
+            x="1476" y="192" _x="1476" _y="192" width="140" height="40" show_title="no" show_frame="no" />
+    <widget class="button" name="CopycatButton" label="10 Copycat" command="Animator.play" select_x="10" type="push"
+            x="1624" y="192" _x="1624" _y="192" width="140" height="40" show_title="no" show_frame="no" />
 
     <!-- Dashboard: camera with all faces (green) and the followed face (magenta) -->
     <widget class="text" name="CameraCaption" text="Eye camera"

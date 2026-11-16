@@ -3,10 +3,11 @@
 `EpiAnimatronics.ikg` makes an Epi robot look alive, playful, and curious. It never sits still: it
 blinks, glances, and looks around the room. When it finds someone new it perks up and giggles,
 and while it has company it plays little reactions: a sly look to the side with a "he-he-heh", a
-cross-eyed moment with blue eyes, a giggle, or being "mind blown" with eyes that move apart, a
-rising whistle of surprise, and a "pooof". It speaks only in robot chirps and whistles, and an
-excitement level, its arousal, makes it livelier and louder when something happens and calmer when
-nothing does.
+cross-eyed moment with blue eyes, a giggle, being "mind blown" with eyes that move apart, a rising
+whistle of surprise, and a "pooof", or a game of copycat in which it mirrors the person's head
+movements. It speaks only in robot chirps and whistles, not every time and never quite the same,
+and an excitement level, its arousal, makes it livelier and louder when something happens and
+calmer when nothing does.
 
 The model works with every Epi robot that `EpiServos` knows. Choose the robot with `robot`.
 
@@ -24,8 +25,9 @@ synchronized with the motion:
 3. **Background life.** `Blinker` blinks every 1.5 to 4.5 seconds, sometimes twice, as an eyelid
    that closes from the top of the LED ring down. `EyeGlances` makes quick glances away and back, and
    `HeadGlances` slowly looks around while nobody is followed, which also lets the camera find new
-   faces. Both pause while an animation plays; a blink that falls due during an animation follows
-   right after it, as people blink after a surprise.
+   faces. The glances pause while an animation plays. Blinks continue through most animations and
+   pause only where wide-open eyes carry the moment (found you, cross-eyed, and mind blown); a blink
+   that falls due then follows right after it, as people blink after a surprise.
 4. **Mood.** `Arousal` keeps an excitement level from 0 to 1. It rests low when Epi is alone and a
    little higher with company. Finding someone new raises it a lot, a face that comes close raises
    it, and each reaction raises it a little. It then falls back over about half a minute. Arousal
@@ -37,11 +39,17 @@ synchronized with the motion:
    level, and the ones that match the present arousal are preferred, so Epi is lively right after
    meeting someone and calmer later. The last three animations are avoided, and none comes back
    within 15 seconds.
-6. **Performing.** `KeyframeAnimator` plays the animations from `EpiAnimations.json` on 15
-   channels: eye offset, vergence, head tilt and pan, pupil, eye and mouth colors, brightness, and
-   eyelid. Each play varies a little in tempo and size, and the sideways movements are mirrored at
-   random, so the same animation glances left one time and right the next.
-7. **Body.** `EpiExpression` shows the state and the animation on the LEDs and pupils. `SoundOutput`
+6. **Performing.** `KeyframeAnimator` plays the animations from `EpiAnimations.json` on 17
+   channels: eye offset, vergence, head tilt and pan, pupil, eye and mouth colors, brightness,
+   eyelid, mirroring, and a blink hold. Each play varies a little in tempo and size, and the sideways
+   movements are mirrored at random, so the same animation glances left one time and right the next.
+7. **Playing copycat.** During the copycat animation its `mirror` channel turns on `HeadMirror`,
+   which copies the person's head turns and nods as a mirror image, as in `EpiHeadMirroring.ikg`,
+   while the eyes stay on the person and glow green.
+8. **Voice.** Most sounds play only in some of the plays, and each time one of three variants is
+   chosen, so Epi is not chatty and never repeats itself exactly. The signature sounds of mind
+   blown always play.
+9. **Body.** `EpiExpression` shows the state and the animation on the LEDs and pupils. `SoundOutput`
    plays the sounds, and `EpiServos` and `FadeCandy` drive the hardware.
 
 All modules apart from `EpiServos`, `EpiExpression`, and `FadeCandy` are general and can be used
@@ -67,10 +75,15 @@ cross-eyed, and the flash comes with the pooof.
 | 7 | Shy | Looks down and away with pink eyes and mouth, peeks back once, half-closed eyes | a soft whistle that lifts and sinks away | 0.35 |
 | 8 | Mischief | The eyes slide slowly to the side under half-closed lids, purple glow, a sly laugh with a flash and a bob on each syllable, then a quick, innocent look back with wide eyes | a sly "he-he-heh" | 0.55 |
 | 9 | Look around | The eyes lead each turn and the head follows slowly to one side and the other | | 0.15 |
+| 10 | Copycat | A bright, inviting look and a little lift of the head, then about nine seconds of mirroring the person's head movements with green eyes, ending with a happy squint | sometimes a hello at the start and a giggle at the end | 0.6 |
+
+The sound column lists what can play. Each sound event has a probability, from 35 percent for the
+hum of cross-eyed to 85 percent for the giggles; only the wow and pooof of mind blown always play.
+Each time, one of three takes of the sound is chosen.
 
 Alone, Epi mostly looks around and peeks curiously, with an occasional eye dart, cross-eyed moment,
-or bit of mischief. With company it mixes mischief, cross-eyed, giggle, greet, shy, eye dart, and
-mind blown, weighted by the mood.
+or bit of mischief. With company it mixes mischief, cross-eyed, giggle, copycat, greet, shy, eye dart,
+and mind blown, weighted by the mood.
 
 Every animation can also be played with the buttons on the dashboard.
 
@@ -80,6 +93,7 @@ Every animation can also be played with the buttons on the dashboard.
 | --- | --- | --- |
 | Nobody followed | Dim amber | Dim |
 | Looking at someone | Bright warm white, pupils open | Dim |
+| Copycat while mirroring | Green | Bright warm white |
 | Animation | The animation's colors on top | The animation's colors on top |
 
 ## Running
@@ -130,6 +144,8 @@ These model-level settings can be changed on the command line:
 | `camera_id` | `0` | Mac camera used with `camera=InputVideo`, numbered as macOS lists them |
 | `eye_url` | `http://RightEye.local:8080/stream/video.mjpeg` | Eye camera stream, or a video file, used with `camera=InputVideoStream` |
 | `camera_eye` | `right` | Eye that carries the camera; must match `eye_url` |
+| `mirror_sign` | `-1` | `-1` mirrors the person in copycat like a mirror image; `1` copies the movement with the same side |
+| `mirror_gain` | `0.5` | Robot head movement per degree of the person's head movement in copycat |
 | `vergence_sign` | `-1` | Direction of vergence; `-1` makes positive vergence turn the eyes inward on Epi, where a positive eye pan turns the eye to the robot's left |
 | `x_sign` | `-1` | Direction from image x to head and eye pan; `-1` was found on EpiBlack |
 | `y_sign` | `1` | Direction from image y to head tilt; `1` was found on EpiBlack |
@@ -152,6 +168,7 @@ The character is tuned on the modules:
 | `Arousal` | `low`, `high` | Tempo, size, volume, and pupil offset at arousal 0 and 1 |
 | `Animator` | `speed_variation`, `intensity_variation`, `mirror_channels` | How much each play varies |
 | `Blinker`, `EyeGlances`, `HeadGlances` | intervals and sizes | The background life |
+| `Mirror` | `max_pan`, `max_tilt`, dead zones, `engage_time` | The copycat game; see `EpiHeadMirroring.md` |
 
 The camera settings in `EpiFaceFollowing.md` (640 x 480, 30 frames per second, JPEG quality about
 70) apply here too.
@@ -162,7 +179,7 @@ The camera settings in `EpiFaceFollowing.md` (640 x 480, 30 frames per second, J
 - **Faces**, **Locked**, **Animation**, **Next in**, and **Arousal** show how many faces passed the
   filters, whether the gaze is locked, the playing animation (-1 for none), the quiet seconds left
   before the next spontaneous animation, and the excitement level.
-- The ten numbered buttons play each animation at once.
+- The eleven numbered buttons play each animation at once.
 - The camera view shows all faces in green and the followed face in magenta.
 - The robot view shows Epi from the front, with its left eye on your right: the eye directions,
   including vergence, the pupils, the head, and every LED, so the eyelid sweep is visible.
@@ -174,7 +191,8 @@ The animations are in `EpiAnimations.json`; the format is described in the `Keyf
 documentation. The channels are, in this order: `eye_offset` and `vergence` in degrees,
 `head_tilt` and `head_pan` in degrees, `pupil` in mm added to the pupil size, `eye_r`, `eye_g`,
 `eye_b`, and `eye_mix` for the eye color overlay, `mouth_r`, `mouth_g`, `mouth_b`, and `mouth_mix`
-for the mouth, `brightness` as a factor, and `lid` from 0 (open) to 1 (closed). Arousal scales the
+for the mouth, `brightness` as a factor, `lid` from 0 (open) to 1 (closed), `mirror`, which turns
+head mirroring on while it is 1, and `hold`, which stops blinks while it is 1. Arousal scales the
 movement channels (eye offset, vergence, head, pupil, and lid) but not the colors, and mirrors
 `eye_offset` and `head_pan` at random.
 
@@ -185,9 +203,10 @@ channels return to rest. For the mouth to flash in time with a sound, put keys o
 syllable onsets; `render_sounds.py` lists the onsets of the giggle and the "he-he-heh".
 
 The sounds are in `Sounds/Animatronics`, with a description of how they were made and how to make
-new ones. The events `blink`, `hi`, `wow`, `poof`, `giggle`, `hmm`, `aww`, `sparkle`, and `hehe` are
-listed in `events` on `Animator`. Event 0 triggers a blink, and the others play the sounds in the
-order of `sounds` on `Sounds`.
+new ones. `events` on `Animator` lists `blink` and the 24 sound takes, `hi_1` to `hehe_3`; event 0
+triggers a blink, and the others play the sounds in the order of `sounds` on `Sounds`. In
+`EpiAnimations.json` a sound event names its three takes as alternatives, with a probability, for
+example `[0.5, ["hi_1", "hi_2", "hi_3"], 0.7]`.
 
 ## Before the demo
 
@@ -215,7 +234,10 @@ the robot needs someone next to it.
    and mind blown look much better with working pupils. Check the pupil supply.
 8. **Sound.** Play every animation and set the speaker volume so that the calm sounds are still
    heard; arousal plays them at 35 to 100 percent.
-9. **Pacing and mood.** Watch for a few minutes alone and with company. Raise `min_interval` and
+9. **Copycat.** Press **10 Copycat**, stand in front of Epi, face it, and turn and nod your head.
+   It should mirror you as described in `EpiHeadMirroring.md`, whose checks for `mirror_sign` and
+   the nodding direction apply here too.
+10. **Pacing and mood.** Watch for a few minutes alone and with company. Raise `min_interval` and
    `max_interval` on `Behaviors` if Epi is too busy, and lower them if it is too calm. Lower
    `decay_rate` on `Arousal` if the excitement fades too fast.
 
@@ -226,6 +248,8 @@ the robot needs someone next to it.
   checked as listed above.
 - **Tempo and sound.** Arousal changes the tempo of the motion by up to 20 percent but not the
   sounds, so at the extremes the mouth flashes drift a little from the chirps.
+- **Reactions interrupt.** When the person leaves, curious starts at once, even in the middle of
+  another animation, for example between the wow and the pooof of mind blown.
 - **One sound at a time.** `SoundOutput` plays one sound at a time. A sound that is started while
   another plays waits until the first has ended, and only the most recent waiting sound is kept.
 - **Combined head limits.** The animation and glance head offsets are limited separately from the
