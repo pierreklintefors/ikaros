@@ -1,0 +1,33 @@
+<group name="BehaviorSelectorTest"
+       description="Spontaneous behaviours follow the state weights, interval, cooldown, and BUSY; greetings and farewells follow arrivals, departures, and the reaction cooldown"
+       start="true" stop="30" tick_duration="0.1" threads="1"
+       cli_args="-u${TEST_DIR}"
+       expected_output_contains="tick = {2}&#10;reactions = {1, 0}&#10;main = {0, 0, 0}&#10;cooldown = {0, 0}&#10;busy = {0}||tick = {8}&#10;reactions = {0, 1}&#10;main = {0, 0, 0}&#10;cooldown = {0, 0}&#10;busy = {0}||tick = {9}&#10;reactions = {0, 0}&#10;main = {1, 0, 0}&#10;cooldown = {1, 0}&#10;busy = {0}||tick = {10}&#10;reactions = {0, 0}&#10;main = {0, 0, 0}&#10;cooldown = {0, 0}&#10;busy = {0}||tick = {17}&#10;reactions = {0, 0}&#10;main = {0, 0, 1}&#10;cooldown = {0, 0}&#10;busy = {0}||tick = {19}&#10;reactions = {0, 0}&#10;main = {0, 0, 0}&#10;cooldown = {0, 1}&#10;busy = {1}||tick = {27}&#10;reactions = {0, 0}&#10;main = {0, 1, 0}&#10;cooldown = {0, 0}&#10;busy = {0}||tick = {29}&#10;reactions = {0, 0}&#10;main = {0, 0, 0}&#10;cooldown = {1, 0}&#10;busy = {1}"
+       expected_output_once="reactions = {1, 0}||reactions = {0, 1}||main = {1, 0, 0}||main = {0, 0, 1}||main = {0, 1, 0}||cooldown = {0, 1}"
+       expected_output_twice="busy = {1}||cooldown = {1, 0}">
+    <module class="InputFile" name="Script" filename="fixture_BehaviorSelector.jsonl" send_end_of_file="false" />
+    <module class="Constant" name="Idle" data="0" />
+    <module class="BehaviorSelector" name="Main" count="3" idle_weights="1, 0, 0" engaged_weights="0, 1, 0" greeting="2" greeting_delay="0.2"
+            cooldown="0" reaction_cooldown="0" min_interval="1" max_interval="1" seed="1" />
+    <module class="BehaviorSelector" name="Cooldown" count="2" idle_weights="1, 0.000001" cooldown="1.5" min_interval="1" max_interval="1" seed="1" />
+    <module class="BehaviorSelector" name="Busy" count="1" idle_weights="1" cooldown="0" min_interval="1" max_interval="1" seed="1" />
+    <module class="BehaviorSelector" name="Reactions" count="2" idle_weights="0, 0" engaged_weights="0, 0" greeting="0" greeting_delay="0"
+            farewell="1" reaction_cooldown="0.5" min_interval="1" max_interval="1" seed="1" />
+    <module class="Print" name="Tick" />
+    <module class="Print" name="MainOut" />
+    <module class="Print" name="CooldownOut" />
+    <module class="Print" name="BusyOut" />
+    <module class="Print" name="ReactionsOut" />
+
+    <connection source="Script.ENGAGED" target="Main.ENGAGED" delay="0" />
+    <connection source="Idle.OUTPUT" target="Cooldown.ENGAGED" delay="0" />
+    <connection source="Idle.OUTPUT" target="Busy.ENGAGED" delay="0" />
+    <connection source="Script.BUSY" target="Busy.BUSY" delay="0" />
+    <connection source="Script.ENGAGED2" target="Reactions.ENGAGED" delay="0" />
+
+    <connection source="Script.TICK" target="Tick.INPUT" delay="0" label="tick" />
+    <connection source="Main.TRIGGER" target="MainOut.INPUT" delay="0" label="main" />
+    <connection source="Cooldown.TRIGGER" target="CooldownOut.INPUT" delay="0" label="cooldown" />
+    <connection source="Busy.TRIGGER" target="BusyOut.INPUT" delay="0" label="busy" />
+    <connection source="Reactions.TRIGGER" target="ReactionsOut.INPUT" delay="0" label="reactions" />
+</group>

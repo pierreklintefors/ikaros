@@ -1,0 +1,32 @@
+<class name="BehaviorSelector" description="Chooses when to start which behaviour: spontaneous behaviours by weight and cooldown, and reactions when someone arrives or leaves">
+    <description type="text">
+        BehaviorSelector decides when a robot does something by itself. Every min_interval to max_interval
+        seconds of idle time it starts a spontaneous behaviour, chosen at random with idle_weights while
+        ENGAGED is 0 and with engaged_weights while it is 1. A behaviour is not chosen again within
+        cooldown seconds. When someone arrives, that is when ENGAGED becomes 1 or NEW_TARGET is 1, the
+        greeting behaviour starts after greeting_delay; when ENGAGED becomes 0, the farewell behaviour
+        starts. TRIGGER has one element per behaviour and is 1 for one tick when a behaviour starts, for
+        example for KeyframeAnimator.TRIGGER. Spontaneous behaviours wait while BUSY is 1; reactions do not.
+    </description>
+
+    <parameter name="count" type="number" default="1" min="1" description="Number of behaviours; sets the size of TRIGGER" />
+    <parameter name="idle_weights" type="matrix" default="1" description="Relative probability of each behaviour while ENGAGED is 0; missing values count as 0" />
+    <parameter name="engaged_weights" type="matrix" default="1" description="Relative probability of each behaviour while ENGAGED is 1; missing values count as 0" />
+    <parameter name="min_interval" type="number" default="4" min="0" description="Shortest idle time in seconds before a spontaneous behaviour" />
+    <parameter name="max_interval" type="number" default="10" min="0" description="Longest idle time in seconds before a spontaneous behaviour" />
+    <parameter name="cooldown" type="number" default="15" min="0" description="Seconds before a spontaneous behaviour can be chosen again" />
+    <parameter name="greeting" type="number" default="-1" min="-1" description="Behaviour started when someone arrives; -1 for none" />
+    <parameter name="greeting_delay" type="number" default="0.5" min="0" description="Seconds from the arrival to the greeting" />
+    <parameter name="farewell" type="number" default="-1" min="-1" description="Behaviour started when ENGAGED becomes 0; -1 for none" />
+    <parameter name="reaction_cooldown" type="number" default="10" min="0" description="Seconds before another greeting or farewell, so a person who is lost for a moment is not greeted again" />
+    <parameter name="seed" type="number" default="-1" min="-1" description="Random seed; negative selects nondeterministic seeding" />
+
+    <input name="ENGAGED" size="1" description="1 while the robot attends to someone, for example GazeLock.LOCKED" />
+    <input name="NEW_TARGET" optional="yes" size="1" description="1 when a different person has been selected, for example FaceTargetSelector.NEW_TARGET" />
+    <input name="BUSY" optional="yes" size="1" description="1 while a behaviour plays, for example KeyframeAnimator.PLAYING; spontaneous behaviours wait and their interval does not run" />
+    <input name="ENABLE" optional="yes" size="1" description="1 allows behaviours, 0 stops all triggers; enabled when not connected" />
+
+    <output name="TRIGGER" size="@count" description="1 for one tick in the element of the behaviour that starts" />
+    <output name="SELECTED" size="1" description="Index of the last started behaviour, or -1" />
+    <output name="WAIT" size="1" description="Idle seconds left before the next spontaneous behaviour" />
+</class>
