@@ -1808,3 +1808,14 @@ triggered animations, and synchronized show functions.
   above the 300 deg/s^2 limit of each part; the servo profile still limits the motion on the robot.
 - With a person standing still in front of the robot, arousal settles around 0.62, which keeps the
   engaged mood lively; lower `drive_gain` or `engaged_level` on `Arousal` if Epi should calm down more.
+
+## Playful mirroring and varied vocalizations
+
+Requested next: combine the animatronics with playful behaviour such as head mirroring, and make
+Epi less vocal, with more varied and dynamic vocalizations.
+
+| # | Task | Status | Verification | Commit |
+|---:|---|---|---|---|
+| 1 | `KeyframeAnimator` events can have a probability and a list of alternatives, one of which is chosen at random. | Completed | Events are `[time, name]`, `[time, name, probability]`, or have a list of names as alternatives; existing libraries are unchanged. Release build without warnings; all 4 `KeyframeAnimator` tests pass. The new events test plays four times: on each start tick exactly one of two alternatives fires (a, b, a, b with seed 2; other seeds give other mixes), the probability-0 event never fires, and the probability-1 event always fires on its tick. Markdown checker clean. | `KeyframeAnimator events can now be optional and choose among alternatives` |
+| 2 | Render several procedural variants of every sound, varying syllables, contours, pitch, and timbre while keeping the rhythm of sounds that the motion follows. | In progress |  |  |
+| 3 | Add a "copycat" mirroring game to the demo with `HeadMirror`, let blinks continue during most animations, and make the vocalizations sparser and varied. | Not started |  |  |

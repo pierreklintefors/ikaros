@@ -26,7 +26,7 @@ library in a project folder is named for example `../Projects/Epi/EpiAnimations.
                 "head_tilt": [[0.2, -6], [0.5, 2, "back"], [0.9, 0]],
                 "pupil": {"start": 0.1, "repeat": 3, "keys": [[0, 0], [0.1, 3], [0.2, 0]]}
             },
-            "events": [[0, "blink"], [0.3, "giggle"]]
+            "events": [[0, "blink"], [0.3, ["giggle_1", "giggle_2"], 0.8]]
         }
     ]
 }
@@ -39,8 +39,12 @@ library in a project folder is named for example `../Projects/Epi/EpiAnimations.
 - A track can also be a dictionary with `keys`, an optional `start` time that shifts all keys, and
   `repeat`, which repeats the keys back to back. The repeat period is the time from the first to the
   last key, so `[[0, 0], [0.1, 3], [0.2, 0]]` repeated three times pulses three times in 0.6 s.
-- `events` lists `[time, name]` pairs. The name is one of `events`, or the index of an element of
-  `EVENTS`. On the tick the time is reached, that element of `EVENTS` is 1.
+- `events` lists `[time, name]` or `[time, name, probability]` entries. The name is one of
+  `events`, or the index of an element of `EVENTS`. On the tick the time is reached, that element of
+  `EVENTS` is 1. With a probability below 1 the event fires only in that fraction of the plays, for
+  example so that a robot does not make a sound every time. The name can also be a list of
+  alternatives, such as `["giggle_1", "giggle_2", "giggle_3"]`; one of them is chosen at random
+  each time, so a sound or other event varies between plays.
 - `duration` is optional. The animation lasts until its last key or event, or until `duration` if
   that is later.
 
@@ -139,7 +143,7 @@ reproducible.
 ```xml
 <module class="KeyframeAnimator" name="Animator" file="../Projects/Epi/EpiAnimations.json"
         channels="eye_offset, vergence, head_tilt, head_pan" rest="0, 0, 0, 0"
-        events="blink, giggle" event_count="2" />
+        events="blink, giggle_1, giggle_2" event_count="3" />
 
 <connection source="Animator.OUTPUT[0:1]" target="Gaze.EYE_OFFSET" />
 <connection source="Animator.OUTPUT[1:2]" target="Gaze.VERGENCE" />
@@ -150,4 +154,5 @@ reproducible.
 The tests in `tests/` check linear keys, events on the right ticks, a repeated step track, an
 interruption that starts from the present value, the release to rest, and that an unknown channel
 stops the model at startup. The variation test checks `SPEED` with its events, and `INTENSITY` with
-mirroring.
+mirroring. The events test checks that one of several alternatives fires, and event probabilities
+0 and 1.

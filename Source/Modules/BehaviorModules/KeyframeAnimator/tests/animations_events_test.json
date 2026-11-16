@@ -1,0 +1,9 @@
+{
+    "animations": [
+        {
+            "name": "choices",
+            "duration": 0.3,
+            "events": [[0.0, ["a", "b"]], [0.1, "a", 0], [0.2, "b", 1]]
+        }
+    ]
+}

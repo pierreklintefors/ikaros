@@ -38,7 +38,8 @@ class KeyframeAnimator : public Module
     struct Event
     {
         float time;
-        int index;
+        std::vector<int> indices; // alternatives; one is chosen at random each time
+        float probability;
     };
 
     struct Animation
@@ -243,13 +244,27 @@ class KeyframeAnimator : public Module
                 for(const value & e : d.at("events").as_list())
                 {
                     if(!e.is_list() || e.size() < 2)
-                        throw exception("KeyframeAnimator: every event in " + animation.name + " must be [time, name].", path_);
+                        throw exception("KeyframeAnimator: every event in " + animation.name + " must be [time, name] or [time, name, probability].", path_);
                     const list & l = e.as_list();
-                    const int index = l.at(1).is_number() ? l.at(1).as_int() : Find(eventNames, l.at(1).as_string());
-                    if(index < 0 || index >= eventOutput.size())
-                        throw exception("KeyframeAnimator: animation " + animation.name + " uses unknown event \"" + l.at(1).as_string() + "\".", path_);
-                    animation.events.push_back({l.at(0).as_float(), index});
-                    end = std::max(end, l.at(0).as_float());
+                    Event event {l.at(0).as_float(), {}, l.size() > 2 ? std::clamp(l.at(2).as_float(), 0.0f, 1.0f) : 1.0f};
+                    // The name can also be a list of alternatives.
+                    std::vector<value> names;
+                    if(l.at(1).is_list())
+                        for(const value & alternative : l.at(1).as_list())
+                            names.push_back(alternative);
+                    else
+                        names.push_back(l.at(1));
+                    for(const value & name : names)
+                    {
+                        const int index = name.is_number() ? name.as_int() : Find(eventNames, name.as_string());
+                        if(index < 0 || index >= eventOutput.size())
+                            throw exception("KeyframeAnimator: animation " + animation.name + " uses unknown event \"" + name.as_string() + "\".", path_);
+                        event.indices.push_back(index);
+                    }
+                    if(event.indices.empty())
+                        throw exception("KeyframeAnimator: an event in " + animation.name + " has an empty list of alternatives.", path_);
+                    end = std::max(end, event.time);
+                    animation.events.push_back(std::move(event));
                 }
                 std::stable_sort(animation.events.begin(), animation.events.end(),
                                  [](const Event & a, const Event & b) { return a.time < b.time; });
@@ -493,7 +508,14 @@ public:
                 output(c) = Evaluate(track, t, startValue(c), rest(c), gain);
             }
             while(nextEvent < animation.events.size() && animation.events[nextEvent].time <= time + epsilon)
-                eventOutput(animation.events[nextEvent++].index) = 1;
+            {
+                const Event & event = animation.events[nextEvent++];
+                if(event.probability < 1.0f && Uniform(0.0f, 1.0f) >= event.probability)
+                    continue;
+                const int choice = std::min(static_cast<int>(Uniform(0.0f, static_cast<float>(event.indices.size()))),
+                                            static_cast<int>(event.indices.size()) - 1);
+                eventOutput(event.indices[choice]) = 1;
+            }
             progress(0) = animation.duration > 0.0f ? std::clamp(time / animation.duration, 0.0f, 1.0f) : 1.0f;
             finished = time >= animation.duration - epsilon;
         }

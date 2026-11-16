@@ -1,0 +1,21 @@
+<group name="KeyframeAnimatorEventsTest"
+       description="An event with alternatives fires exactly one of them, an event with probability 0 never fires, and one with probability 1 always fires"
+       start="true" stop="21" tick_duration="0.1" threads="1"
+       cli_args="-u${TEST_DIR}"
+       expected_output_contains="tick = {2}&#10;which = {0, 0}&#10;fired = {0}||tick = {3}&#10;which = {0, 1}&#10;fired = {1}||tick = {4}&#10;which = {0, 0}&#10;fired = {0}||tick = {7}&#10;which = {0, 0}&#10;fired = {0}||tick = {8}&#10;which = {0, 1}&#10;fired = {1}||tick = {9}&#10;which = {0, 0}&#10;fired = {0}||tick = {12}&#10;which = {0, 0}&#10;fired = {0}||tick = {13}&#10;which = {0, 1}&#10;fired = {1}||tick = {14}&#10;which = {0, 0}&#10;fired = {0}||tick = {17}&#10;which = {0, 0}&#10;fired = {0}||tick = {18}&#10;which = {0, 1}&#10;fired = {1}||tick = {19}&#10;which = {0, 0}&#10;fired = {0}"
+       expected_output_twice="which = {1, 0}"
+       expected_output_not_contains="fired = {2}">
+    <module class="InputFile" name="Script" filename="fixture_KeyframeAnimator_events.jsonl" send_end_of_file="false" />
+    <module class="KeyframeAnimator" name="Animator" file="animations_events_test.json" channels="x" rest="0"
+            events="a, b" event_count="2" seed="2" />
+    <module class="Sum" name="Count" />
+    <module class="Print" name="Tick" />
+    <module class="Print" name="Fired" />
+    <module class="Print" name="Which" />
+
+    <connection source="Script.TRIGGER" target="Animator.TRIGGER" delay="0" />
+    <connection source="Animator.EVENTS" target="Count.INPUT" delay="0" />
+    <connection source="Script.TICK" target="Tick.INPUT" delay="0" label="tick" />
+    <connection source="Count.OUTPUT" target="Fired.INPUT" delay="0" label="fired" />
+    <connection source="Animator.EVENTS" target="Which.INPUT" delay="0" label="which" />
+</group>
