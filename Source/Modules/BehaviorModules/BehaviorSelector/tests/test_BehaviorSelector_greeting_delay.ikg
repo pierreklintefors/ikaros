@@ -1,0 +1,16 @@
+<group name="BehaviorSelectorGreetingDelayTest"
+       description="A greeting delay that is not a whole number of ticks still starts the greeting, on the first tick after the delay"
+       start="true" stop="20" tick_duration="0.04" threads="1"
+       cli_args="-u${TEST_DIR}"
+       expected_output_contains="tick = {13}&#10;greeting = {1, 0}"
+       expected_output_once="greeting = {1, 0}">
+    <module class="InputFile" name="Script" filename="fixture_BehaviorSelector_greeting_delay.jsonl" send_end_of_file="false" />
+    <module class="BehaviorSelector" name="Behaviors" count="2" idle_weights="0, 0" engaged_weights="0, 0" greeting="0" greeting_delay="0.3"
+            min_interval="100" max_interval="100" seed="1" />
+    <module class="Print" name="Tick" />
+    <module class="Print" name="Greeting" />
+
+    <connection source="Script.ENGAGED" target="Behaviors.ENGAGED" delay="0" />
+    <connection source="Script.TICK" target="Tick.INPUT" delay="0" label="tick" />
+    <connection source="Behaviors.TRIGGER" target="Greeting.INPUT" delay="0" label="greeting" />
+</group>

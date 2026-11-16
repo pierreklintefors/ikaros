@@ -41,7 +41,8 @@ class BehaviorSelector : public Module
     matrix weights;     // work buffer for the weights of the present state
     std::mt19937 randomGenerator;
     float untilNext = 0;
-    float untilGreeting = -1; // negative while no greeting is pending
+    bool greetingPending = false;
+    float untilGreeting = 0; // seconds until a pending greeting starts
     float sinceReaction = 0;
     bool wasEngaged = false;
     float lastNewTarget = 0;
@@ -206,7 +207,7 @@ public:
 
         if(enable.connected() && enable(0) <= 0.5f)
         {
-            untilGreeting = -1;
+            greetingPending = false;
             wait(0) = untilNext;
             return;
         }
@@ -214,12 +215,13 @@ public:
         const bool reactionAllowed = sinceReaction >= reactionCooldown.as_float() - epsilon;
         if(arrived && greeting.as_int() >= 0 && reactionAllowed)
         {
+            greetingPending = true;
             untilGreeting = greetingDelay.as_float();
             sinceReaction = 0;
         }
         if(left)
         {
-            untilGreeting = -1;
+            greetingPending = false;
             if(farewell.as_int() >= 0 && reactionAllowed)
             {
                 Fire(farewell.as_int());
@@ -228,11 +230,12 @@ public:
         }
 
         // Reactions do not wait for BUSY, so the robot responds to people at once.
-        if(untilGreeting >= 0.0f)
+        // The countdown can pass zero between ticks, so the pending flag, not its sign, marks a greeting.
+        if(greetingPending)
         {
             if(untilGreeting <= epsilon)
             {
-                untilGreeting = -1;
+                greetingPending = false;
                 Fire(greeting.as_int());
             }
             else
@@ -242,7 +245,7 @@ public:
         // The idle interval runs only while nothing plays, is pending, or has just started.
         const bool isBusy = busy.connected() && busy(0) > 0.5f;
         const bool fired = trigger.max() > 0.0f;
-        if(!isBusy && !fired && untilGreeting < 0.0f)
+        if(!isBusy && !fired && !greetingPending)
         {
             untilNext -= dt;
             if(untilNext <= epsilon)
