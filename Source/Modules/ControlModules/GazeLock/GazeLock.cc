@@ -41,6 +41,7 @@ class GazeLock : public Module
     parameter eyeMin;
     parameter eyeMax;
     parameter vergence;
+    parameter vergenceSign;
     parameter cameraEye;
 
     matrix presentPosition;
@@ -236,6 +237,7 @@ public:
         Bind(eyeMin, "eye_min");
         Bind(eyeMax, "eye_max");
         Bind(vergence, "vergence");
+        Bind(vergenceSign, "vergence_sign");
         Bind(cameraEye, "camera_eye");
 
         Bind(presentPosition, "PRESENT_POSITION");
@@ -359,7 +361,8 @@ public:
             eyeCenter -= release * eyeCenter;
         eyeCenter = std::clamp(eyeCenter, eyeMin.as_float(), eyeMax.as_float());
 
-        const float halfVergence = 0.5f * (vergence.as_float() + (vergenceInput.connected() ? vergenceInput(0) : 0.0f));
+        const float halfVergence = 0.5f * vergenceSign.as_float() *
+            (vergence.as_float() + (vergenceInput.connected() ? vergenceInput(0) : 0.0f));
         const float shift = eyeOffset.connected() ? eyeOffset(0) : 0.0f;
         eyeGoal(0) = std::clamp(eyeCenter + shift + halfVergence, eyeMin.as_float(), eyeMax.as_float());
         eyeGoal(1) = std::clamp(eyeCenter + shift - halfVergence, eyeMin.as_float(), eyeMax.as_float());

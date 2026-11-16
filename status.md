@@ -1765,3 +1765,22 @@ low and rises, following the principles of film robot sound design.
   `render_sounds.py` or other warble takes with `--variants`.
 - The Kokoro venv and model (about 350 MB) in `UserData/venvs/kokoro` and `UserData/models/kokoro`
   are no longer used and can be deleted by the user.
+
+## Livelier, less repetitive animatronics
+
+Requested after the robot-sound change: delete the Kokoro files; slow some animations; add a
+mischievous look to the side with a "hehehe" laugh; swap the eye directions of cross-eyed and mind
+blown; make behaviour changes less frequent and less random; look around and giggle on finding
+someone new; avoid repetition by combining behaviour parameters; and add an arousal level that sets
+the sound volume and the robot's excitement, following how Disney layers background motion,
+triggered animations, and synchronized show functions.
+
+| # | Task | Status | Verification | Commit |
+|---:|---|---|---|---|
+| 1 | Delete the Kokoro venv and model from `UserData`. | Completed | Deleted `UserData/venvs/kokoro` (166 MB) and `UserData/models/kokoro` (337 MB), both ignored by git, and the empty parent folders. Created `UserData/venvs/sounds` with numpy only, as the sound ReadMe describes, for `render_sounds.py`. | No repository change |
+| 2 | Swap the vergence direction so that cross-eyed converges and mind blown diverges on the robot. | Completed | The user saw cross-eyed diverge on EpiBlack, so a positive eye pan turns Epi's eyes to the robot's left. `GazeLock` has a new `vergence_sign` (default 1, unchanged behaviour); the animatronics demo sets the model-level `vergence_sign=-1`. The `epi-head` widget turned the eyes as seen from the front but drew the robot's left eye on the viewer's left; it now draws it on the viewer's right, so the dashboard matches the robot. Release build without warnings; all 6 GazeLock tests pass, and the offsets test now also checks that `vergence_sign=-1` gives eyes {1, 5} instead of {5, 1}; `node --check` passes for the widget. Scripted demo run: left minus right eye goal reaches -24.2 degrees in cross-eyed (inward on Epi) and +19.8 in mind blown (outward). Markdown checker clean. To be confirmed on the robot and in a browser. | `Cross-eyed now converges and mind blown diverges on Epi` |
+| 3 | `KeyframeAnimator` varies each play: `SPEED` and `INTENSITY` inputs, random speed and intensity variation, and random mirroring of chosen channels. | Not started |  |  |
+| 4 | Add `Arousal`, a general excitement level that rises with events and people and settles back over time. | Not started |  |  |
+| 5 | `SoundOutput` takes an optional `VOLUME` input. | Not started |  |  |
+| 6 | `BehaviorSelector` chooses behaviours that match the arousal level, avoids recent ones, and spaces them by arousal. | Not started |  |  |
+| 7 | Update the demo: slower animations with anticipation and follow-through, a mischievous animation with a "hehehe" sound, a giggling greeting when someone new is found, arousal-driven volume, speed, intensity, and pupils, and less frequent behaviour changes. | Not started |  |  |

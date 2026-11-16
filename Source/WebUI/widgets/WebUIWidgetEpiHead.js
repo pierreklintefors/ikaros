@@ -148,8 +148,10 @@ class WebUIWidgetEpiHead extends WebUIWidgetGraph {
     // ====
 
     this.drawEye = function (isRightEye) {
+      // The robot is seen from the front, so its right eye is on the viewer's left. A positive eye
+      // direction turns the eye to the robot's left, which is the viewer's right.
       const sourceIndex = isRightEye ? 1 : 0;
-      const eyeOffsetX = isRightEye ? 154-52.5+3-20 : 0+20;
+      const eyeOffsetX = isRightEye ? 0+20 : 154-52.5+3-20;
       const eyeOffsetY = 71.5;
 
       // Eye outline

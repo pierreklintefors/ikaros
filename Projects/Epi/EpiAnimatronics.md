@@ -108,6 +108,7 @@ These model-level settings can be changed on the command line:
 | `camera_id` | `0` | Mac camera used with `camera=InputVideo`, numbered as macOS lists them |
 | `eye_url` | `http://RightEye.local:8080/stream/video.mjpeg` | Eye camera stream, or a video file, used with `camera=InputVideoStream` |
 | `camera_eye` | `right` | Eye that carries the camera; must match `eye_url` |
+| `vergence_sign` | `-1` | Direction of vergence; `-1` makes positive vergence turn the eyes inward on Epi, where a positive eye pan turns the eye to the robot's left |
 | `x_sign` | `-1` | Direction from image x to head and eye pan; `-1` was found on EpiBlack |
 | `y_sign` | `1` | Direction from image y to head tilt; `1` was found on EpiBlack |
 | `aim_y` | `0.3` | Where the face is kept vertically; positive values look at the eyes rather than the middle of the face |
@@ -133,8 +134,8 @@ The camera settings in `EpiFaceFollowing.md` (640 x 480, 30 frames per second, J
   before the next spontaneous animation, and the eyelid closure.
 - The numbered buttons play each animation at once.
 - The camera view shows all faces in green and the followed face in magenta.
-- The robot view shows the eye directions, including vergence, the pupils, the head, and every
-  LED, so the eyelid sweep is visible.
+- The robot view shows Epi from the front, with its left eye on your right: the eye directions,
+  including vergence, the pupils, the head, and every LED, so the eyelid sweep is visible.
 - The plots show the eye and head goals, the pupil goals, and the eyelid.
 
 ## Changing the animations
@@ -160,9 +161,9 @@ Check these on each robot, first with the room empty, then with one person in fr
 the robot needs someone next to it.
 
 1. **Looking directions.** As in `EpiFaceFollowing.md`, check `x_sign` and `y_sign` first.
-2. **Vergence direction.** Press **1 Cross-eyed**. Both eyes must turn inward, toward the nose. If
-   they turn outward, the vergence sign of the robot is reversed. Then press **4 Mind blown**, where
-   the eyes must turn outward.
+2. **Vergence direction.** Press **1 Cross-eyed**. Both eyes must turn inward, toward the nose.
+   Then press **4 Mind blown**, where the eyes must turn outward. EpiBlack needed `vergence_sign=-1`;
+   if a robot does the opposite, start it with `vergence_sign=1`.
 3. **Eyelid.** Watch a blink closely, or press **3 Giggle**, which half closes the eyes. The upper
    LEDs of each eye must go dark first. If the wrong LEDs go dark, set `led_first_angle` and
    `led_direction` on `Expression` as described in the `EpiExpression` documentation.

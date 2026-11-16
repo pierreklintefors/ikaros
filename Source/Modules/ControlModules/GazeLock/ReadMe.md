@@ -79,7 +79,10 @@ expressive movements on top of the gaze:
 
 - `EYE_OFFSET` adds degrees to both eye goals, for quick glances or darts from side to side.
 - `VERGENCE` adds inward rotation to the `vergence` parameter. Positive values make the eyes
-  converge, negative values make them diverge.
+  converge, negative values make them diverge. With `vergence_sign` 1, positive vergence is added
+  to the left eye goal and subtracted from the right one. On robots where a positive eye pan turns
+  the eye to the robot's left, as on Epi, that turns the eyes outward; set `vergence_sign` to -1
+  there.
 - `HEAD_OFFSET` adds a tilt and pan offset to the head goal, for nods or leaning back. The offset
   moves under `head_max_speed`, `head_max_acceleration`, and the tilt scales, but without the dead
   zone, so small gestures are not swallowed. It is kept separately from the following goal, so the
@@ -147,6 +150,7 @@ per second. The kernel converts them to per-tick values, so behavior does not de
 | eye_max | Maximum eye pan goal, centered degrees | number | 13 |
 | eye_smoothing | Rate in 1/s at which the eye goals follow their target while locked; 0 follows immediately | rate | 0 |
 | vergence | Inward eye rotation in degrees, split between the eyes | number | 0 |
+| vergence_sign | 1 adds positive vergence to the left eye goal; -1 reverses this, as needed on Epi | number | 1 |
 | camera_eye | Eye whose present position locates image measurements: `both` (average), `left`, or `right` | number | both |
 
 The default field of view matches the Raspberry Pi Camera Module v2.

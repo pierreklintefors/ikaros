@@ -6,6 +6,7 @@
        camera_id="0"
        eye_url="http://RightEye.local:8080/stream/video.mjpeg"
        camera_eye="right"
+       vergence_sign="-1"
        x_sign="-1"
        y_sign="1"
        aim_y="0.3"
