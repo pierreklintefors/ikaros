@@ -1,0 +1,20 @@
+<group name="HeadMirrorHandoverTest"
+       description="After NEW_TARGET the previous offset fades out completely before the new person is mirrored, so the offset never jumps to the new sign while still weighted"
+       start="true" stop="16" tick_duration="0.1"
+       cli_args="-u${TEST_DIR}"
+       expected_output_contains="state = {1}||offset = {0, -5}||offset = {0, 5}"
+       expected_output_not_contains="offset = {0, 1.80571}||offset = {0, 0.664283}">
+    <module class="InputFile" name="Script" filename="fixture_HeadMirror_handover.jsonl" send_end_of_file="false" />
+    <module class="HeadMirror" name="Mirror" engage_time="0" pose_smoothing="0" fade_in="0" fade_out="10" />
+    <module class="Print" name="State" />
+    <module class="Print" name="Offset" />
+
+    <connection source="Script.POSE" target="Mirror.POSE" delay="0" />
+    <connection source="Script.VALID" target="Mirror.VALID" delay="0" />
+    <connection source="Script.NEW" target="Mirror.NEW_TARGET" delay="0" />
+    <connection source="Script.TARGET" target="Mirror.TARGET" delay="0" />
+    <connection source="Script.DIRECTION" target="Mirror.DIRECTION" delay="0" />
+
+    <connection source="Mirror.STATE" target="State.INPUT" delay="0" label="state" />
+    <connection source="Mirror.OFFSET" target="Offset.INPUT" delay="0" label="offset" />
+</group>

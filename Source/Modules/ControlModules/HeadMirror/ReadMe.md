@@ -39,7 +39,8 @@ When `NEW_TARGET` reports another person, when the person is lost, or when `ENAB
 mirroring stops and `WEIGHT` fades out at the `fade_out` rate. The last offset is kept during the fade,
 so the head glides from the mirrored pose back to the person's direction. `FOLLOW` stays 0 until the
 fade has almost ended, so `GazeLock` keeps taking its head goal from `HEAD_GOAL` until it can follow
-the new person by itself. The new person must then pass the start checks again.
+the new person by itself. The new person must then pass the start checks again, and mirroring
+starts only after the fade-out has ended, so the old and new offsets are never mixed.
 
 The pose is low-pass filtered with `pose_smoothing` and kept through ticks without a new detection.
 
@@ -110,4 +111,5 @@ only the robot's head moves. Its sign depends on the camera and must be measured
 
 `DIRECTION` and `LOCKED` need a delay of 1 because `GazeLock` depends on `HeadMirror` in the same tick.
 `Projects/Epi/EpiHeadMirroring.ikg` shows the complete model. The tests in `tests/` check the start
-conditions, gains and limits, the handover to a new person, loss of the person, and the fades.
+conditions, gains and limits, the handover to a new person, loss of the person, the fades, and that
+a new person is mirrored only after the previous fade-out.

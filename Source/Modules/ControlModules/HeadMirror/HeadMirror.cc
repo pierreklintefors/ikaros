@@ -199,8 +199,8 @@ public:
 
         if(!enabled)
             isMirroring = false;
-        else if(present && engageTimer >= engageTime.as_float())
-            isMirroring = true;
+        else if(!isMirroring && present && engageTimer >= engageTime.as_float() && weight <= followThreshold)
+            isMirroring = true; // a new person is mirrored only after the previous offset has faded out
 
         // The offset is frozen when mirroring ends so that it fades out without changing shape.
         if(isMirroring)
