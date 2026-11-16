@@ -1,0 +1,21 @@
+<class name="OscillationDetector" description="Signals when a value swings back and forth, for example a head that pans from side to side">
+    <description type="text">
+        OscillationDetector watches a single value, such as the yaw of a person's head, and signals when it
+        swings back and forth. A swing is a movement of at least amplitude in one direction, measured from
+        the last turning point; the next swing must go the other way. When swings swings follow each other
+        within window seconds, DETECTED is 1 for one tick, and no new detection follows for refractory
+        seconds. Small wobbles and single turns are ignored. While VALID is 0 the count starts over.
+    </description>
+
+    <parameter name="amplitude" type="number" default="12" min="0" description="Smallest movement that counts as a swing, in the units of INPUT" />
+    <parameter name="swings" type="number" default="3" min="1" description="Number of alternating swings needed, for example 3 for left, right, left" />
+    <parameter name="window" type="number" default="3" min="0" description="Seconds within which the swings must happen" />
+    <parameter name="refractory" type="number" default="2" min="0" description="Seconds after a detection during which no new detection is made" />
+    <parameter name="smoothing" type="rate" default="0" min="0" description="Rate in 1/s at which an internal copy of INPUT follows it, to suppress noise; 0 uses INPUT directly" />
+
+    <input name="INPUT" size="1" description="The value to watch, for example FaceTargetSelector.TARGET_POSE[0:1] for head yaw" />
+    <input name="VALID" optional="yes" size="1" description="1 while INPUT is meaningful; while 0 the swing count starts over" />
+
+    <output name="DETECTED" size="1" description="1 on the tick the back-and-forth movement is recognized" />
+    <output name="SWINGS" size="1" description="Number of alternating swings within the window so far" />
+</class>

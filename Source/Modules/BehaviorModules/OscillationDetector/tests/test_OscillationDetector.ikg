@@ -1,0 +1,26 @@
+<group name="OscillationDetectorTest"
+       description="Three alternating swings above the amplitude are detected once on the third swing; small wobbles and a single turn are not"
+       start="true" stop="25" tick_duration="0.1" threads="1"
+       cli_args="-u${TEST_DIR}"
+       expected_output_contains="tick = {3}&#10;turn = {0}&#10;wobble = {0}&#10;swings = {1}&#10;pan = {0}||tick = {6}&#10;turn = {0}&#10;wobble = {0}&#10;swings = {2}&#10;pan = {0}||tick = {9}&#10;turn = {0}&#10;wobble = {0}&#10;swings = {3}&#10;pan = {1}"
+       expected_output_once="pan = {1}"
+       expected_output_not_contains="wobble = {1}||turn = {1}">
+    <module class="InputFile" name="Script" filename="fixture_OscillationDetector.jsonl" send_end_of_file="false" />
+    <module class="OscillationDetector" name="Pan" amplitude="12" swings="3" window="3" refractory="2" />
+    <module class="OscillationDetector" name="Wobble" amplitude="12" swings="3" window="3" refractory="2" />
+    <module class="OscillationDetector" name="Turn" amplitude="12" swings="3" window="3" refractory="2" />
+    <module class="Print" name="Tick" />
+    <module class="Print" name="PanOut" />
+    <module class="Print" name="PanSwings" />
+    <module class="Print" name="WobbleOut" />
+    <module class="Print" name="TurnOut" />
+
+    <connection source="Script.PAN" target="Pan.INPUT" delay="0" />
+    <connection source="Script.WOBBLE" target="Wobble.INPUT" delay="0" />
+    <connection source="Script.TURN" target="Turn.INPUT" delay="0" />
+    <connection source="Script.TICK" target="Tick.INPUT" delay="0" label="tick" />
+    <connection source="Pan.DETECTED" target="PanOut.INPUT" delay="0" label="pan" />
+    <connection source="Pan.SWINGS" target="PanSwings.INPUT" delay="0" label="swings" />
+    <connection source="Wobble.DETECTED" target="WobbleOut.INPUT" delay="0" label="wobble" />
+    <connection source="Turn.DETECTED" target="TurnOut.INPUT" delay="0" label="turn" />
+</group>

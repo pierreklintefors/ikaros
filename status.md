@@ -1848,3 +1848,16 @@ Requested: Epi's eyes converge when someone comes really close, that is when the
 - Close faces also raise arousal through its drive, which opens the pupils, so the near
   constriction partly cancels out; raise the `NearPupil` factor if the narrowing should show more.
 - During cross-eyed the animation and the near vergence add up and can reach the eye limits.
+
+## Subtle baseline, found-you chirp, and head panning starts copycat
+
+Requested: let the eyes converge more; make the normal behaviour subtle (gaze, blinks, looking
+around); a happy one-syllable chirp when a face is found; and start the mirroring game when a
+person pans their head back and forth.
+
+| # | Task | Status | Verification | Commit |
+|---:|---|---|---|---|
+| 1 | Add `OscillationDetector`, which signals when a value swings back and forth, such as a head panning from side to side. | Completed | Swings are movements of at least `amplitude` from the last turning point in alternating directions; `swings` of them within `window` give a one-tick `DETECTED`, followed by `refractory`. Release build without warnings; the test passes through `kernel_test.py` with ordered output: a 0-15 back-and-forth signal counts swings on ticks 3, 6, and 9 and is detected once on tick 9, while a 0-8 wobble and a single ramp to 40 are never detected. Markdown checker clean. | `Added OscillationDetector, which notices back-and-forth movements` |
+| 2 | `BehaviorSelector` takes a `REQUEST` input that starts a given behaviour at once, like a reaction. | In progress |  |  |
+| 3 | Render a happy one-syllable chirp in three takes for finding a face. | Not started |  |  |
+| 4 | Update the demo: stronger convergence, a subtle baseline, the chirp when a face is found, and head panning starting copycat. | Not started |  |  |
