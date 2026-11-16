@@ -1,0 +1,29 @@
+<class name="KeyframeAnimator" description="Plays named keyframe animations on a set of control channels and fires timed events">
+    <description type="text">
+        KeyframeAnimator plays animations from a JSON library on a vector of named channels, for example
+        eye offset, vergence, head offsets, pupil size, and LED colors. Each animation has keyframe tracks
+        for some channels and timed events. An animation starts from the present channel values, so a new
+        animation can interrupt another without jumps. Channels that the animation does not use, and all
+        channels after it has ended, return to their rest values at release_rate. Events are one-tick
+        pulses on EVENTS, for example to trigger sounds or blinks. Animations are started by a rising edge
+        on an element of TRIGGER or by the play command.
+    </description>
+
+    <parameter name="file" type="string" default="" description="JSON animation library; a relative path is resolved in UserData" />
+    <parameter name="channels" type="string" default="" description="Comma-separated channel names in OUTPUT order, used by the tracks in the library" />
+    <parameter name="rest" type="matrix" default="0" description="Rest value of each channel; the number of values sets the size of OUTPUT and must match channels" />
+    <parameter name="events" type="string" default="" description="Comma-separated event names in EVENTS order, used by the events in the library" />
+    <parameter name="event_count" type="number" default="1" min="1" description="Size of EVENTS; must be at least the number of event names" />
+    <parameter name="release_rate" type="rate" default="3" min="0" description="Rate in 1/s at which unused channels return to rest; 0 returns immediately" />
+    <parameter name="interrupt" type="bool" default="true" description="A new animation replaces a playing one; when false, starts are ignored while an animation plays" />
+
+    <input name="TRIGGER" optional="yes" description="A change from 0 to 1 in element i plays animation i of the library" />
+    <input name="STOP" optional="yes" size="1" description="A change from 0 to 1 stops the playing animation; the channels return to rest" />
+
+    <output name="OUTPUT" size="rest.size" description="Present value of each channel" />
+    <output name="EVENTS" size="@event_count" description="1 on the tick an event of the playing animation fires, otherwise 0" />
+    <output name="PLAYING" size="1" description="1 while an animation plays" />
+    <output name="ANIMATION" size="1" description="Index of the playing animation in the library, or -1" />
+    <output name="PROGRESS" size="1" description="Fraction of the playing animation that has passed, from 0 to 1" />
+    <output name="DONE" size="1" description="1 on the tick an animation plays to its end" />
+</class>

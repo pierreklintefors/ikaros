@@ -1,0 +1,8 @@
+<group name="KeyframeAnimatorBadChannelTest"
+       description="A library track for a channel that is not in channels stops the model at startup"
+       start="true" stop="1"
+       cli_args="-u${TEST_DIR}"
+       expected_exit="1"
+       expected_output_contains="uses unknown channel &quot;b&quot;">
+    <module class="KeyframeAnimator" name="Animator" file="animations_test.json" channels="a" rest="0" events="start, middle" event_count="2" />
+</group>

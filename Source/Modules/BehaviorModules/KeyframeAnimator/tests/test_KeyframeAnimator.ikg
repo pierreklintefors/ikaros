@@ -1,0 +1,24 @@
+<group name="KeyframeAnimatorTest"
+       description="Animations start on TRIGGER edges, interpolate keys from the present value, fire events on time, repeat tracks, interrupt each other without jumps, and release unused channels to rest"
+       start="true" stop="30" tick_duration="0.1" threads="1"
+       cli_args="-u${TEST_DIR}"
+       expected_output_contains="tick = {1}&#10;glide = {0, 0}&#10;animation = {0}&#10;events = {1, 0}&#10;out = {0, 0}||tick = {2}&#10;glide = {2, 0}&#10;animation = {0}&#10;events = {0, 0}&#10;out = {2, 0}||tick = {4}&#10;glide = {4, 0}&#10;animation = {0}&#10;events = {0, 1}&#10;out = {6, 0}||tick = {5}&#10;glide = {7, 0}&#10;animation = {0}&#10;events = {0, 0}&#10;out = {8, 0}||tick = {6}&#10;glide = {10, 0}&#10;animation = {0}&#10;events = {0, 0}&#10;out = {8, 0}||tick = {7}&#10;glide = {5, 0}&#10;animation = {0}&#10;events = {0, 0}&#10;out = {8, 0}||animation = {0}&#10;events = {0, 0}&#10;out = {6, 0}||animation = {-1}&#10;events = {0, 0}&#10;out = {4, 0}||animation = {-1}&#10;events = {0, 0}&#10;out = {2, 0}||tick = {20}&#10;||animation = {1}&#10;events = {0, 0}&#10;out = {0.000976562, 0}||events = {0, 0}&#10;out = {0.000488281, 1}||events = {0, 1}&#10;out = {0.00012207, 0}||out = {3.05176e-05, 1}||out = {1.52588e-05, 1}">
+    <module class="InputFile" name="Script" filename="fixture_KeyframeAnimator.jsonl" send_end_of_file="false" />
+    <module class="KeyframeAnimator" name="Animator" file="animations_test.json" channels="a, b" rest="0, 0"
+            events="start, middle" event_count="2" release_rate="6.931471805599453" />
+    <module class="KeyframeAnimator" name="Interrupted" file="animations_test.json" channels="a, b" rest="0, 0"
+            events="start, middle" event_count="2" release_rate="6.931471805599453" />
+    <module class="Print" name="Tick" />
+    <module class="Print" name="Out" />
+    <module class="Print" name="Events" />
+    <module class="Print" name="Playing" />
+    <module class="Print" name="Glide" />
+
+    <connection source="Script.TRIGGER" target="Animator.TRIGGER" delay="0" />
+    <connection source="Script.TRIGGER2" target="Interrupted.TRIGGER" delay="0" />
+    <connection source="Script.TICK" target="Tick.INPUT" delay="0" label="tick" />
+    <connection source="Animator.OUTPUT" target="Out.INPUT" delay="0" label="out" />
+    <connection source="Animator.EVENTS" target="Events.INPUT" delay="0" label="events" />
+    <connection source="Animator.ANIMATION" target="Playing.INPUT" delay="0" label="animation" />
+    <connection source="Interrupted.OUTPUT" target="Glide.INPUT" delay="0" label="glide" />
+</group>

@@ -1,0 +1,79 @@
+{
+    "animations": [
+        {
+            "name": "ramp",
+            "tracks": {
+                "a": [
+                    [
+                        0.4,
+                        8,
+                        "linear"
+                    ],
+                    [
+                        0.8,
+                        8
+                    ],
+                    [
+                        1.0,
+                        4,
+                        "linear"
+                    ]
+                ]
+            },
+            "events": [
+                [
+                    0,
+                    "start"
+                ],
+                [
+                    0.3,
+                    "middle"
+                ]
+            ]
+        },
+        {
+            "name": "pulse",
+            "duration": 1.0,
+            "tracks": {
+                "b": {
+                    "start": 0.2,
+                    "repeat": 2,
+                    "keys": [
+                        [
+                            0,
+                            0,
+                            "step"
+                        ],
+                        [
+                            0.2,
+                            1,
+                            "step"
+                        ],
+                        [
+                            0.4,
+                            0,
+                            "step"
+                        ]
+                    ]
+                }
+            },
+            "events": [
+                [
+                    0.6,
+                    "middle"
+                ]
+            ]
+        },
+        {
+            "name": "glide",
+            "tracks": {
+                "a": [
+                    [
+                        0.2,
+                        10
+                    ]
+                ]
+            }
+        }
+    ]
+}
