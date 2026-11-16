@@ -1,0 +1,16 @@
+<group name="FaceTargetSelectorPoseTest"
+       description="TARGET_POSE follows the pose row of the selected face, is held during hold_time, and resets with the target; NEW_TARGET pulses once"
+       start="true" stop="7" tick_duration="0.05"
+       cli_args="-u${TEST_DIR}"
+       expected_output_once="pose = {10, -5, 2}||new = {1}"
+       expected_output_contains="pose = {20, -6, 2}||pose = {0, 0, 0}">
+    <module class="InputFile" name="Faces" filename="fixture_FaceTargetSelector_pose.jsonl" send_end_of_file="false" />
+    <module class="FaceTargetSelector" name="Selector" hold_time="0.12" ignore_repeated="false" />
+    <module class="Print" name="Pose" />
+    <module class="Print" name="New" />
+
+    <connection source="Faces.BOXES" target="Selector.BOXES" delay="0" />
+    <connection source="Faces.POSES" target="Selector.POSES" delay="0" />
+    <connection source="Selector.TARGET_POSE" target="Pose.INPUT" delay="0" label="pose" />
+    <connection source="Selector.NEW_TARGET" target="New.INPUT" delay="0" label="new" />
+</group>

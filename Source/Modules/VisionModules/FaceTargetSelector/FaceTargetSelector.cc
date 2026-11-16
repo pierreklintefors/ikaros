@@ -13,16 +13,20 @@ class FaceTargetSelector : public Module
     parameter minConfidence;
     parameter matchDistance;
     parameter switchRatio;
+    parameter switchDelay;
     parameter holdTime;
     parameter smoothing;
     parameter ignoreRepeated;
 
     matrix boxes;
+    matrix poses;
 
     matrix target;
     matrix valid;
     matrix targetBox;
     matrix count;
+    matrix targetPose;
+    matrix newTarget;
 
     matrix boxRow;
 
@@ -30,6 +34,8 @@ class FaceTargetSelector : public Module
     float trackedX = 0;
     float trackedY = 0;
     float missingTime = 0;
+    bool challenged = false;
+    float challengeTime = 0; // seconds another face has been clearly better than the tracked one
 
     std::vector<float> previousBoxes; // detector output of the previous tick, to recognize repeated frames
 
@@ -52,6 +58,20 @@ class FaceTargetSelector : public Module
         if(boxes.rank() == 2)
             return boxes(index, field);
         return boxes(field);
+    }
+
+
+    // Pose rows are aligned with the box rows; missing rows give zero.
+    float
+    Pose(int index, int field) const
+    {
+        if(!poses.connected() || poses.empty())
+            return 0.0f;
+        if(poses.rank() == 2)
+            return index < poses.rows() && poses.cols() >= 3 ? poses(index, field) : 0.0f;
+        if(poses.rank() == 1)
+            return index == 0 && poses.size() >= 3 ? poses(field) : 0.0f;
+        return 0.0f;
     }
 
 
@@ -127,7 +147,9 @@ class FaceTargetSelector : public Module
         if(missingTime <= holdTime.as_float())
             return true;
         tracking = false;
+        challenged = false;
         target.reset();
+        targetPose.reset();
         return false;
     }
 
@@ -146,7 +168,14 @@ class FaceTargetSelector : public Module
         target(0) += blend * (x - target(0));
         target(1) += blend * (y - target(1));
         target(2) += blend * (width - target(2));
+        for(int i = 0; i < 3; ++i)
+            targetPose(i) += blend * (Pose(index, i) - targetPose(i));
         valid(0) = 1;
+        if(newIdentity)
+        {
+            newTarget(0) = 1;
+            challenged = false;
+        }
 
         for(int i = 0; i < 5; ++i)
             boxRow(i) = Box(index, i);
@@ -167,15 +196,19 @@ public:
         Bind(minConfidence, "min_confidence");
         Bind(matchDistance, "match_distance");
         Bind(switchRatio, "switch_ratio");
+        Bind(switchDelay, "switch_delay");
         Bind(holdTime, "hold_time");
         Bind(smoothing, "smoothing");
         Bind(ignoreRepeated, "ignore_repeated");
 
         Bind(boxes, "BOXES");
+        Bind(poses, "POSES");
         Bind(target, "TARGET");
         Bind(valid, "VALID");
         Bind(targetBox, "TARGET_BOX");
         Bind(count, "COUNT");
+        Bind(targetPose, "TARGET_POSE");
+        Bind(newTarget, "NEW_TARGET");
 
         boxRow.realloc(5);
         previousBoxes.reserve(16 * 5);
@@ -186,10 +219,13 @@ public:
     Tick() override
     {
         valid.reset();
+        newTarget.reset();
         targetBox.clear();
 
         if(RepeatedDetection() && ignoreRepeated.as_bool())
         {
+            if(challenged)
+                challengeTime += static_cast<float>(GetTickDuration());
             if(tracking && HoldTarget())
                 targetBox.append(boxRow);
             return;
@@ -228,10 +264,20 @@ public:
 
         if(matched >= 0)
         {
+            // A clearly better face takes over once it has stayed better for switch_delay.
             if(best != matched && Score(best) > switchRatio.as_float() * Score(matched))
-                Publish(best, true);
+            {
+                challengeTime = challenged ? challengeTime + static_cast<float>(GetTickDuration()) : 0.0f;
+                challenged = true;
+                if(challengeTime >= switchDelay.as_float())
+                {
+                    Publish(best, true);
+                    return;
+                }
+            }
             else
-                Publish(matched, false);
+                challenged = false;
+            Publish(matched, false);
             return;
         }
 
