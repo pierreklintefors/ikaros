@@ -1,0 +1,32 @@
+<group name="BehaviorSelectorMoodTest"
+       description="AROUSAL selects behaviours by arousal_levels and shortens the interval, and memory avoids recent behaviours"
+       start="true" stop="30" tick_duration="0.1" threads="1"
+       cli_args="-u${TEST_DIR}"
+       expected_output_contains="memory = {1, 0, 0}&#10;mood = {0, 1}&#10;excited = {1}&#10;tick = {9}||memory = {0, 0, 0}&#10;mood = {0, 0}&#10;excited = {1}&#10;tick = {14}||memory = {0, 1, 0}&#10;mood = {0, 1}&#10;excited = {1}&#10;tick = {19}||memory = {0, 0, 0}&#10;mood = {0, 0}&#10;excited = {1}&#10;tick = {24}||memory = {1, 0, 0}&#10;mood = {0, 1}&#10;excited = {1}&#10;tick = {29}||memory = {0, 0, 0}&#10;mood = {0, 0}&#10;excited = {0}&#10;tick = {11}"
+       expected_output_not_contains="mood = {1, 0}">
+    <module class="InputFile" name="Script" filename="fixture_BehaviorSelector_mood.jsonl" send_end_of_file="false" />
+    <module class="Constant" name="Idle" data="0" />
+    <module class="Constant" name="High" data="0.9" />
+    <module class="Constant" name="Max" data="1" />
+    <module class="BehaviorSelector" name="Mood" count="2" idle_weights="1, 1" arousal_levels="0.1, 0.9" arousal_width="0.05"
+            cooldown="0" min_interval="1" max_interval="1" seed="1" />
+    <module class="BehaviorSelector" name="Memory" count="3" idle_weights="1, 0.000001, 0" memory="1"
+            cooldown="0" min_interval="1" max_interval="1" seed="1" />
+    <module class="BehaviorSelector" name="Excited" count="1" idle_weights="1" excited_interval_scale="0.5"
+            cooldown="0" min_interval="1" max_interval="1" seed="1" />
+    <module class="Print" name="Tick" />
+    <module class="Print" name="MoodOut" />
+    <module class="Print" name="MemoryOut" />
+    <module class="Print" name="ExcitedOut" />
+
+    <connection source="Idle.OUTPUT" target="Mood.ENGAGED" delay="0" />
+    <connection source="High.OUTPUT" target="Mood.AROUSAL" delay="0" />
+    <connection source="Idle.OUTPUT" target="Memory.ENGAGED" delay="0" />
+    <connection source="Idle.OUTPUT" target="Excited.ENGAGED" delay="0" />
+    <connection source="Max.OUTPUT" target="Excited.AROUSAL" delay="0" />
+
+    <connection source="Script.TICK" target="Tick.INPUT" delay="0" label="tick" />
+    <connection source="Mood.TRIGGER" target="MoodOut.INPUT" delay="0" label="mood" />
+    <connection source="Memory.TRIGGER" target="MemoryOut.INPUT" delay="0" label="memory" />
+    <connection source="Excited.TRIGGER" target="ExcitedOut.INPUT" delay="0" label="excited" />
+</group>

@@ -1,6 +1,8 @@
 #include "ikaros.h"
 
 #include <algorithm>
+#include <cmath>
+#include <deque>
 #include <random>
 
 using namespace ikaros;
@@ -19,12 +21,17 @@ class BehaviorSelector : public Module
     parameter greetingDelay;
     parameter farewell;
     parameter reactionCooldown;
+    matrix arousalLevels;
+    parameter arousalWidth;
+    parameter memory;
+    parameter excitedIntervalScale;
     parameter seed;
 
     matrix engaged;
     matrix newTarget;
     matrix busy;
     matrix enable;
+    matrix arousal;
 
     matrix trigger;
     matrix selected;
@@ -38,6 +45,7 @@ class BehaviorSelector : public Module
     float sinceReaction = 0;
     bool wasEngaged = false;
     float lastNewTarget = 0;
+    std::deque<int> recent; // most recent spontaneous behaviours, newest first
 
     float
     Uniform(float low, float high)
@@ -45,6 +53,22 @@ class BehaviorSelector : public Module
         if(high <= low)
             return low;
         return std::uniform_real_distribution<float>(low, high)(randomGenerator);
+    }
+
+
+    float
+    ArousalLevel() const
+    {
+        return arousal.connected() ? std::clamp(arousal(0), 0.0f, 1.0f) : 0.0f;
+    }
+
+
+    // The idle interval shrinks toward excited_interval_scale times its length as arousal rises.
+    float
+    NextInterval()
+    {
+        const float scale = 1.0f + (excitedIntervalScale.as_float() - 1.0f) * ArousalLevel();
+        return std::max(scale, 0.0f) * Uniform(minInterval.as_float(), maxInterval.as_float());
     }
 
 
@@ -56,21 +80,52 @@ class BehaviorSelector : public Module
         trigger(index) = 1;
         selected(0) = static_cast<float>(index);
         sinceChosen(index) = 0;
-        untilNext = Uniform(minInterval.as_float(), maxInterval.as_float());
+        untilNext = NextInterval();
     }
 
 
-    // Chooses a behaviour by weight among those outside their cooldown; -1 when none is available.
+    bool
+    Recent(int index) const
+    {
+        return std::find(recent.begin(), recent.end(), index) != recent.end();
+    }
+
+
+    // Weight of behaviour i: its state weight, times how well its arousal level matches the present
+    // arousal; 0 during its cooldown, and 0 when it is among the most recent ones and avoidRecent is set.
+    float
+    Weight(const matrix & stateWeights, int i, bool avoidRecent) const
+    {
+        float w = i < stateWeights.size() ? std::max(stateWeights.data()[i], 0.0f) : 0.0f;
+        if(arousal.connected() && i < arousalLevels.size())
+        {
+            const float width = std::max(arousalWidth.as_float(), 0.01f);
+            const float difference = arousalLevels.data()[i] - ArousalLevel();
+            w *= std::exp(-0.5f * difference * difference / (width * width));
+        }
+        if(sinceChosen(i) < cooldown.as_float() - epsilon || (avoidRecent && Recent(i)))
+            return 0.0f;
+        return w;
+    }
+
+
+    // Chooses a behaviour by weight. Recent behaviours are avoided unless nothing else is available;
+    // returns -1 when every weighted behaviour is cooling down.
     int
     Choose(const matrix & stateWeights)
     {
         float total = 0;
         for(int i = 0; i < weights.size(); ++i)
         {
-            const float w = i < stateWeights.size() ? std::max(stateWeights.data()[i], 0.0f) : 0.0f;
-            weights(i) = sinceChosen(i) >= cooldown.as_float() - epsilon ? w : 0.0f;
+            weights(i) = Weight(stateWeights, i, true);
             total += weights(i);
         }
+        if(total <= 0.0f)
+            for(int i = 0; i < weights.size(); ++i)
+            {
+                weights(i) = Weight(stateWeights, i, false);
+                total += weights(i);
+            }
         if(total <= 0.0f)
             return -1;
         float pick = Uniform(0.0f, total);
@@ -100,12 +155,17 @@ public:
         Bind(greetingDelay, "greeting_delay");
         Bind(farewell, "farewell");
         Bind(reactionCooldown, "reaction_cooldown");
+        Bind(arousalLevels, "arousal_levels");
+        Bind(arousalWidth, "arousal_width");
+        Bind(memory, "memory");
+        Bind(excitedIntervalScale, "excited_interval_scale");
         Bind(seed, "seed");
 
         Bind(engaged, "ENGAGED");
         Bind(newTarget, "NEW_TARGET");
         Bind(busy, "BUSY");
         Bind(enable, "ENABLE");
+        Bind(arousal, "AROUSAL");
 
         Bind(trigger, "TRIGGER");
         Bind(selected, "SELECTED");
@@ -189,7 +249,12 @@ public:
             {
                 const int choice = Choose(isEngaged ? engagedWeights : idleWeights);
                 if(choice >= 0)
+                {
                     Fire(choice);
+                    recent.push_front(choice);
+                    while(static_cast<int>(recent.size()) > std::max(memory.as_int(), 0))
+                        recent.pop_back();
+                }
                 else
                     untilNext = minInterval.as_float();
             }

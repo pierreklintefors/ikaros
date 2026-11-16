@@ -22,6 +22,20 @@ When every weighted behaviour is cooling down, the selector tries again after `m
 While `BUSY` is 1, for example from `KeyframeAnimator.PLAYING`, the interval does not run, so it
 measures the quiet time between behaviours rather than the time between starts.
 
+### Mood and memory
+
+Picking behaviours purely at random makes a robot look erratic. Three settings make the choice
+follow a mood and avoid repetition:
+
+- With `AROUSAL` connected, for example to `Arousal.AROUSAL`, each behaviour's weight is multiplied
+  by how close its energy in `arousal_levels` lies to the present arousal: a Gaussian with width
+  `arousal_width`. A calm robot then prefers calm behaviours and an excited one lively behaviours,
+  and the mood changes gradually with the arousal instead of jumping between extremes.
+- `memory` keeps the most recent spontaneous behaviours from being chosen again while others are
+  available, so the robot does not repeat itself even when cooldowns are short.
+- `excited_interval_scale` shortens the idle interval as arousal rises; at arousal 1 it is that
+  factor times its length. A calm robot waits longer between behaviours.
+
 ### Reactions
 
 When someone arrives, that is when `ENGAGED` changes to 1 or `NEW_TARGET` is 1, the `greeting`
@@ -51,6 +65,10 @@ spontaneous one.
 | greeting_delay | Seconds from the arrival to the greeting | number | 0.5 |
 | farewell | Behaviour started when ENGAGED becomes 0; -1 for none | number | -1 |
 | reaction_cooldown | Seconds before another greeting or farewell | number | 10 |
+| arousal_levels | Energy of each behaviour from 0 (calm) to 1 (excited); used with AROUSAL | matrix | 0.5 |
+| arousal_width | How far from the present arousal a behaviour may lie and still be likely | number | 0.25 |
+| memory | Number of most recent spontaneous behaviours not chosen again while others are available | number | 0 |
+| excited_interval_scale | Factor on the idle interval at arousal 1 | number | 1 |
 | seed | Random seed; negative selects nondeterministic seeding | number | -1 |
 
 ## Inputs
@@ -61,6 +79,7 @@ spontaneous one.
 | NEW_TARGET | 1 when a different person has been selected | yes |
 | BUSY | 1 while a behaviour plays; spontaneous behaviours wait | yes |
 | ENABLE | 1 allows behaviours, 0 stops all triggers; enabled when not connected | yes |
+| AROUSAL | Present excitement from 0 to 1; selects by arousal_levels and scales the interval | yes |
 
 ## Outputs
 
@@ -82,5 +101,6 @@ spontaneous one.
 <connection source="Selector.TRIGGER" target="Animator.TRIGGER" />
 ```
 
-The test in `tests/` checks the weighted choice in each state, the greeting delay, the cooldown,
-the wait while `BUSY` is 1, the farewell, and the reaction cooldown.
+The tests in `tests/` check the weighted choice in each state, the greeting delay, the cooldown,
+the wait while `BUSY` is 1, the farewell, and the reaction cooldown, and the mood test checks
+the choice by arousal, `memory`, and the shorter interval when excited.
