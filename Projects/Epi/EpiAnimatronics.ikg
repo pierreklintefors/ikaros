@@ -1,0 +1,167 @@
+<group name="EpiAnimatronics"
+       title="Epi animatronics"
+       robot="EpiBlack"
+       simulate="false"
+       eye_url="http://RightEye.local:8080/stream/video.mjpeg"
+       camera_eye="right"
+       x_sign="-1"
+       y_sign="1"
+       aim_y="0.3"
+       horizontal_fov="62.2"
+       vertical_fov="48.8"
+       synchronized_framegrabber="false"
+       synchronized_tick="false"
+       tick_duration="0.04"
+       real_time="true">
+
+    <!-- Vision: one eye camera finds faces -->
+    <module class="InputVideoStream" name="Eye" url="@eye_url" size_x="640" size_y="480" _x="24" _y="24" />
+    <module class="AppleVisionFaceDetector" name="Faces" max_faces="8" downsample="1" _x="216" _y="24" />
+    <module class="FaceTargetSelector" name="Target" selection="largest" min_width="0.08" min_confidence="0.6"
+            switch_ratio="1.5" switch_delay="0.7" hold_time="0.5" _x="408" _y="24" />
+
+    <!-- Behaviour: when to do what, and how it looks -->
+    <module class="Constant" name="BehaviorsEnable" data="1" _x="24" _y="264" />
+    <module class="BehaviorSelector" name="Behaviors" count="7" greeting="0" greeting_delay="0.4" farewell="5"
+            idle_weights="0, 0.5, 2, 0, 0, 3, 0" engaged_weights="0, 2, 1, 2, 1.5, 0.5, 1.5"
+            min_interval="2.5" max_interval="6" cooldown="8" reaction_cooldown="8" _x="216" _y="264" />
+    <module class="KeyframeAnimator" name="Animator" file="../Projects/Epi/EpiAnimations.json"
+            channels="eye_offset, vergence, head_tilt, head_pan, pupil, eye_r, eye_g, eye_b, eye_mix, mouth_r, mouth_g, mouth_b, mouth_mix, brightness, lid"
+            rest="0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0"
+            events="blink, hi, wow, poof, giggle, hmm, aww, sparkle" event_count="8" release_rate="4" _x="408" _y="264" />
+    <module class="SoundOutput" name="Sounds"
+            sounds="../Projects/Epi/Sounds/Animatronics/hi.wav, ../Projects/Epi/Sounds/Animatronics/wow.wav, ../Projects/Epi/Sounds/Animatronics/poof.wav, ../Projects/Epi/Sounds/Animatronics/giggle.wav, ../Projects/Epi/Sounds/Animatronics/hmm.wav, ../Projects/Epi/Sounds/Animatronics/aww.wav, ../Projects/Epi/Sounds/Animatronics/sparkle.wav"
+            lag="0" _x="600" _y="696" />
+
+    <!-- Liveliness: blinks and glances that run all the time -->
+    <module class="Blinker" name="Blinker" min_interval="1.5" max_interval="4.5" double_blink_probability="0.2" _x="408" _y="576" />
+    <module class="GlanceGenerator" name="EyeGlances" amplitude="7" min_fraction="0.4" min_interval="1.2" max_interval="3.5"
+            center_probability="0.2" return_time="0.6" _x="408" _y="456" />
+    <module class="Maximum" name="HeadIdle" _x="216" _y="504" />
+    <module class="GlanceGenerator" name="HeadGlances" amplitude="8, 25" min_fraction="0.3" min_interval="1" max_interval="3"
+            center_probability="0.3" rate="1.5" _x="408" _y="360" />
+
+    <!-- Animation channels combined with the glances and blinks -->
+    <module class="Add" name="EyeOffset" _x="600" _y="168" />
+    <module class="Add" name="HeadOffset" _x="600" _y="264" />
+    <module class="Maximum" name="Lid" _x="600" _y="576" />
+
+    <!-- Gaze and expression -->
+    <module class="GazeLock" name="Gaze" head_gain="3" head_max_speed="90" head_max_acceleration="300" head_dead_zone="5" eye_smoothing="20"
+            tilt_speed_scale="1" tilt_acceleration_scale="0.6" _x="792" _y="24" />
+    <module class="EpiExpression" name="Expression" idle_color="0.5, 0.35, 0.05" engaged_color="1, 0.8, 0.35" mouth_color="0.25, 0.2, 0.05"
+            idle_pupil="9" engaged_pupil="12" attack_rate="4" release_rate="1" _x="792" _y="360" />
+
+    <!-- Hardware -->
+    <module class="EpiServos" name="Servos" require_pupils="false" _x="600" _y="24" />
+    <module class="FadeCandy" name="LEDs" _x="792" _y="696" />
+
+    <connection source="Eye.OUTPUT" target="Faces.INPUT" delay="0" />
+    <connection source="Faces.BOXES" target="Target.BOXES" delay="0" />
+
+    <connection source="Gaze.LOCKED" target="Behaviors.ENGAGED" delay="1" />
+    <connection source="Target.NEW_TARGET" target="Behaviors.NEW_TARGET" delay="0" />
+    <connection source="Animator.PLAYING" target="Behaviors.BUSY" delay="1" />
+    <connection source="BehaviorsEnable.OUTPUT" target="Behaviors.ENABLE" delay="0" />
+    <connection source="Behaviors.TRIGGER" target="Animator.TRIGGER" delay="0" />
+
+    <connection source="Animator.EVENTS[1:8]" target="Sounds.TRIG" delay="0" />
+    <connection source="Animator.EVENTS[0:1]" target="Blinker.TRIGGER" delay="0" />
+    <connection source="Animator.PLAYING" target="Blinker.INHIBIT" delay="0" />
+    <connection source="Animator.PLAYING" target="EyeGlances.INHIBIT" delay="0" />
+    <connection source="Gaze.LOCKED" target="HeadIdle.INPUT1" delay="1" />
+    <connection source="Animator.PLAYING" target="HeadIdle.INPUT2" delay="0" />
+    <connection source="HeadIdle.OUTPUT" target="HeadGlances.INHIBIT" delay="0" />
+
+    <connection source="Animator.OUTPUT[0:1]" target="EyeOffset.INPUT1" delay="0" />
+    <connection source="EyeGlances.OUTPUT" target="EyeOffset.INPUT2" delay="0" />
+    <connection source="Animator.OUTPUT[2:4]" target="HeadOffset.INPUT1" delay="0" />
+    <connection source="HeadGlances.OUTPUT" target="HeadOffset.INPUT2" delay="0" />
+    <connection source="Animator.OUTPUT[14:15]" target="Lid.INPUT1" delay="0" />
+    <connection source="Blinker.LID" target="Lid.INPUT2" delay="0" />
+
+    <connection source="Servos.PRESENT_POSITION" target="Gaze.PRESENT_POSITION" delay="1" />
+    <connection source="Target.TARGET" target="Gaze.TARGET" delay="0" />
+    <connection source="Target.VALID" target="Gaze.VALID" delay="0" />
+    <connection source="Expression.PUPIL_SIZE" target="Gaze.PUPIL_SIZE" delay="1" />
+    <connection source="EyeOffset.OUTPUT" target="Gaze.EYE_OFFSET" delay="0" />
+    <connection source="Animator.OUTPUT[1:2]" target="Gaze.VERGENCE" delay="0" />
+    <connection source="HeadOffset.OUTPUT" target="Gaze.HEAD_OFFSET" delay="0" />
+
+    <connection source="Gaze.LOCKED" target="Expression.ENGAGED" delay="0" />
+    <connection source="Lid.OUTPUT" target="Expression.BLINK" delay="0" />
+    <connection source="Animator.OUTPUT[5:9]" target="Expression.EYE_OVERLAY" delay="0" />
+    <connection source="Animator.OUTPUT[9:13]" target="Expression.MOUTH_OVERLAY" delay="0" />
+    <connection source="Animator.OUTPUT[13:14]" target="Expression.BRIGHTNESS" delay="0" />
+    <connection source="Animator.OUTPUT[4:5]" target="Expression.PUPIL_OFFSET" delay="0" />
+
+    <connection source="Gaze.GOAL_POSITION" target="Servos.GOAL_POSITION" delay="0" />
+    <connection source="Expression.LEFT_EYE" target="LEDs.LEFT_EYE" delay="0" />
+    <connection source="Expression.RIGHT_EYE" target="LEDs.RIGHT_EYE" delay="0" />
+    <connection source="Expression.MOUTH_HIGH" target="LEDs.MOUTH_HIGH" delay="0" />
+    <connection source="Expression.MOUTH_LOW" target="LEDs.MOUTH_LOW" delay="0" />
+
+    <!-- Dashboard: controls and state -->
+    <widget class="text" name="Title" text="Epi animatronics" style="font-size:20px;font-weight:bold;"
+            x="1032" y="24" _x="1032" _y="24" width="880" height="32" show_title="no" show_frame="no" />
+
+    <widget class="switch" name="BehaviorsSwitch" title="Behaviours" labels="Autonomous behaviours" parameter="BehaviorsEnable.data" select_x="0" control_count="1" value="1"
+            x="1032" y="72" _x="1032" _y="72" width="235" height="48" show_title="no" show_frame="no" />
+
+    <widget class="table" name="FacesTable" title="Faces" source="Target.COUNT" decimals="0" colorize="no"
+            x="1276" y="72" _x="1276" _y="72" width="120" height="56" show_title="yes" show_frame="yes" />
+    <widget class="table" name="LockedTable" title="Locked" source="Gaze.LOCKED" decimals="0" colorize="no"
+            x="1405" y="72" _x="1405" _y="72" width="120" height="56" show_title="yes" show_frame="yes" />
+    <widget class="table" name="AnimationTable" title="Animation" source="Animator.ANIMATION" decimals="0" colorize="no"
+            x="1534" y="72" _x="1534" _y="72" width="120" height="56" show_title="yes" show_frame="yes" />
+    <widget class="table" name="WaitTable" title="Next in (s)" source="Behaviors.WAIT" decimals="1" colorize="no"
+            x="1663" y="72" _x="1663" _y="72" width="120" height="56" show_title="yes" show_frame="yes" />
+    <widget class="table" name="LidTable" title="Eyelid" source="Lid.OUTPUT" decimals="2" colorize="no"
+            x="1792" y="72" _x="1792" _y="72" width="120" height="56" show_title="yes" show_frame="yes" />
+
+    <widget class="button" name="GreetButton" label="0 Greet" command="Animator.play" select_x="0" type="push"
+            x="1032" y="144" _x="1032" _y="144" width="118" height="40" show_title="no" show_frame="no" />
+    <widget class="button" name="CrossEyedButton" label="1 Cross-eyed" command="Animator.play" select_x="1" type="push"
+            x="1159" y="144" _x="1159" _y="144" width="118" height="40" show_title="no" show_frame="no" />
+    <widget class="button" name="EyeDartButton" label="2 Eye dart" command="Animator.play" select_x="2" type="push"
+            x="1286" y="144" _x="1286" _y="144" width="118" height="40" show_title="no" show_frame="no" />
+    <widget class="button" name="GiggleButton" label="3 Giggle" command="Animator.play" select_x="3" type="push"
+            x="1413" y="144" _x="1413" _y="144" width="118" height="40" show_title="no" show_frame="no" />
+    <widget class="button" name="MindBlownButton" label="4 Mind blown" command="Animator.play" select_x="4" type="push"
+            x="1540" y="144" _x="1540" _y="144" width="118" height="40" show_title="no" show_frame="no" />
+    <widget class="button" name="CuriousButton" label="5 Curious" command="Animator.play" select_x="5" type="push"
+            x="1667" y="144" _x="1667" _y="144" width="118" height="40" show_title="no" show_frame="no" />
+    <widget class="button" name="ShyButton" label="6 Shy" command="Animator.play" select_x="6" type="push"
+            x="1794" y="144" _x="1794" _y="144" width="118" height="40" show_title="no" show_frame="no" />
+
+    <!-- Dashboard: camera with all faces (green) and the followed face (magenta) -->
+    <widget class="text" name="CameraCaption" text="Eye camera"
+            x="1032" y="200" _x="1032" _y="200" width="480" height="24" show_title="no" show_frame="no" />
+    <widget class="image" name="CameraImage" source="Eye.OUTPUT" format="rgb" scale="both"
+            x="1032" y="224" _x="1032" _y="224" width="480" height="360" show_title="no" show_frame="no" />
+    <widget class="target-boxes" name="FaceBoxes" source="Faces.BOXES" box_color="#00ff66" line_width="2" show_score="no"
+            x="1032" y="224" _x="1032" _y="224" width="480" height="360" show_title="no" show_frame="no" />
+    <widget class="target-boxes" name="TargetBox" source="Target.TARGET_BOX" box_color="#ff00cc" line_width="4" show_score="no"
+            x="1032" y="224" _x="1032" _y="224" width="480" height="360" show_title="no" show_frame="no" />
+
+    <!-- Dashboard: robot -->
+    <widget class="epi-head" name="Head" title="Expression and gaze" epi_name="EpiGray"
+            eye_direction_source="Gaze.EYE_GOAL" pupil_size_source="Expression.PUPIL_SIZE" head_position_source="Gaze.HEAD_GOAL"
+            left_eye_color_source="Expression.LEFT_EYE" right_eye_color_source="Expression.RIGHT_EYE"
+            top_mouth_color_source="Expression.MOUTH_HIGH" lower_mouth_color_source="Expression.MOUTH_LOW"
+            x="1528" y="200" _x="1528" _y="200" width="384" height="384" show_title="yes" show_frame="yes" />
+
+    <!-- Dashboard: motion -->
+    <widget class="plot" name="EyePlot" title="Eye goal (left, right)" source="Gaze.EYE_GOAL"
+            buffer_size="200" auto_range="no" y_min="-20" y_max="20" include_zero="yes"
+            x="1032" y="600" _x="1032" _y="600" width="480" height="128" show_title="yes" show_frame="yes" />
+    <widget class="plot" name="HeadPlot" title="Head goal (tilt, pan)" source="Gaze.HEAD_GOAL"
+            buffer_size="200" auto_range="no" y_min="-45" y_max="45" include_zero="yes"
+            x="1528" y="600" _x="1528" _y="600" width="384" height="128" show_title="yes" show_frame="yes" />
+    <widget class="plot" name="PupilPlot" title="Pupil goal in mm (left, right)" source="Expression.PUPIL_SIZE"
+            buffer_size="200" auto_range="no" y_min="4" y_max="17" include_zero="no"
+            x="1032" y="744" _x="1032" _y="744" width="480" height="128" show_title="yes" show_frame="yes" />
+    <widget class="plot" name="LidPlot" title="Eyelid closure" source="Lid.OUTPUT"
+            buffer_size="200" auto_range="no" y_min="0" y_max="1" include_zero="yes"
+            x="1528" y="744" _x="1528" _y="744" width="384" height="128" show_title="yes" show_frame="yes" />
+</group>

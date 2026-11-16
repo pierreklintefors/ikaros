@@ -1643,7 +1643,7 @@ mind-blown wow with diverging eyes and a pooof). Built from general behaviour mo
 | 5 | Add `KeyframeAnimator`, a keyframe player for named channels and events from a JSON library. | Completed | Release build without warnings; both `KeyframeAnimator` tests pass through `kernel_test.py`. The behaviour test, with ordered single-threaded output, checks a linear ramp 0, 2, 4, 6, 8 that is held and then eased to 4, the `start` and `middle` events on ticks 1 and 4, a repeated step track that pulses twice with an event on its tick, a second animation that interrupts at the present value 4 and glides 4, 7, 10, the halving release to rest of channels that are not used, and the switch of `ANIMATION` from 0 to -1 on the final tick. The bad-channel test checks that an unknown channel stops the model at startup with a clear message. The `play` command, sent through the WebUI command URL, starts animations by index (`x`) and by name. Markdown checker clean. | `Added KeyframeAnimator, which plays named keyframe animations and events` |
 | 6 | Add `BehaviorSelector`, which chooses spontaneous and greeting behaviours by state, weight, and cooldown. | Completed | Release build without warnings; `BehaviorSelector` test passes through `kernel_test.py` with ordered single-threaded output and fixed 1 s intervals: the idle-weighted behaviour 0 starts on tick 9, the greeting 0.2 s after `ENGAGED` rises (tick 17), and the engaged-weighted behaviour 1 on tick 27; a 1.5 s cooldown alternates two behaviours on ticks 9, 19, and 29; `BUSY` from tick 5 to 14 holds the interval so the first start comes on tick 19; a greeting with zero delay fires on arrival (tick 2), the farewell on departure (tick 8), and a return 0.2 s later (tick 10) is not greeted again within the 0.5 s reaction cooldown. Markdown checker clean. | `Added BehaviorSelector, which decides when a robot does what by itself` |
 | 7 | Render voice clips with Kokoro TTS (offline, venv) and effects with the Ikaros synthesizer. | Completed | Kokoro (`kokoro-onnx` 0.6.1, `onnxruntime` 1.32.0) installed only in `UserData/venvs/kokoro`; model files in `UserData/models/kokoro`, both ignored by git. `render_voice.py` renders hi, wow, giggle, hmm, and aww with voice `af_heart` raised four semitones (0.37-0.83 s, 24 kHz mono, peak 0.89); phonemes were checked, and "Wooow" was replaced by a slow "Wow!" because Kokoro read it as two syllables. `RenderPoof.ikg` and `RenderSparkle.ikg` render the effects with `Noise`, `AudioOscillator`, `AudioFilter`, `ADSREnvelope`, and `OutputAudioFile` without warnings: the poof (1.1 s, peak 0.88) starts with a low thump and its noise falls from about 2.5 kHz to 280 Hz as it fades; the sparkle (0.42 s, peak 0.85) has three rising notes. All files open with `afinfo`. Not listened to here; the user judges the sound. | `Added synthesized voice and effect sounds for Epi animatronics` |
-| 8 | Add the `Projects/Epi/EpiAnimatronics.ikg` demo with animation library, guide, and dashboard. | In progress |  |  |
+| 8 | Add the `Projects/Epi/EpiAnimatronics.ikg` demo with animation library, guide, and dashboard. | Completed | Release build. The model loads and runs 300 simulated ticks on the local test video without warnings; with the WebUI on, every dashboard source answers through `/data` and the page is served. Scripted closed-loop simulation over 60 s, with the camera and detector replaced by a person whose image position follows the simulated eye and head positions and with sound replaced by a log: the gaze locks when person A appears at 10 s and the stored direction stays on A (azimuth 8.6 to 11.8 for A at 10); the greeting (sparkle, "hi") follows 0.4 s after the lock, curious ("hmm") follows the release at 36.5 s, and person B is greeted at 45 s; spontaneous animations come every few seconds (cross-eyed, mind blown with wow and poof 1.3 s apart, giggle, eye dart); 23 blinks (mean gap 2.6 s), 22 eye glances, and an idle head look-around of up to 15 degrees of pan. A second scripted run plays all seven animations: convergence 22.9 and divergence -19.8 degrees between the eyes, pupils 7 to 16 mm, eyelid squint that keeps only the lower LEDs lit, LED flash to 1 and blackout to 0. Eye goals stay within -14.7..13 degrees. Head speeds stay within 90 deg/s; the pan acceleration stays within 300 deg/s^2 for a single movement and reaches 354 deg/s^2 when a glance overlaps following (see the fix below). Static layout check: no widget overlaps, matching `x/_x` and `y/_y`, components left of the dashboard, every connection, widget source, parameter, and command resolves, and no input has more than one connection. Full kernel suite: failures only in 239 (known), 374 (known state-path pair), and 207 and 210, which pass when run alone. Not run on a robot, not inspected in a browser, and the sounds were not listened to here. | `Added the Epi animatronics demo` |
 
 ### Additional fixes found during the tasks
 
@@ -1659,3 +1659,30 @@ mind-blown wow with diverging eyes and a pooof). Built from general behaviour mo
   connected.
 - Do not include the uncommitted `InputVideoStream` changes, `.Rhistory`, or `CLAUDE.md` in any commit.
 - Do not move the physical robot without the user present.
+
+### Outstanding issues and questions
+
+- Nothing has been run on a robot. Check the vergence sign (cross-eyed must turn the eyes inward),
+  the LED ring orientation for the eyelid sweep (`led_first_angle`, `led_direction`), the head tilt
+  sign of the nod, the eye-dart speed, and the pacing, following the checklist in
+  `Projects/Epi/EpiAnimatronics.md`. Moving the robot requires the user to be present.
+- The dashboard has not been inspected in a browser; check alignment, clipping, and console errors.
+- The sounds were not listened to here; judge the Kokoro voice (`af_heart`, +4 semitones) and the
+  synthesized poof and sparkle, and re-render with other settings if needed.
+- EpiBlack's pupil servos still run at 5.3 V; the giggle and mind-blown animations depend on the
+  pupils for much of their effect.
+- Possible Ikaros bug: when a module fails during setup, for example `InputVideoStream` with a bad
+  URL, a model that contains `EpiServos` aborts with `uncaught exception ... Uninitialized
+  parameter` instead of reporting the real error. `EpiHeadMirroring.ikg` shows the same behavior.
+  `EpiServos` probably reads an unbound parameter in `Stop()` or its destructor; not fixed here.
+- Possible Ikaros bug or undocumented behavior: several connections without target ranges into one
+  input do not concatenate; only one source arrives, and the connection labels are lost in `Print`.
+  The demo avoids fan-in by combining signals with `Add` and `Maximum`. A GitHub issue could be
+  proposed; the `ikaros-bot` token is not installed here.
+- The head offsets and following are limited separately, so the head goal can accelerate up to
+  twice the limit while both move; the servo profile acceleration still applies on the robot.
+- `SoundOutput` plays one sound at a time and keeps only the latest waiting sound, so a sound
+  started during a long clip can be delayed or dropped.
+- Kernel tests 207 and 210 failed in the parallel full-suite run (210 after an HTTP 500 from remote
+  session logging) and pass when run alone; possibly flaky under load.
+- The `InputVideoStream` ReadMe still lacks the uncommitted crop parameters (pre-existing, untouched).
