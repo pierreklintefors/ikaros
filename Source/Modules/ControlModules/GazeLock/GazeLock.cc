@@ -30,6 +30,8 @@ class GazeLock : public Module
     parameter headDeadZone;
     parameter headMaxSpeed;
     parameter headMaxAcceleration;
+    parameter tiltSpeedScale;
+    parameter tiltAccelerationScale;
     parameter eyeSmoothing;
 
     parameter tiltMin;
@@ -147,7 +149,10 @@ class GazeLock : public Module
         // Braking toward a joint limit is as smooth as braking toward the goal.
         desired = std::clamp(desired, minimum, maximum);
         const float error = desired - current;
-        const float maxStep = headMaxSpeed.as_float();
+        // Tilt can be given gentler limits than pan, for example for a tilt joint that carries the head.
+        const float speedScale = axis == 0 ? tiltSpeedScale.as_float() : 1.0f;
+        const float accelerationScale = axis == 0 ? tiltAccelerationScale.as_float() : 1.0f;
+        const float maxStep = speedScale * headMaxSpeed.as_float();
         float targetVelocity = error;
 
         if(following)
@@ -162,7 +167,7 @@ class GazeLock : public Module
         targetVelocity = std::clamp(targetVelocity, -maxStep, maxStep);
 
         float & velocity = headVelocity[axis];
-        const float maxChange = headMaxAcceleration.as_float() * dt * dt;
+        const float maxChange = accelerationScale * headMaxAcceleration.as_float() * dt * dt;
         if(maxChange > 0.0f)
         {
             // Largest speed from which the head can still stop within the error in whole ticks.
@@ -214,6 +219,8 @@ public:
         Bind(headDeadZone, "head_dead_zone");
         Bind(headMaxSpeed, "head_max_speed");
         Bind(headMaxAcceleration, "head_max_acceleration");
+        Bind(tiltSpeedScale, "tilt_speed_scale");
+        Bind(tiltAccelerationScale, "tilt_acceleration_scale");
         Bind(eyeSmoothing, "eye_smoothing");
 
         Bind(tiltMin, "tilt_min");

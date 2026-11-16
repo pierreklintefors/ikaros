@@ -28,7 +28,8 @@
             fade_in="2" fade_out="4" pose_smoothing="6" _x="600" _y="168" />
 
     <!-- Gaze and expression -->
-    <module class="GazeLock" name="Gaze" head_gain="3" head_max_speed="90" head_max_acceleration="300" head_dead_zone="5" eye_smoothing="20" _x="792" _y="96" />
+    <module class="GazeLock" name="Gaze" head_gain="3" head_max_speed="90" head_max_acceleration="300" head_dead_zone="5" eye_smoothing="20"
+            tilt_speed_scale="0.5" tilt_acceleration_scale="0.3" _x="792" _y="96" />
     <module class="EpiExpression" name="Expression" idle_color="0.5, 0.4, 0.05" engaged_color="0.1, 0.6, 1.0" mirror_color="0.1, 0.9, 0.3"
             mouth_idle_color="0, 0, 0" mouth_color="0.25, 0.2, 0.05" mouth_mirror_color="1, 0.8, 0.3" _x="792" _y="384" />
 

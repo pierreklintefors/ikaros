@@ -62,6 +62,10 @@ In both modes the head speed changes by at most `head_max_acceleration`, so move
 smoothly. Close to the goal or a joint limit the speed is also reduced to what can still be braked
 within the remaining distance, so the head does not overshoot. A value of 0 disables the limit.
 
+`tilt_speed_scale` and `tilt_acceleration_scale` scale both limits for the neck tilt only. A tilt
+joint that carries the weight of the head, especially one with play in its gears, moves more
+smoothly with lower limits than pan needs.
+
 `eye_smoothing` lets the eye goals follow their target at a rate instead of jumping to it, which
 removes small jitter from detection noise and servo feedback. A rate of 0 follows immediately.
 
@@ -113,6 +117,8 @@ per second. The kernel converts them to per-tick values, so behavior does not de
 | head_dead_zone | Head starts moving when the target is this many degrees away and stops at a quarter of it | number | 6 |
 | head_max_speed | Maximum head goal speed in degrees per second | rate | 60 |
 | head_max_acceleration | Maximum change of head goal speed in degrees per second squared; 0 disables the limit | number | 240 |
+| tilt_speed_scale | Factor applied to `head_max_speed` for the neck tilt | number | 1 |
+| tilt_acceleration_scale | Factor applied to `head_max_acceleration` for the neck tilt | number | 1 |
 | tilt_min | Minimum neck tilt goal, centered degrees | number | -30 |
 | tilt_max | Maximum neck tilt goal, centered degrees | number | 30 |
 | pan_min | Minimum neck pan goal, centered degrees | number | -45 |

@@ -22,7 +22,8 @@ The model works with every Epi robot that `EpiServos` knows. Choose the robot wi
    play in the tilt gears does not turn small corrections into jitter. When another person takes over or the person leaves, the offset
    fades out completely before the robot starts mirroring anyone else.
 5. `GazeLock` keeps the eyes on the person and moves the head smoothly, limiting its speed and
-   acceleration. While the robot mirrors, the head follows the mirrored goal from `HeadMirror`, and
+   acceleration. Tilt, which carries the weight of the head, moves at half the pan speed and with 0.3
+   of its acceleration, so tilt movements start and stop softly. While the robot mirrors, the head follows the mirrored goal from `HeadMirror`, and
    the eyes turn the other way so that the robot still looks at the person.
 6. `EpiExpression` shows the state on the LEDs, and `EpiServos` and `FadeCandy` drive the hardware.
 
@@ -142,8 +143,12 @@ Check these on each robot with the room empty, then with one person in front of 
    `switch_ratio` and `switch_delay` on `Selector` and `engage_time` on `Mirror` for the room.
 7. **Distance.** Raise `min_width` on `Mirror` if the robot mirrors people who are too far away to
    notice it, and `min_width` on `Selector` if it reacts to the background.
-8. **Tilt jitter.** If the tilt still jitters, raise `tilt_dead_zone` on `Mirror`, for example to 4.
-   If nodding looks too coarse, lower it. `pan_dead_zone` does the same for pan and is 0 by default.
+8. **Tilt jitter.** If the tilt still jitters during movements, lower `tilt_acceleration_scale` on
+   `Gaze`, for example to 0.2. If it jitters with many small movements, raise `tilt_dead_zone` on
+   `Mirror`, for example to 4. If nodding looks slow or coarse, raise the first or lower the second.
+   `pan_dead_zone` does the same for pan and is 0 by default. If the head shakes while the tilt goal
+   in the **Head goal** plot is still, the tilt servo itself is hunting around its goal; that is set
+   in the servo parameters of `EpiServos`, not in this model.
 9. **Limits.** Confirm that the `GazeLock` limits keep the robot clear of its mechanical stops.
 
 ## Known limitations
