@@ -1,0 +1,28 @@
+<class name="ProximityVergence" description="Converges the eyes on a near target, using the target's size in the image to estimate its distance">
+    <description type="text">
+        ProximityVergence lets a robot with two moving eyes converge on things that come close, as people
+        do. It estimates the distance of a target of known width, such as a face, from the width of its
+        box in the image and the camera's field of view, and computes the vergence angle at which both eyes
+        meet at that distance. The vergence fades in between start_distance and full_distance, so the eyes
+        stay parallel for people further away and cross clearly for someone who comes really close. NEAR
+        rises from 0 to 1 over the same range, for example to constrict the pupils. When the target is
+        lost, the vergence returns to 0 after hold_time.
+    </description>
+
+    <parameter name="object_width" type="number" default="0.15" min="0.01" description="Real width of the target in meters; 0.15 is a typical face box" />
+    <parameter name="eye_baseline" type="number" default="0.058" min="0" description="Distance between the two eyes in meters; 0.058 matches Epi" />
+    <parameter name="horizontal_fov" type="number" default="62.2" min="1" max="179" description="Horizontal camera field of view in degrees" />
+    <parameter name="start_distance" type="number" default="0.8" min="0" description="Distance in meters at which convergence starts to fade in" />
+    <parameter name="full_distance" type="number" default="0.35" min="0" description="Distance in meters at which the full convergence is reached" />
+    <parameter name="gain" type="number" default="1" min="0" description="Factor on the geometric vergence; above 1 exaggerates the cross-eyed look" />
+    <parameter name="max_vergence" type="number" default="20" min="0" description="Largest vergence in degrees" />
+    <parameter name="rate" type="rate" default="4" min="0" description="Rate in 1/s at which the vergence follows its goal; 0 follows immediately" />
+    <parameter name="hold_time" type="number" default="0.5" min="0" description="Seconds the last vergence is kept after VALID has become 0" />
+
+    <input name="TARGET" description="Target center x, y, and width in centered image coordinates, where the image is 2 wide, such as FaceTargetSelector.TARGET" />
+    <input name="VALID" optional="yes" size="1" description="1 when TARGET is a current detection; when not connected, a width above 0 counts as valid" />
+
+    <output name="VERGENCE" size="1" description="Inward eye rotation in degrees, for example for GazeLock.VERGENCE" />
+    <output name="DISTANCE" size="1" description="Estimated target distance in meters; 0 when no target is seen" />
+    <output name="NEAR" size="1" description="How close the target is, from 0 at start_distance to 1 at full_distance" />
+</class>

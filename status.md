@@ -1830,3 +1830,12 @@ Epi less vocal, with more varied and dynamic vocalizations.
 - Copycat only mirrors when the person faces the robot and is close (`min_width`, `facing_limit`);
   otherwise the game shows only its start and end.
 - The dashboard has not been inspected in a browser, in particular the two rows of six buttons.
+
+## Convergence on close faces
+
+Requested: Epi's eyes converge when someone comes really close, that is when the face box gets big.
+
+| # | Task | Status | Verification | Commit |
+|---:|---|---|---|---|
+| 1 | Add `ProximityVergence`, which estimates the distance of a target of known size from its image width and outputs the vergence for that distance, faded in below a start distance, with a near level for the pupils. | Completed | Distance from the face box width and the field of view, geometric vergence for the eye baseline (default 0.058 m from the Epi forward model in `Epi.ikg`), smooth fade-in between `start_distance` and `full_distance`, `gain`, `max_vergence`, `rate`, and `hold_time`. Release build without warnings; the test passes through `kernel_test.py` with ordered output and a 90-degree field of view: widths 0.15, 0.25, 0.375, and 0.75 give distances 1, 0.6, 0.4, and 0.2 m and vergence 0, 3.81 (half of 7.63 halfway through the fade), 11.42, and 20 (limited from 22.6) degrees with `NEAR` 0, 0.5, 1, 1; after `VALID` drops the vergence is held for 0.2 s and then returns to 0. Markdown checker clean. | `Added ProximityVergence, which converges the eyes on close targets` |
+| 2 | Use it in the animatronics demo: add the proximity vergence to the animation vergence and constrict the pupils a little when someone is close. | In progress |  |  |

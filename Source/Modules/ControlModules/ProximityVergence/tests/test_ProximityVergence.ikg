@@ -1,0 +1,20 @@
+<group name="ProximityVergenceTest"
+       description="Distance follows from the target width, vergence fades in between start_distance and full_distance, is limited by max_vergence, and returns to 0 after hold_time"
+       start="true" stop="8" tick_duration="0.1" threads="1"
+       cli_args="-u${TEST_DIR}"
+       expected_output_contains="tick = {0}&#10;vergence = {0}&#10;near = {0}&#10;distance = {1}||tick = {1}&#10;vergence = {3.81407}&#10;near = {0.5}&#10;distance = {0.6}||tick = {2}&#10;vergence = {11.4212}&#10;near = {1}&#10;distance = {0.4}||tick = {3}&#10;vergence = {20}&#10;near = {1}&#10;distance = {0.2}||tick = {5}&#10;vergence = {20}&#10;near = {1}&#10;distance = {0.2}||tick = {6}&#10;vergence = {0}&#10;near = {0}&#10;distance = {0}">
+    <module class="InputFile" name="Script" filename="fixture_ProximityVergence.jsonl" send_end_of_file="false" />
+    <module class="ProximityVergence" name="Vergence" object_width="0.15" eye_baseline="0.08" horizontal_fov="90"
+            start_distance="0.8" full_distance="0.4" gain="1" max_vergence="20" rate="0" hold_time="0.2" />
+    <module class="Print" name="Tick" />
+    <module class="Print" name="Distance" />
+    <module class="Print" name="Near" />
+    <module class="Print" name="Out" />
+
+    <connection source="Script.TARGET" target="Vergence.TARGET" delay="0" />
+    <connection source="Script.VALID" target="Vergence.VALID" delay="0" />
+    <connection source="Script.TICK" target="Tick.INPUT" delay="0" label="tick" />
+    <connection source="Vergence.DISTANCE" target="Distance.INPUT" delay="0" label="distance" />
+    <connection source="Vergence.NEAR" target="Near.INPUT" delay="0" label="near" />
+    <connection source="Vergence.VERGENCE" target="Out.INPUT" delay="0" label="vergence" />
+</group>
