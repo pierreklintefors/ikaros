@@ -1587,7 +1587,7 @@ libraries.
 | 2 | `FaceTargetSelector` passes on the pose of the selected face (`TARGET_POSE`), signals identity switches (`NEW_TARGET`), and can delay switches (`switch_delay`). | Completed | Release build without new warnings; all 6 `FaceTargetSelector` tests pass through `kernel_test.py`: the new pose test (pose of the selected row passed on, held during `hold_time`, zero after, `NEW_TARGET` once) and the new delay test (a two-tick challenge is ignored; a lasting one takes over on the fourth tick with `switch_delay=0.12`, checked with distinct positions). The delay test fails as intended when `switch_delay` is 0. The four existing tests are unchanged and pass. | `FaceTargetSelector now passes on the face pose and can delay switches` |
 | 3 | Add `HeadMirror`, which turns the selected face pose into a mirrored head goal for `GazeLock` with smooth fade-in, fade-out, and handover between people. | Completed | Release build without new warnings; both `HeadMirror` tests pass through `kernel_test.py`. Engage test: tracked state for `engage_time`, then mirroring with yaw 10 and pitch 4 giving head {3, 15} from direction {5, 20}; yaw 40 and pitch -30 clamped to {15, 10}; `NEW_TARGET` stops mirroring at once; a turned-away (yaw 50) and then a too-small face do not start mirroring; mirroring restarts for a close, facing person; loss after `lost_time`. Fade test: exponential fade-in, offset frozen during fade-out, `FOLLOW` back to 1 below weight 0.02. Closed-loop smoke run with `GazeLock` (`DIRECTION` and `LOCKED` with delay 1): no loop or shape errors; head pans to the mirrored offset under the acceleration limit while the eyes counter-rotate. The module is not specific to any robot. | `Added HeadMirror, which mirrors a person's head pose with a pan-tilt head` |
 | 4 | `EpiExpression` shows a third, mirroring state on the eye and mouth LEDs through an optional `MIRRORING` input. | Completed | Release build without new warnings; both `EpiExpression` tests pass through `kernel_test.py`. The new mirroring test steps through idle, engaged, mirroring, engaged, idle and checks the eye colors, mouth off, `mouth_color`, `mouth_mirror_color`, `MIRROR_LEVEL`, and that simulated `FadeCandy` accepts all outputs. The existing fade test, without `MIRRORING`, is unchanged and passes, so `EpiFaceFollowing.ikg` keeps its expression. `GazeLock` tests (4) still pass. | `EpiExpression can now show a mirroring state on the eyes and mouth` |
-| 5 | Add the `Projects/Epi/EpiHeadMirroring.ikg` demo with guide and WebUI dashboard; the robot is a model-level setting so the demo works on every Epi robot, not only EpiBlack (requested during the work). | In progress | | |
+| 5 | Add the `Projects/Epi/EpiHeadMirroring.ikg` demo with guide and WebUI dashboard; the robot is a model-level setting so the demo works on every Epi robot, not only EpiBlack (requested during the work). | Completed | Release build. The model loads and runs 150 simulated ticks on `UserData/video.mp4` without warnings, with all probed buffers present. That clip shows a face only briefly, so behavior was checked in a closed-loop run of the model with the camera and detector replaced by a scripted `InputFile` (two people, simulated `EpiServos` and `FadeCandy`, field of view set to 1 degree so that the scripted face stays straight ahead). Mirroring starts 1 s after person A appears; A's +/-25 degree yaw gives a +/-10 degree clamped head pan with the eyes counter-rotating within their range; closer person B takes over 0.8 s after appearing (`switch_delay` 0.7); A's offset fades out before B is mirrored; after B leaves, mirroring fades out, the lock is released, and the head returns; LEDs go dim amber, blue with dim mouth, green with bright mouth. The head goal never exceeds 90 deg/s or the 300 deg/s^2 acceleration limit. The stored direction drifts slowly in that run, which comes from the 1-degree field of view shortcut, not from the model. Static layout check: no widget overlaps, matching `x/_x` and `y/_y`, graph left of the dashboard, all connections and widget sources resolve. Markdown checker reports no issue for the new and changed docs. Robot name, camera, signs, and gains are model-level settings; the `epi-head` widget uses the neutral `EpiGray` because widget attributes cannot refer to `@robot`. Not run on a robot and not inspected in a browser. | `Added the Epi head-mirroring demo` |
 
 ### Additional fixes found during the tasks
 
@@ -1601,3 +1601,23 @@ libraries.
 - `EpiFaceFollowing.ikg` and existing module behavior stay unchanged when the new inputs are not connected.
 - Do not include the uncommitted `InputVideoStream` changes, `.Rhistory`, or `CLAUDE.md` in any commit.
 - Do not move the physical robot without the user present.
+
+### Outstanding issues and questions
+
+- Not yet run on a robot. With someone in front of the robot, confirm the yaw sign (`mirror_sign`),
+  the pitch sign (`pitch_sign` on `Mirror`), whether `view_compensation` is needed, `max_pan` and
+  `max_tilt`, and the crowd settings, following the checklist in `Projects/Epi/EpiHeadMirroring.md`.
+- The default yaw and pitch signs come from Vision's documented conventions and `GazeLock`'s angle
+  conventions; the test portraits were too frontal to confirm the yaw sign from images.
+- `x_sign=-1` was found on EpiBlack; whether it holds for the other Epi robots is unverified.
+- The dashboard has not been inspected in a browser; check alignment, clipping, and console errors.
+- The left eye camera of EpiBlack does not appear as a USB network device on the Mac (only one
+  RNDIS/Ethernet Gadget interface; `LeftEye.local` does not resolve). Check its cable, hub port, Pi
+  power, and SD card.
+- WebUI widget attributes do not resolve `@` references, so the `epi-head` widget cannot follow the
+  `robot` setting; a possible Ikaros improvement, not proposed as an issue yet.
+- Vision's pose is noisy for small or strongly turned faces; the effect on the demo is untested with
+  real crowds and children.
+- `max_tilt=10` upward with `aim_y=0.3` brings a very close face near the bottom image edge; lower
+  `max_tilt` if close children are lost when they look up.
+- The `InputVideoStream` ReadMe still lacks the uncommitted crop parameters (pre-existing, untouched).

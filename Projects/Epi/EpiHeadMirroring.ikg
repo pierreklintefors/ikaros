@@ -1,0 +1,112 @@
+<group name="EpiHeadMirroring"
+       title="Epi head mirroring"
+       robot="EpiBlack"
+       simulate="false"
+       eye_url="http://RightEye.local:8080/stream/video.mjpeg"
+       x_sign="-1"
+       y_sign="-1"
+       aim_y="0.3"
+       horizontal_fov="62.2"
+       vertical_fov="48.8"
+       mirror_sign="-1"
+       mirror_gain="0.5"
+       synchronized_framegrabber="false"
+       synchronized_tick="false"
+       tick_duration="0.04"
+       real_time="true">
+
+    <!-- Vision: one eye camera finds faces and their head pose -->
+    <module class="InputVideoStream" name="Eye" url="@eye_url" size_x="640" size_y="480" _x="24" _y="168" />
+    <module class="AppleVisionFaceDetector" name="Faces" max_faces="8" downsample="1" _x="216" _y="168" />
+    <module class="FaceTargetSelector" name="Selector" selection="largest" min_width="0.08" min_confidence="0.6"
+            switch_ratio="1.5" switch_delay="0.7" hold_time="0.5" _x="408" _y="168" />
+
+    <!-- Mirroring -->
+    <module class="Constant" name="MirrorEnable" data="1" _x="408" _y="408" />
+    <module class="HeadMirror" name="Mirror" yaw_sign="@mirror_sign" yaw_gain="@mirror_gain" pitch_gain="@mirror_gain"
+            max_pan="10" max_tilt="10" engage_time="1" min_width="0.12" facing_limit="35" lost_time="0.6"
+            fade_in="2" fade_out="4" pose_smoothing="6" _x="600" _y="168" />
+
+    <!-- Gaze and expression -->
+    <module class="GazeLock" name="Gaze" head_gain="3" head_max_speed="90" head_max_acceleration="300" head_dead_zone="5" eye_smoothing="20" _x="792" _y="96" />
+    <module class="EpiExpression" name="Expression" idle_color="0.5, 0.4, 0.05" engaged_color="0.1, 0.6, 1.0" mirror_color="0.1, 0.9, 0.3"
+            mouth_idle_color="0, 0, 0" mouth_color="0.25, 0.2, 0.05" mouth_mirror_color="1, 0.8, 0.3" _x="792" _y="384" />
+
+    <!-- Hardware -->
+    <module class="EpiServos" name="Servos" require_pupils="false" _x="600" _y="24" />
+    <module class="FadeCandy" name="LEDs" _x="792" _y="576" />
+
+    <connection source="Eye.OUTPUT" target="Faces.INPUT" delay="0" />
+    <connection source="Faces.BOXES" target="Selector.BOXES" delay="0" />
+    <connection source="Faces.POSES" target="Selector.POSES" delay="0" />
+
+    <connection source="Selector.TARGET_POSE" target="Mirror.POSE" delay="0" />
+    <connection source="Selector.VALID" target="Mirror.VALID" delay="0" />
+    <connection source="Gaze.TARGET_DIRECTION" target="Mirror.DIRECTION" delay="1" />
+    <connection source="Selector.NEW_TARGET" target="Mirror.NEW_TARGET" delay="0" />
+    <connection source="Selector.TARGET" target="Mirror.TARGET" delay="0" />
+    <connection source="Gaze.LOCKED" target="Mirror.LOCKED" delay="1" />
+    <connection source="MirrorEnable.OUTPUT" target="Mirror.ENABLE" delay="0" />
+
+    <connection source="Servos.PRESENT_POSITION" target="Gaze.PRESENT_POSITION" delay="1" />
+    <connection source="Selector.TARGET" target="Gaze.TARGET" delay="0" />
+    <connection source="Selector.VALID" target="Gaze.VALID" delay="0" />
+    <connection source="Mirror.FOLLOW" target="Gaze.FOLLOW" delay="0" />
+    <connection source="Mirror.HEAD_GOAL" target="Gaze.MANUAL_HEAD" delay="0" />
+    <connection source="Expression.PUPIL_SIZE" target="Gaze.PUPIL_SIZE" delay="1" />
+
+    <connection source="Gaze.GOAL_POSITION" target="Servos.GOAL_POSITION" delay="0" />
+    <connection source="Gaze.LOCKED" target="Expression.ENGAGED" delay="0" />
+    <connection source="Mirror.MIRRORING" target="Expression.MIRRORING" delay="0" />
+
+    <connection source="Expression.LEFT_EYE" target="LEDs.LEFT_EYE" delay="0" />
+    <connection source="Expression.RIGHT_EYE" target="LEDs.RIGHT_EYE" delay="0" />
+    <connection source="Expression.MOUTH_HIGH" target="LEDs.MOUTH_HIGH" delay="0" />
+    <connection source="Expression.MOUTH_LOW" target="LEDs.MOUTH_LOW" delay="0" />
+
+    <!-- Dashboard: controls and state -->
+    <widget class="text" name="Title" text="Epi head mirroring" style="font-size:20px;font-weight:bold;"
+            x="1032" y="24" _x="1032" _y="24" width="880" height="32" show_title="no" show_frame="no" />
+
+    <widget class="switch" name="MirrorSwitch" title="Mirroring" labels="Mirror head movements" parameter="MirrorEnable.data" select_x="0" control_count="1" value="1"
+            x="1032" y="72" _x="1032" _y="72" width="236" height="48" show_title="no" show_frame="no" />
+
+    <widget class="table" name="FacesTable" title="Faces" source="Selector.COUNT" decimals="0" colorize="no"
+            x="1032" y="128" _x="1032" _y="128" width="114" height="56" show_title="yes" show_frame="yes" />
+    <widget class="table" name="LockedTable" title="Locked" source="Gaze.LOCKED" decimals="0" colorize="no"
+            x="1154" y="128" _x="1154" _y="128" width="114" height="56" show_title="yes" show_frame="yes" />
+    <widget class="table" name="StateTable" title="State" source="Mirror.STATE" decimals="0" colorize="no"
+            x="1276" y="128" _x="1276" _y="128" width="114" height="56" show_title="yes" show_frame="yes" />
+    <widget class="table" name="WeightTable" title="Mirror weight" source="Mirror.WEIGHT" decimals="2" colorize="no"
+            x="1398" y="128" _x="1398" _y="128" width="114" height="56" show_title="yes" show_frame="yes" />
+
+    <!-- Dashboard: camera with all faces (green) and the followed face (magenta) -->
+    <widget class="text" name="CameraCaption" text="Eye camera"
+            x="1032" y="200" _x="1032" _y="200" width="480" height="24" show_title="no" show_frame="no" />
+    <widget class="image" name="CameraImage" source="Eye.OUTPUT" format="rgb" scale="both"
+            x="1032" y="224" _x="1032" _y="224" width="480" height="360" show_title="no" show_frame="no" />
+    <widget class="target-boxes" name="FaceBoxes" source="Faces.BOXES" box_color="#00ff66" line_width="2" show_score="no"
+            x="1032" y="224" _x="1032" _y="224" width="480" height="360" show_title="no" show_frame="no" />
+    <widget class="target-boxes" name="TargetBox" source="Selector.TARGET_BOX" box_color="#ff00cc" line_width="4" show_score="no"
+            x="1032" y="224" _x="1032" _y="224" width="480" height="360" show_title="no" show_frame="no" />
+
+    <!-- Dashboard: robot and person -->
+    <widget class="epi-head" name="Head" title="Expression and gaze" epi_name="EpiGray"
+            eye_direction_source="Gaze.EYE_GOAL" pupil_size_source="Expression.PUPIL_SIZE" head_position_source="Gaze.HEAD_GOAL"
+            left_eye_color_source="Expression.LEFT_EYE" right_eye_color_source="Expression.RIGHT_EYE"
+            top_mouth_color_source="Expression.MOUTH_HIGH" lower_mouth_color_source="Expression.MOUTH_LOW"
+            x="1528" y="72" _x="1528" _y="72" width="384" height="248" show_title="yes" show_frame="yes" />
+    <widget class="plot" name="PosePlot" title="Person head pose (yaw, pitch, roll)" source="Selector.TARGET_POSE"
+            buffer_size="200" auto_range="no" y_min="-60" y_max="60" include_zero="yes"
+            x="1528" y="336" _x="1528" _y="336" width="384" height="248" show_title="yes" show_frame="yes" />
+
+    <widget class="plot" name="OffsetPlot" title="Mirror offset (tilt, pan)" source="Mirror.OFFSET"
+            buffer_size="200" auto_range="no" y_min="-15" y_max="15" include_zero="yes"
+            x="1032" y="600" _x="1032" _y="600" width="480" height="128" show_title="yes" show_frame="yes" />
+    <widget class="plot" name="HeadPlot" title="Head goal (tilt, pan)" source="Gaze.HEAD_GOAL"
+            buffer_size="200" auto_range="no" y_min="-45" y_max="45" include_zero="yes"
+            x="1528" y="600" _x="1528" _y="600" width="384" height="128" show_title="yes" show_frame="yes" />
+    <widget class="plot" name="EyePlot" title="Eye goal (left, right)" source="Gaze.EYE_GOAL"
+            buffer_size="200" auto_range="no" y_min="-20" y_max="20" include_zero="yes"
+            x="1032" y="744" _x="1032" _y="744" width="880" height="128" show_title="yes" show_frame="yes" />
+</group>
