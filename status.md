@@ -1695,9 +1695,23 @@ mind-blown wow with diverging eyes and a pooof). Built from general behaviour mo
 | # | Task | Status | Verification | Commit |
 |---:|---|---|---|---|
 | 1 | `EpiServos` no longer aborts when another module fails during setup, so the real error is reported. | Completed | Cause: `Stop()` and the destructor read the `simulate` parameter, which is unbound when another module fails before `EpiServos::Init()` runs; the exception escaped the destructor and aborted the process. Both now rely only on `hardwarePowered`, which is set only on the hardware path, and the hardware pointers, which start as `nullptr`. Release build without warnings. `EpiAnimatronics.ikg` with `simulate=True` and an unresolvable eye URL now ends with `SetUp Failed ... InputVideoStream could not create its frame grabber` instead of the abort; a 50-tick simulated `EpiHeadMirroring.ikg` run on the test video ends normally. The hardware shutdown path is unchanged apart from the removed parameter checks and was not run on a robot. The stale note in `EpiAnimatronics.md` is removed. | `EpiServos no longer aborts when another module fails during setup` |
-| 2 | `EpiAnimatronics.ikg` can use the Mac's own camera through a `camera` setting, so it can be simulated without the robot. | Not started |  |  |
+| 2 | `EpiAnimatronics.ikg` can use the Mac's own camera through a `camera` setting, so it can be simulated without the robot. | Completed | The eye module's class is now `@camera` (default `InputVideoStream`, unchanged behaviour); `camera=InputVideo` uses an AVFoundation camera selected by `camera_id`. The kernel cannot pick the class from `simulate`, because indirect references such as `@camera_@simulate` do not resolve, so the camera is a separate setting. Checked in simulation: the default with an unreachable URL reports the stream error; the default with the test video runs 50 ticks and ends normally; `camera=InputVideo camera_id=97` resolves the class and fails cleanly with `Couldn't open input stream`. The real Mac camera was not opened here; `ffmpeg` lists device 0 as an external webcam and 1 as the FaceTime HD camera. Guide updated with the simulation command, device selection, settings, and the fixed-camera limitation. | `Epi animatronics can now be simulated with the Mac's camera` |
 
 ### Constraints
 
 - Do not change the uncommitted `InputVideoStream` changes.
 - Do not include `.Rhistory` or `CLAUDE.md` in any commit.
+
+### Outstanding issues and questions
+
+- The Mac camera path was not run with a real device here, to avoid turning on the camera; run
+  `./Bin/ikaros simulate=true camera=InputVideo Projects/Epi/EpiAnimatronics.ikg` and check that
+  your face is found. If the camera refuses 640 x 480, `InputVideo` stops with `Couldn't open input
+  stream`.
+- `simulate=true` alone still uses the robot's eye stream and stops with a clear error when the
+  robot is not connected; the camera cannot follow `simulate` automatically without a kernel
+  change, for example support for indirect references such as `@camera_@simulate`.
+- With a fixed Mac camera, the simulated head and eyes run to their limits unless the face is near
+  the image center.
+- `EpiFaceFollowing.ikg` and `EpiHeadMirroring.ikg` could get the same `camera` setting.
+- The `EpiServos` hardware shutdown path was only build-checked; confirm a normal stop on the robot.

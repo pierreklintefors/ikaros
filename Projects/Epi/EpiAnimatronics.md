@@ -62,11 +62,26 @@ Every animation can also be played with the buttons on the dashboard.
 
 ## Running
 
-Start with simulated motors and LEDs to check the camera, the dashboard, and the sounds:
+Without the robot, simulate the motors and LEDs and use the Mac's own camera. Epi then follows
+your face on the dashboard and plays its animations and sounds:
 
 ```sh
-./Bin/ikaros simulate=true Projects/Epi/EpiAnimatronics.ikg
+./Bin/ikaros simulate=true camera=InputVideo Projects/Epi/EpiAnimatronics.ikg
 ```
+
+`camera_id` selects the camera when there are several, numbered as macOS lists them; the numbers
+change when cameras are plugged in. To list them:
+
+```sh
+ffmpeg -f avfoundation -list_devices true -i ""
+```
+
+For example, `camera_id=1` is the built-in FaceTime camera when an external webcam is number 0.
+
+`simulate=true` on its own still uses the robot's eye camera, which needs the robot's USB hub
+connected. Without it, Ikaros stops with an error saying that `InputVideoStream` could not open the
+stream. To test with a recorded video instead, give the file as `eye_url` with
+`synchronized_framegrabber=true`.
 
 Run on a robot, for example EpiBlack, which is the default:
 
@@ -89,7 +104,9 @@ These model-level settings can be changed on the command line:
 | --- | --- | --- |
 | `robot` | `EpiBlack` | Robot entry used by `EpiServos`, for example `EpiWhite`, `EpiRed`, `EpiGreen`, or `EpiOrange` |
 | `simulate` | `false` | Simulate the servos and LEDs |
-| `eye_url` | `http://RightEye.local:8080/stream/video.mjpeg` | Eye camera stream |
+| `camera` | `InputVideoStream` | Camera module: `InputVideoStream` reads `eye_url`; `InputVideo` uses a camera on the Mac |
+| `camera_id` | `0` | Mac camera used with `camera=InputVideo`, numbered as macOS lists them |
+| `eye_url` | `http://RightEye.local:8080/stream/video.mjpeg` | Eye camera stream, or a video file, used with `camera=InputVideoStream` |
 | `camera_eye` | `right` | Eye that carries the camera; must match `eye_url` |
 | `x_sign` | `-1` | Direction from image x to head and eye pan; `-1` was found on EpiBlack |
 | `y_sign` | `1` | Direction from image y to head tilt; `1` was found on EpiBlack |
@@ -174,6 +191,10 @@ the robot needs someone next to it.
   another plays waits until the first has ended, and only the most recent waiting sound is kept.
 - **Combined head limits.** The animation and glance head offsets are limited separately from the
   face-following movement, so the head goal can change up to twice as fast while both move.
+- **Mac camera.** With `camera=InputVideo` the camera is not in Epi's eye, so the face moves in
+  the image only when you move, not when the simulated head turns. Unless your face is near the
+  middle of the image, the simulated head and eyes keep turning toward it until they reach their
+  limits. This is fine for watching the behaviours, but not for tuning the gaze.
 - **Camera.** Only the right eye camera is used. During cross-eyed, eye darts, and glances, the
   camera points away from the face for a moment, so the face can be lost briefly.
 - **Simulation.** Simulated servos start at 0 degrees and move at 45 degrees per second, so the

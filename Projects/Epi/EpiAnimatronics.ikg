@@ -2,6 +2,8 @@
        title="Epi animatronics"
        robot="EpiBlack"
        simulate="false"
+       camera="InputVideoStream"
+       camera_id="0"
        eye_url="http://RightEye.local:8080/stream/video.mjpeg"
        camera_eye="right"
        x_sign="-1"
@@ -14,8 +16,8 @@
        tick_duration="0.04"
        real_time="true">
 
-    <!-- Vision: one eye camera finds faces -->
-    <module class="InputVideoStream" name="Eye" url="@eye_url" size_x="640" size_y="480" _x="24" _y="24" />
+    <!-- Vision: one eye camera finds faces; camera="InputVideo" uses the Mac's own camera instead -->
+    <module class="@camera" name="Eye" url="@eye_url" id="@camera_id" size_x="640" size_y="480" _x="24" _y="24" />
     <module class="AppleVisionFaceDetector" name="Faces" max_faces="8" downsample="1" _x="216" _y="24" />
     <module class="FaceTargetSelector" name="Target" selection="largest" min_width="0.08" min_confidence="0.6"
             switch_ratio="1.5" switch_delay="0.7" hold_time="0.5" _x="408" _y="24" />
