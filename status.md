@@ -1613,7 +1613,7 @@ libraries.
 - The default yaw and pitch signs come from Vision's documented conventions and `GazeLock`'s angle
   conventions; the test portraits were too frontal to confirm the yaw sign from images.
 - `x_sign=-1` and `y_sign=1` were found on EpiBlack; whether they hold for the other Epi robots is
-  unverified. `EpiFaceFollowing.ikg` still uses `y_sign=-1` and probably needs `y_sign=1` on EpiBlack too.
+  unverified. `EpiFaceFollowing.ikg` now also uses `y_sign=1`.
 - The dashboard has not been inspected in a browser; check alignment, clipping, and console errors.
 - The left eye camera of EpiBlack does not appear as a USB network device on the Mac (only one
   RNDIS/Ethernet Gadget interface; `LeftEye.local` does not resolve). Check its cable, hub port, Pi

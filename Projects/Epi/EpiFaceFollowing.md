@@ -48,7 +48,7 @@ The model-level settings below can be changed on the command line:
 | `simulate` | `false` | Simulate the servos and LEDs |
 | `eye_url` | `http://RightEye.local:8080/stream/video.mjpeg` | Eye camera stream that drives the gaze |
 | `x_sign` | `-1` | Direction from image x to neck and eye pan; `-1` is correct for EpiBlack's right eye camera |
-| `y_sign` | `-1` | Direction from image y to neck tilt |
+| `y_sign` | `1` | Direction from image y to neck tilt; `1` is correct for EpiBlack |
 | `aim_y` | `0.4` | Where the face is kept vertically, from -1 (top) to 1 (bottom); 0.4 keeps it in the lower part of the image so the robot looks at the eyes rather than the middle of the face |
 | `horizontal_fov` | `62.2` | Horizontal camera field of view in degrees; see Camera settings |
 | `vertical_fov` | `48.8` | Vertical camera field of view in degrees; see Camera settings |

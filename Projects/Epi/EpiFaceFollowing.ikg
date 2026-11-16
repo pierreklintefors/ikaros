@@ -4,7 +4,7 @@
        simulate="false"
        eye_url="http://RightEye.local:8080/stream/video.mjpeg"
        x_sign="-1"
-       y_sign="-1"
+       y_sign="1"
        aim_y="0.3"
        horizontal_fov="62.2"
        vertical_fov="48.8"
