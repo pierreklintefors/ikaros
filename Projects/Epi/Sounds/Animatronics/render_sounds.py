@@ -301,7 +301,23 @@ def hehe(rng):
     return finish(phrase(parts), gain_db=level(rng))
 
 
-SOUNDS = {"hi": hi, "hehe": hehe, "wow": wow, "poof": poof, "giggle": giggle, "hmm": hmm, "aww": aww, "sparkle": sparkle}
+def chirp(rng):
+    """Found someone: one happy, quirky syllable that scoops up quickly and drops back a little at the end."""
+    k = transpose(rng)
+    start = rng.uniform(900, 1200) * k
+    top = start * rng.uniform(1.6, 2.1)
+    return finish(phrase([
+        (0.00, syllable(rng.uniform(0.12, 0.2), [(0, start), (rng.uniform(0.55, 0.7), top), (1, top * rng.uniform(0.86, 0.94))],
+                        attack=0.004, release=0.05, vibrato=(rng.uniform(14, 20), rng.uniform(0.1, 0.25)),
+                        brightness=rng.uniform(0.25, 0.4), rng=rng)),
+    ]), gain_db=level(rng, 1.5))
+
+
+SOUNDS = {"chirp": chirp, "hi": hi, "hehe": hehe, "wow": wow, "poof": poof, "giggle": giggle, "hmm": hmm, "aww": aww, "sparkle": sparkle}
+
+
+# Fixed seed number of each sound, so adding a sound never changes the takes of the others.
+SEED_IDS = {"aww": 0, "giggle": 1, "hehe": 2, "hi": 3, "hmm": 4, "poof": 5, "sparkle": 6, "wow": 7, "chirp": 8}
 
 
 def write(path, samples):
@@ -325,7 +341,7 @@ def main():
     for name in args.only or list(SOUNDS):
         for i in range(args.variants):
             # Each sound and variant has its own seed, so changing one sound leaves the others alone.
-            rng = np.random.default_rng([args.seed + i, sorted(SOUNDS).index(name)])
+            rng = np.random.default_rng([args.seed + i, SEED_IDS[name]])
             write(args.out_dir / f"{name}_{i + 1}.wav", SOUNDS[name](rng))
 
 

@@ -11,6 +11,7 @@ syllables, their contours, the pitch, the vibrato, the brightness, and the loudn
 
 | Sound | Used for | Description |
 | --- | --- | --- |
+| `chirp` | found you | one happy, quirky syllable that scoops up quickly and drops back a little at the end |
 | `hi` | greet | three bouncy chirps that end high and open |
 | `wow` | surprise in mind blown | a long whistle that starts low and climbs while its vibrato widens, then a bright "eep" |
 | `poof` | mind blown | a sputtering whistle that powers down inside a soft puff of air and a thump |
@@ -38,6 +39,7 @@ The rules used:
 | Feeling | Pitch | Attack and decay |
 | --- | --- | --- |
 | Greeting, joy | bounces and ends high | quick attacks, short decays, a trill at the end |
+| Delight at noticing someone | one quick upward scoop with a small fall-back | sharp attack, short decay |
 | Surprise | starts low and climbs, vibrato widening | slow swell, then a sharp "eep" |
 | Question, curiosity | level, then rising at the end | soft hum, then a clear chirp |
 | Laughter | hops quickly between high and low, speeding up | very short chirps |
@@ -70,7 +72,9 @@ UserData/venvs/sounds/bin/python Projects/Epi/Sounds/Animatronics/render_sounds.
 
 Each sound is a short function at the end of the script that draws its syllables, timing, pitch
 points, attack, decay, vibrato, warble, and brightness from a random generator. `--only` renders
-some sounds, `--variants` sets how many variants are written, and `--seed` gives other variants. To
+some sounds, `--variants` sets how many variants are written, and `--seed` gives other variants.
+Each sound has a fixed seed number in `SEED_IDS`, so adding a sound leaves the takes of the others
+unchanged; give a new sound the next free number. To
 compare other takes without replacing the demo files, render them elsewhere and listen with
 `afplay`:
 
