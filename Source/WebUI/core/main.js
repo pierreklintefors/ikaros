@@ -207,6 +207,7 @@ const main =
         if(elements.root && elements.root.dataset.mainPaneEventsInstalled !== "true")
         {
             elements.root.addEventListener("mousedown", main.activatePaneFromEvent, true);
+            elements.root.addEventListener("scroll", main.handlePaneScroll, { passive: true });
             elements.root.dataset.mainPaneEventsInstalled = "true";
         }
         if(!elements.component_layer || elements.component_layer.dataset.mainEventsInstalled === "true")
@@ -215,6 +216,20 @@ const main =
         elements.component_layer.addEventListener("contextmenu", main.showBackgroundContextMenu, false);
         elements.component_layer.dataset.mainEventsInstalled = "true";
     },
+
+    // Keeps the breadcrumb strip and edit controls in view while the pane content scrolls.
+    handlePaneScroll(evt)
+    {
+        const pane = evt.currentTarget;
+        if(!pane)
+            return;
+        const shift = `translate(${pane.scrollLeft}px, ${pane.scrollTop}px)`;
+        for(const element of pane.querySelectorAll(":scope > .main_breadcrumb_strip, :scope > .main_pane_surface > .main_grid_controls, :scope > .main_pane_surface > .component_create_controls"))
+            element.style.transform = shift;
+        if(typeof main.scheduleWorkspaceConnectionUpdate === "function")
+            main.scheduleWorkspaceConnectionUpdate();
+    },
+
 
     activatePaneFromEvent(evt)
     {

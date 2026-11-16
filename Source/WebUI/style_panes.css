@@ -170,7 +170,7 @@ main[data-mode="edit"] div#grid {
     height: 100%;
     min-width: 0;
     min-height: 0;
-    overflow: hidden;
+    overflow: auto; /* scroll models that are larger than the pane */
 }
 
 .main_pane_surface
