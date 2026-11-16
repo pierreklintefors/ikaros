@@ -1,8 +1,9 @@
 # Epi animatronics
 
-`EpiAnimatronics.ikg` makes an Epi robot look alive, playful, and curious. It never sits still: it
-blinks, glances, and looks around the room. When it finds someone new it perks up and giggles,
-and while it has company it plays little reactions: a sly look to the side with a "he-he-heh", a
+`EpiAnimatronics.ikg` makes an Epi robot look alive, playful, and curious. Most of the time it is
+subtle: it blinks, glances, and slowly looks around the room. When it finds someone new it perks up
+with a happy chirp, when someone comes really close its eyes cross, when someone pans their head
+back and forth it starts a game of copycat, and now and then it plays a little reaction: a sly look to the side with a "he-he-heh", a
 cross-eyed moment with blue eyes, a giggle, being "mind blown" with eyes that move apart, a rising
 whistle of surprise, and a "pooof", or a game of copycat in which it mirrors the person's head
 movements. It speaks only in robot chirps and whistles, not every time and never quite the same,
@@ -22,8 +23,9 @@ synchronized with the motion:
 2. **Looking.** `GazeLock` keeps the eyes on the face and turns the head after it. `camera_eye`
    tells it that the camera is in the right eye, so the face direction stays correct while the eyes
    cross or dart. When someone comes really close, `ProximityVergence` estimates their distance from
-   the size of the face box and makes the eyes converge on them, as people's eyes do: not at all
-   beyond 0.7 m, gradually closer in, and up to 18 degrees at 0.3 m and nearer. The pupils narrow
+   the size of the face box and makes the eyes converge on them, as people's eyes do, but twice as
+   strongly: not at all beyond 0.7 m, gradually closer in, and about 25 degrees, as far as Epi's
+   eyes can turn, at 0.26 m and nearer. The pupils narrow
    a little at the same time, as in the human near response.
 3. **Background life.** `Blinker` blinks every 1.5 to 4.5 seconds, sometimes twice, as an eyelid
    that closes from the top of the LED ring down. `EyeGlances` makes quick glances away and back, and
@@ -37,8 +39,11 @@ synchronized with the motion:
    sets the tempo of the animations (0.8 to 1.15 times), their size (0.8 to 1.2 times), the sound
    volume, and the pupils, which open with excitement as people's do.
 5. **Choosing.** `BehaviorSelector` decides when Epi does what. When someone new appears it plays
-   *found you*, and when the person leaves, *curious*. In between it starts an animation after 5 to
-   10 quiet seconds, sooner when excited. The choice follows the mood: each animation has an energy
+   *found you*, and when the person leaves, *curious*. Alone, it only now and then looks around or
+   peeks curiously. With company it starts an animation after 8 to 16 quiet seconds, sooner when
+   excited, so the subtle background behaviour fills most of the time. When the person pans their
+   head left, right, and left again within 3 seconds, `OscillationDetector` asks for *copycat* at
+   once. The choice follows the mood: each animation has an energy
    level, and the ones that match the present arousal are preferred, so Epi is lively right after
    meeting someone and calmer later. The last three animations are avoided, and none comes back
    within 15 seconds.
@@ -46,7 +51,8 @@ synchronized with the motion:
    channels: eye offset, vergence, head tilt and pan, pupil, eye and mouth colors, brightness,
    eyelid, mirroring, and a blink hold. Each play varies a little in tempo and size, and the sideways
    movements are mirrored at random, so the same animation glances left one time and right the next.
-7. **Playing copycat.** During the copycat animation its `mirror` channel turns on `HeadMirror`,
+7. **Playing copycat.** Copycat starts when the person pans their head back and forth, and now
+   and then by itself. During the copycat animation its `mirror` channel turns on `HeadMirror`,
    which copies the person's head turns and nods as a mirror image, as in `EpiHeadMirroring.ikg`,
    while the eyes stay on the person and glow green.
 8. **Voice.** Most sounds play only in some of the plays, and each time one of three variants is
@@ -68,7 +74,7 @@ cross-eyed, and the flash comes with the pooof.
 
 | # | Name | What Epi does | Sound | Energy |
 | ---: | --- | --- | --- | ---: |
-| 0 | Found you | A noticing blink and a still moment, then it perks up (pupils open, a lift of the head, a warm glow) and giggles with flashing mouth and bobbing head | sparkle, then giggle | 0.8 |
+| 0 | Found you | A noticing blink and a still moment, then it perks up (pupils open, a lift of the head, a warm glow), gives a small happy nod, and smiles | a happy, quirky one-syllable chirp | 0.8 |
 | 1 | Greet | A small lift, a nod on the chirp, a springy return, warm eyes and a smile | bouncy chirps that end high | 0.5 |
 | 2 | Cross-eyed | A tiny outward flick, then the eyes meet at the nose and turn blue, pupils tighten, head dips | a hum, then a rising, questioning chirp | 0.6 |
 | 3 | Eye dart | A small counter-move, then four swings from side to side with flickering cyan eyes | | 0.5 |
@@ -77,16 +83,17 @@ cross-eyed, and the flash comes with the pooof.
 | 6 | Curious | The eyes lead, the head follows to peek to the side and up, the pupils slowly open, teal eyes | a hum, then a rising, questioning chirp | 0.3 |
 | 7 | Shy | Looks down and away with pink eyes and mouth, peeks back once, half-closed eyes | a soft whistle that lifts and sinks away | 0.35 |
 | 8 | Mischief | The eyes slide slowly to the side under half-closed lids, purple glow, a sly laugh with a flash and a bob on each syllable, then a quick, innocent look back with wide eyes | a sly "he-he-heh" | 0.55 |
-| 9 | Look around | The eyes lead each turn and the head follows slowly to one side and the other | | 0.15 |
-| 10 | Copycat | A bright, inviting look and a little lift of the head, then about nine seconds of mirroring the person's head movements with green eyes, ending with a happy squint | sometimes a hello at the start and a giggle at the end | 0.6 |
+| 9 | Look around | The eyes lead each turn and the head follows slowly, about 12 degrees, to one side and the other | | 0.15 |
+| 10 | Copycat | Started by panning the head back and forth: a bright, inviting look and a little lift of the head, then about nine seconds of mirroring the person's head movements with green eyes, ending with a happy squint | sometimes a hello at the start and a giggle at the end | 0.6 |
 
 The sound column lists what can play. Each sound event has a probability, from 35 percent for the
-hum of cross-eyed to 85 percent for the giggles; only the wow and pooof of mind blown always play.
+hum of cross-eyed to 85 percent for the giggles; the chirp of found you and the wow and pooof of mind
+blown always play.
 Each time, one of three takes of the sound is chosen.
 
-Alone, Epi mostly looks around and peeks curiously, with an occasional eye dart, cross-eyed moment,
-or bit of mischief. With company it mixes mischief, cross-eyed, giggle, copycat, greet, shy, eye dart,
-and mind blown, weighted by the mood.
+Alone, Epi only looks around and sometimes peeks curiously. With company it mixes mischief,
+cross-eyed, giggle, greet, shy, eye dart, mind blown, and, more rarely by itself, copycat, weighted
+by the mood.
 
 Every animation can also be played with the buttons on the dashboard.
 
@@ -174,6 +181,7 @@ The character is tuned on the modules:
 | `Mirror` | `max_pan`, `max_tilt`, dead zones, `engage_time` | The copycat game; see `EpiHeadMirroring.md` |
 | `Near` | `start_distance`, `full_distance`, `gain`, `max_vergence`, `object_width` | When and how strongly the eyes converge on a close face |
 | `NearPupil` | `factor` | How much the pupils narrow when a face is close, in mm (negative) |
+| `HeadPan` | `amplitude`, `swings`, `window` | How large and quick a back-and-forth head pan must be to start copycat |
 
 The camera settings in `EpiFaceFollowing.md` (640 x 480, 30 frames per second, JPEG quality about
 70) apply here too.
@@ -240,12 +248,14 @@ the robot needs someone next to it.
 8. **Sound.** Play every animation and set the speaker volume so that the calm sounds are still
    heard; arousal plays them at 35 to 100 percent.
 9. **Close up.** Lean slowly toward Epi's face. Beyond about 0.7 m the eyes should stay parallel,
-   and from there they should cross more and more. If convergence starts too early or too late,
+   and from there they should cross more and more, as far as the eyes can turn at about 0.26 m. If convergence starts too early or too late,
    the face box size differs from the assumed 0.15 m; adjust `object_width` or the distances on
    `Near`. The **Eye goal** plot shows the two eyes moving apart in opposite directions.
-10. **Copycat.** Press **10 Copycat**, stand in front of Epi, face it, and turn and nod your head.
-   It should mirror you as described in `EpiHeadMirroring.md`, whose checks for `mirror_sign` and
-   the nodding direction apply here too.
+10. **Copycat.** Face Epi and pan your head left, right, and left again within about 3 seconds; the
+   game should start. Then turn and nod your head slowly. Epi should mirror you as described in
+   `EpiHeadMirroring.md`, whose checks for `mirror_sign` and the nodding direction apply here too.
+   If panning does not start the game, lower `amplitude` on `HeadPan`; if it starts by accident,
+   raise it or `swings`. The game cannot restart within 15 seconds.
 11. **Pacing and mood.** Watch for a few minutes alone and with company. Raise `min_interval` and
    `max_interval` on `Behaviors` if Epi is too busy, and lower them if it is too calm. Lower
    `decay_rate` on `Arousal` if the excitement fades too fast.

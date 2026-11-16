@@ -28,31 +28,31 @@
     <!-- Behaviour: when to do what, and how it looks -->
     <module class="Constant" name="BehaviorsEnable" data="1" _x="24" _y="264" />
     <module class="BehaviorSelector" name="Behaviors" count="11" greeting="0" greeting_delay="0.3" farewell="6"
-            idle_weights="0, 0, 0.4, 1, 0, 0, 2, 0, 0.4, 3, 0" engaged_weights="0, 1, 1.5, 1, 1.5, 1, 0.6, 1, 1.5, 0.3, 1.5"
+            idle_weights="0, 0, 0, 0, 0, 0, 0.5, 0, 0, 2, 0" engaged_weights="0, 1, 1.5, 1, 1.5, 1, 0.6, 1, 1.5, 0.3, 0.5"
             arousal_levels="0.8, 0.5, 0.6, 0.5, 0.75, 0.9, 0.3, 0.35, 0.55, 0.15, 0.6" arousal_width="0.3" memory="3"
-            min_interval="5" max_interval="10" excited_interval_scale="0.6" cooldown="15" reaction_cooldown="10" _x="216" _y="264" />
+            min_interval="8" max_interval="16" excited_interval_scale="0.6" cooldown="15" reaction_cooldown="10" _x="216" _y="264" />
     <module class="KeyframeAnimator" name="Animator" file="../Projects/Epi/EpiAnimations.json"
             channels="eye_offset, vergence, head_tilt, head_pan, pupil, eye_r, eye_g, eye_b, eye_mix, mouth_r, mouth_g, mouth_b, mouth_mix, brightness, lid, mirror, hold"
             rest="0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0"
-            events="blink, hi_1, hi_2, hi_3, wow_1, wow_2, wow_3, poof_1, poof_2, poof_3, giggle_1, giggle_2, giggle_3, hmm_1, hmm_2, hmm_3, aww_1, aww_2, aww_3, sparkle_1, sparkle_2, sparkle_3, hehe_1, hehe_2, hehe_3" event_count="25" release_rate="4"
+            events="blink, hi_1, hi_2, hi_3, wow_1, wow_2, wow_3, poof_1, poof_2, poof_3, giggle_1, giggle_2, giggle_3, hmm_1, hmm_2, hmm_3, aww_1, aww_2, aww_3, sparkle_1, sparkle_2, sparkle_3, hehe_1, hehe_2, hehe_3, chirp_1, chirp_2, chirp_3" event_count="28" release_rate="4"
             intensity_channels="eye_offset, vergence, head_tilt, head_pan, pupil, lid" mirror_channels="eye_offset, head_pan"
             speed_variation="0.12" intensity_variation="0.15" _x="408" _y="264" />
     <module class="SoundOutput" name="Sounds"
-            sounds="../Projects/Epi/Sounds/Animatronics/hi_1.wav, ../Projects/Epi/Sounds/Animatronics/hi_2.wav, ../Projects/Epi/Sounds/Animatronics/hi_3.wav, ../Projects/Epi/Sounds/Animatronics/wow_1.wav, ../Projects/Epi/Sounds/Animatronics/wow_2.wav, ../Projects/Epi/Sounds/Animatronics/wow_3.wav, ../Projects/Epi/Sounds/Animatronics/poof_1.wav, ../Projects/Epi/Sounds/Animatronics/poof_2.wav, ../Projects/Epi/Sounds/Animatronics/poof_3.wav, ../Projects/Epi/Sounds/Animatronics/giggle_1.wav, ../Projects/Epi/Sounds/Animatronics/giggle_2.wav, ../Projects/Epi/Sounds/Animatronics/giggle_3.wav, ../Projects/Epi/Sounds/Animatronics/hmm_1.wav, ../Projects/Epi/Sounds/Animatronics/hmm_2.wav, ../Projects/Epi/Sounds/Animatronics/hmm_3.wav, ../Projects/Epi/Sounds/Animatronics/aww_1.wav, ../Projects/Epi/Sounds/Animatronics/aww_2.wav, ../Projects/Epi/Sounds/Animatronics/aww_3.wav, ../Projects/Epi/Sounds/Animatronics/sparkle_1.wav, ../Projects/Epi/Sounds/Animatronics/sparkle_2.wav, ../Projects/Epi/Sounds/Animatronics/sparkle_3.wav, ../Projects/Epi/Sounds/Animatronics/hehe_1.wav, ../Projects/Epi/Sounds/Animatronics/hehe_2.wav, ../Projects/Epi/Sounds/Animatronics/hehe_3.wav"
+            sounds="../Projects/Epi/Sounds/Animatronics/hi_1.wav, ../Projects/Epi/Sounds/Animatronics/hi_2.wav, ../Projects/Epi/Sounds/Animatronics/hi_3.wav, ../Projects/Epi/Sounds/Animatronics/wow_1.wav, ../Projects/Epi/Sounds/Animatronics/wow_2.wav, ../Projects/Epi/Sounds/Animatronics/wow_3.wav, ../Projects/Epi/Sounds/Animatronics/poof_1.wav, ../Projects/Epi/Sounds/Animatronics/poof_2.wav, ../Projects/Epi/Sounds/Animatronics/poof_3.wav, ../Projects/Epi/Sounds/Animatronics/giggle_1.wav, ../Projects/Epi/Sounds/Animatronics/giggle_2.wav, ../Projects/Epi/Sounds/Animatronics/giggle_3.wav, ../Projects/Epi/Sounds/Animatronics/hmm_1.wav, ../Projects/Epi/Sounds/Animatronics/hmm_2.wav, ../Projects/Epi/Sounds/Animatronics/hmm_3.wav, ../Projects/Epi/Sounds/Animatronics/aww_1.wav, ../Projects/Epi/Sounds/Animatronics/aww_2.wav, ../Projects/Epi/Sounds/Animatronics/aww_3.wav, ../Projects/Epi/Sounds/Animatronics/sparkle_1.wav, ../Projects/Epi/Sounds/Animatronics/sparkle_2.wav, ../Projects/Epi/Sounds/Animatronics/sparkle_3.wav, ../Projects/Epi/Sounds/Animatronics/hehe_1.wav, ../Projects/Epi/Sounds/Animatronics/hehe_2.wav, ../Projects/Epi/Sounds/Animatronics/hehe_3.wav, ../Projects/Epi/Sounds/Animatronics/chirp_1.wav, ../Projects/Epi/Sounds/Animatronics/chirp_2.wav, ../Projects/Epi/Sounds/Animatronics/chirp_3.wav"
             lag="0" _x="600" _y="816" />
 
     <!-- Mood: excitement rises when someone new is found, with a close face, and with each reaction,
          and sets the animation tempo and size, the sound volume, and the pupil dilation -->
     <module class="Arousal" name="Arousal" idle_level="0.15" engaged_level="0.4" boosts="0.45, 0.06" drive_gain="0.6"
-            decay_rate="0.12" response_rate="1.5" low="0.8, 0.8, 0.35, -1" high="1.15, 1.2, 1, 3" _x="216" _y="600" />
+            decay_rate="0.12" response_rate="1.5" low="0.8, 0.6, 0.35, -1" high="1.15, 1.2, 1, 3" _x="216" _y="600" />
     <module class="Add" name="PupilOffset" _x="600" _y="408" />
 
     <!-- Liveliness: blinks and glances that run all the time -->
     <module class="Blinker" name="Blinker" min_interval="1.5" max_interval="4.5" double_blink_probability="0.2" _x="408" _y="720" />
-    <module class="GlanceGenerator" name="EyeGlances" amplitude="7" min_fraction="0.4" min_interval="1.2" max_interval="3.5"
+    <module class="GlanceGenerator" name="EyeGlances" amplitude="5" min_fraction="0.4" min_interval="1.2" max_interval="3.5"
             center_probability="0.2" return_time="0.6" _x="408" _y="624" />
     <module class="Maximum" name="HeadIdle" _x="216" _y="504" />
-    <module class="GlanceGenerator" name="HeadGlances" amplitude="8, 25" min_fraction="0.3" min_interval="1" max_interval="3"
+    <module class="GlanceGenerator" name="HeadGlances" amplitude="5, 15" min_fraction="0.3" min_interval="1" max_interval="3"
             center_probability="0.3" rate="1.5" _x="408" _y="528" />
 
     <!-- Animation channels combined with the glances and blinks -->
@@ -66,11 +66,14 @@
             min_width="0.12" facing_limit="35" lost_time="0.6" fade_in="2" fade_out="4" pose_smoothing="8" _x="216" _y="768" />
 
     <!-- Near response: the eyes converge and the pupils narrow when a face comes really close -->
-    <module class="ProximityVergence" name="Near" object_width="0.15" start_distance="0.7" full_distance="0.3" gain="1.5"
-            max_vergence="18" rate="4" hold_time="0.5" _x="408" _y="864" />
+    <module class="ProximityVergence" name="Near" object_width="0.15" start_distance="0.7" full_distance="0.3" gain="2"
+            max_vergence="26" rate="4" hold_time="0.5" _x="408" _y="864" />
     <module class="Add" name="Vergence" _x="600" _y="1008" />
     <module class="Scale" name="NearPupil" factor="-2" _x="408" _y="960" />
     <module class="Add" name="Pupil" _x="600" _y="1104" />
+
+    <!-- Panning the head left, right, and left again within 3 s starts the copycat game -->
+    <module class="OscillationDetector" name="HeadPan" amplitude="12" swings="3" window="3" refractory="3" smoothing="8" _x="216" _y="1104" />
 
     <!-- Gaze and expression -->
     <module class="GazeLock" name="Gaze" head_gain="3" head_max_speed="90" head_max_acceleration="300" head_dead_zone="5" eye_smoothing="20"
@@ -100,7 +103,7 @@
     <connection source="Animator.PLAYING" target="Arousal.STIMULUS[1:2]" delay="1" />
     <connection source="Target.TARGET[2:3]" target="Arousal.DRIVE" delay="0" />
 
-    <connection source="Animator.EVENTS[1:25]" target="Sounds.TRIG" delay="0" />
+    <connection source="Animator.EVENTS[1:28]" target="Sounds.TRIG" delay="0" />
     <connection source="Arousal.MAPPED[2:3]" target="Sounds.GAIN" delay="0" />
     <connection source="Animator.EVENTS[0:1]" target="Blinker.TRIGGER" delay="0" />
     <connection source="Animator.OUTPUT[16:17]" target="Blinker.INHIBIT" delay="0" />
@@ -123,6 +126,9 @@
     <connection source="Target.TARGET" target="Mirror.TARGET" delay="0" />
     <connection source="Gaze.LOCKED" target="Mirror.LOCKED" delay="1" />
     <connection source="Animator.OUTPUT[15:16]" target="Mirror.ENABLE" delay="0" />
+    <connection source="Target.TARGET_POSE[0:1]" target="HeadPan.INPUT" delay="0" />
+    <connection source="Target.VALID" target="HeadPan.VALID" delay="0" />
+    <connection source="HeadPan.DETECTED" target="Behaviors.REQUEST[10:11]" delay="0" />
 
     <connection source="Servos.PRESENT_POSITION" target="Gaze.PRESENT_POSITION" delay="1" />
     <connection source="Mirror.FOLLOW" target="Gaze.FOLLOW" delay="0" />
