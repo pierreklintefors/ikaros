@@ -1,0 +1,25 @@
+<class name="Blinker" description="Generates natural eyelid blinks at random intervals">
+    <description type="text">
+        Blinker produces an eyelid closure signal for robots with physical or LED eyelids. Blinks start
+        at random intervals between min_interval and max_interval. Each blink closes quickly, stays closed
+        briefly, and opens more slowly, like a human blink. Some blinks are followed at once by a second
+        one. TRIGGER forces a blink, for example from an animation, and INHIBIT keeps the eyes open, for
+        example during a surprised expression; a blink that falls due while inhibited follows as soon
+        as the inhibition ends.
+    </description>
+
+    <parameter name="min_interval" type="number" default="1.5" min="0" description="Shortest time in seconds from the end of one blink to the start of the next" />
+    <parameter name="max_interval" type="number" default="5" min="0" description="Longest time in seconds from the end of one blink to the start of the next" />
+    <parameter name="double_blink_probability" type="number" default="0.2" min="0" max="1" description="Probability that a blink is followed at once by a second blink" />
+    <parameter name="double_blink_gap" type="number" default="0.1" min="0" description="Seconds between the two blinks of a double blink" />
+    <parameter name="close_time" type="number" default="0.08" min="0" description="Seconds to close the lid" />
+    <parameter name="closed_time" type="number" default="0.05" min="0" description="Seconds the lid stays closed" />
+    <parameter name="open_time" type="number" default="0.16" min="0" description="Seconds to open the lid" />
+    <parameter name="seed" type="number" default="-1" min="-1" description="Random seed; negative selects nondeterministic seeding" />
+
+    <input name="TRIGGER" optional="yes" size="1" description="A change from 0 to 1 starts a blink at once" />
+    <input name="INHIBIT" optional="yes" size="1" description="While above 0.5 no spontaneous blink starts" />
+
+    <output name="LID" size="1" description="Eyelid closure from 0 (open) to 1 (closed), for example for EpiExpression.BLINK" />
+    <output name="BLINK" size="1" description="1 on the tick a blink starts, otherwise 0" />
+</class>

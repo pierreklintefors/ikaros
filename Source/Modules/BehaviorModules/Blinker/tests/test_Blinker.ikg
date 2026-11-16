@@ -1,0 +1,25 @@
+<group name="BlinkerTest"
+       description="Spontaneous blinks follow the interval and lid profile, TRIGGER forces a blink, and INHIBIT delays a due blink until it ends"
+       start="true" stop="24" tick_duration="0.1" threads="1"
+       cli_args="-u${TEST_DIR}"
+       expected_output_twice="timed = {1}||triggered = {0.5}||triggered = {1}||inhibited = {0.5}||inhibited = {1}"
+       expected_output_once="start = {1}">
+    <module class="InputFile" name="Script" filename="fixture_Blinker.jsonl" send_end_of_file="false" />
+    <module class="Blinker" name="Timed" min_interval="1" max_interval="1" double_blink_probability="0" close_time="0.2" closed_time="0.1" open_time="0.2" seed="1" />
+    <module class="Blinker" name="Triggered" min_interval="100" max_interval="100" double_blink_probability="0" close_time="0.2" closed_time="0.1" open_time="0.2" seed="1" />
+    <module class="Blinker" name="Inhibited" min_interval="1" max_interval="1" double_blink_probability="0" close_time="0.2" closed_time="0.1" open_time="0.2" seed="1" />
+    <module class="Print" name="Out1" />
+    <module class="Print" name="Out2" />
+    <module class="Print" name="Out3" />
+    <module class="Print" name="Out4" />
+    <module class="Print" name="Out5" />
+
+    <connection source="Script.TRIGGER" target="Triggered.TRIGGER" delay="0" />
+    <connection source="Script.INHIBIT" target="Inhibited.INHIBIT" delay="0" />
+
+    <connection source="Script.TICK" target="Out1.INPUT" delay="0" label="tick" />
+    <connection source="Timed.LID" target="Out2.INPUT" delay="0" label="timed" />
+    <connection source="Triggered.LID" target="Out3.INPUT" delay="0" label="triggered" />
+    <connection source="Inhibited.LID" target="Out4.INPUT" delay="0" label="inhibited" />
+    <connection source="Inhibited.BLINK" target="Out5.INPUT" delay="0" label="start" />
+</group>

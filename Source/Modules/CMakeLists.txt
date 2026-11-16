@@ -2,6 +2,7 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 add_subdirectory(UtilityModules)
 add_subdirectory(ControlModules)
+add_subdirectory(BehaviorModules)
 add_subdirectory(Audio)
 add_subdirectory(VisionModules)
 add_subdirectory(BrainModels)
