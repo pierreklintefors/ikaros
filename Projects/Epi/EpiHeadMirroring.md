@@ -89,7 +89,7 @@ These model-level settings can be changed on the command line:
 | `simulate` | `false` | Simulate the servos and LEDs |
 | `eye_url` | `http://RightEye.local:8080/stream/video.mjpeg` | Eye camera stream; every Epi uses the same host names over USB |
 | `x_sign` | `-1` | Direction from image x to head and eye pan; `-1` was found on EpiBlack with the right eye camera |
-| `y_sign` | `-1` | Direction from image y to head tilt |
+| `y_sign` | `1` | Direction from image y to head tilt; `1` was found on EpiBlack. `Mirror` uses the same sign for nodding, so changing it also corrects the nodding direction |
 | `aim_y` | `0.3` | Where the face is kept vertically, from -1 (top) to 1 (bottom); positive values make the robot look at the eyes rather than the middle of the face |
 | `horizontal_fov` | `62.2` | Horizontal camera field of view in degrees |
 | `vertical_fov` | `48.8` | Vertical camera field of view in degrees |
@@ -125,8 +125,10 @@ Check these on each robot with the room empty, then with one person in front of 
    pose** plot shows the yaw change. Mirrored, the robot turns to its own right, toward the same side
    of the room. If it turns the other way, invert `mirror_sign`. `mirror_sign` also changes between
    a mirror image and a copy, so check it again after changing the camera.
-3. **Nodding.** Nod down. The robot should nod down too. If it looks up, change `pitch_sign` on
-   `Mirror` to `1`.
+3. **Nodding.** Nod down. The robot should nod down too. `pitch_sign` on `Mirror` follows `y_sign`,
+   because the same tilt direction that keeps a face in view also makes the robot nod the same way
+   as the person, so check step 1 first. If the nodding is still reversed when step 1 is right,
+   set `pitch_sign` on `Mirror` to the opposite of `y_sign`.
 4. **Pose that follows the robot.** Stand still, turn mirroring off, and move the robot's gaze by
    stepping a little to the side. If the yaw or pitch in the pose plot changes although your head
    did not turn, set `view_compensation` on `Mirror` to `1` or `-1`, whichever keeps the pose

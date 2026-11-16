@@ -1594,6 +1594,7 @@ libraries.
 | Fix | Verification | Commit |
 |---|---|---|
 | `HeadMirror` restarted mirroring for a new person while the previous offset was still fading, so the offset jumped by the remaining weight times the difference between the two people's offsets; a new person is now mirrored only after the fade-out has ended. Found in the closed-loop simulation of task 5. | New handover test passes with the other two `HeadMirror` tests; it fails with the previous code because state 1 never appears with `engage_time=0`. | `HeadMirror now waits for the fade-out before mirroring a new person` |
+| First robot run: pan mirroring worked, but the tilt went the wrong way. The user found that EpiBlack follows faces vertically with `y_sign=1`; `Mirror` now uses `pitch_sign="@y_sign"`, since with an upright camera image the correct nodding sign equals `y_sign`. | Simulated run resolves `Mirror.pitch_sign` to 1 without warnings; Markdown checker clean. Nodding direction still to be confirmed on the robot. | `Epi head mirroring now nods with the same tilt sign as face following` |
 
 ### Constraints
 
@@ -1604,12 +1605,13 @@ libraries.
 
 ### Outstanding issues and questions
 
-- Not yet run on a robot. With someone in front of the robot, confirm the yaw sign (`mirror_sign`),
-  the pitch sign (`pitch_sign` on `Mirror`), whether `view_compensation` is needed, `max_pan` and
+- Partly run on EpiBlack: pan mirroring works and `y_sign=1` keeps the face in view vertically.
+  Confirm that nodding now goes the right way (`pitch_sign` follows `y_sign`), whether `view_compensation` is needed, `max_pan` and
   `max_tilt`, and the crowd settings, following the checklist in `Projects/Epi/EpiHeadMirroring.md`.
 - The default yaw and pitch signs come from Vision's documented conventions and `GazeLock`'s angle
   conventions; the test portraits were too frontal to confirm the yaw sign from images.
-- `x_sign=-1` was found on EpiBlack; whether it holds for the other Epi robots is unverified.
+- `x_sign=-1` and `y_sign=1` were found on EpiBlack; whether they hold for the other Epi robots is
+  unverified. `EpiFaceFollowing.ikg` still uses `y_sign=-1` and probably needs `y_sign=1` on EpiBlack too.
 - The dashboard has not been inspected in a browser; check alignment, clipping, and console errors.
 - The left eye camera of EpiBlack does not appear as a USB network device on the Mac (only one
   RNDIS/Ethernet Gadget interface; `LeftEye.local` does not resolve). Check its cable, hub port, Pi

@@ -4,7 +4,7 @@
        simulate="false"
        eye_url="http://RightEye.local:8080/stream/video.mjpeg"
        x_sign="-1"
-       y_sign="-1"
+       y_sign="1"
        aim_y="0.3"
        horizontal_fov="62.2"
        vertical_fov="48.8"
@@ -24,7 +24,7 @@
     <!-- Mirroring -->
     <module class="Constant" name="MirrorEnable" data="1" _x="408" _y="408" />
     <module class="HeadMirror" name="Mirror" yaw_sign="@mirror_sign" yaw_gain="@mirror_gain" pitch_gain="@mirror_gain"
-            max_pan="10" max_tilt="10" engage_time="1" min_width="0.12" facing_limit="35" lost_time="0.6"
+            pitch_sign="@y_sign" max_pan="10" max_tilt="10" engage_time="1" min_width="0.12" facing_limit="35" lost_time="0.6"
             fade_in="2" fade_out="4" pose_smoothing="6" _x="600" _y="168" />
 
     <!-- Gaze and expression -->

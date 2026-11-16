@@ -20,6 +20,11 @@ default `yaw_sign` of -1 gives a mirror image: when the person turns to their le
 to its right. Set `yaw_sign="1"` for an anatomical copy. Confirm both signs on each robot, since they
 depend on how the camera and the servos are mounted.
 
+With an upright camera image, the correct `pitch_sign` equals `GazeLock`'s `y_sign`: both depend only
+on whether a larger tilt angle looks up or down. A model can therefore set `pitch_sign="@y_sign"`. A
+wrong `pitch_sign` is easy to notice: the measured pitch changes when the camera tilts, and with the
+wrong sign that change pushes the head further, so the tilt runs to `max_tilt` and stays there.
+
 Keep `max_pan` within the range the eyes can compensate. A camera in a turning eye otherwise loses
 the face when the head turns away. `max_tilt` should keep the face inside the vertical field of view.
 
