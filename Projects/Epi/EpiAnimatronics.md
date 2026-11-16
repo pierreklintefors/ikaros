@@ -23,9 +23,10 @@ synchronized with the motion:
 2. **Looking.** `GazeLock` keeps the eyes on the face and turns the head after it. `camera_eye`
    tells it that the camera is in the right eye, so the face direction stays correct while the eyes
    cross or dart. When someone comes really close, `ProximityVergence` estimates their distance from
-   the size of the face box and makes the eyes converge on them, as people's eyes do, but twice as
-   strongly: not at all beyond 0.7 m, gradually closer in, and about 25 degrees, as far as Epi's
-   eyes can turn, at 0.26 m and nearer. The pupils narrow
+   the size of the face box and makes the eyes converge on them, as people's eyes do, but three
+   times as strongly: not at all beyond 1 m, about 15 degrees at 0.55 m, and about 27 degrees at
+   0.3 m and nearer. From about 0.45 m the right eye is at its limit and the left eye does the rest
+   of the turn. The pupils narrow
    a little at the same time, as in the human near response.
 3. **Background life.** `Blinker` blinks every 1.5 to 4.5 seconds, sometimes twice, as an eyelid
    that closes from the top of the LED ring down. `EyeGlances` makes quick glances away and back, and
@@ -247,8 +248,8 @@ the robot needs someone next to it.
    and mind blown look much better with working pupils. Check the pupil supply.
 8. **Sound.** Play every animation and set the speaker volume so that the calm sounds are still
    heard; arousal plays them at 35 to 100 percent.
-9. **Close up.** Lean slowly toward Epi's face. Beyond about 0.7 m the eyes should stay parallel,
-   and from there they should cross more and more, as far as the eyes can turn at about 0.26 m. If convergence starts too early or too late,
+9. **Close up.** Lean slowly toward Epi's face. Beyond about 1 m the eyes should stay parallel,
+   and from there they should cross more and more, to about 27 degrees at 0.3 m. If convergence starts too early or too late,
    the face box size differs from the assumed 0.15 m; adjust `object_width` or the distances on
    `Near`. The **Eye goal** plot shows the two eyes moving apart in opposite directions.
 10. **Copycat.** Face Epi and pan your head left, right, and left again within about 3 seconds; the

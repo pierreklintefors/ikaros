@@ -66,8 +66,8 @@
             min_width="0.12" facing_limit="35" lost_time="0.6" fade_in="2" fade_out="4" pose_smoothing="8" _x="216" _y="768" />
 
     <!-- Near response: the eyes converge and the pupils narrow when a face comes really close -->
-    <module class="ProximityVergence" name="Near" object_width="0.15" start_distance="0.7" full_distance="0.3" gain="2"
-            max_vergence="26" rate="4" hold_time="0.5" _x="408" _y="864" />
+    <module class="ProximityVergence" name="Near" object_width="0.15" start_distance="1" full_distance="0.45" gain="3"
+            max_vergence="31" rate="4" hold_time="0.5" _x="408" _y="864" />
     <module class="Add" name="Vergence" _x="600" _y="1008" />
     <module class="Scale" name="NearPupil" factor="-2" _x="408" _y="960" />
     <module class="Add" name="Pupil" _x="600" _y="1104" />

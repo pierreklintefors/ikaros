@@ -1881,4 +1881,12 @@ more as a face approaches.
 | # | Task | Status | Verification | Commit |
 |---:|---|---|---|---|
 | 1 | Lengthen the copycat game. | Completed | Copycat now lasts 19.6 s at tempo 1 with mirroring from 0.6 to 18 s (was 11 s with 9 s of mirroring); its end squint and giggle moved with it. The behaviour cooldown rose from 15 to 25 s, so panning late in a game cannot restart it. Scripted run: the game lasted 18.3 s at Epi's arousal tempo, with 15.4 s of mirroring (7.9 s before), the pan offset following the person to +-9.9 degrees, and 6 blinks. Markdown checker clean. | `Epi's copycat game now lasts about twice as long` |
-| 2 | Converge more, and from further away, as a face approaches, within Epi's eye limits. | In progress |  |  |
+| 2 | Converge more, and from further away, as a face approaches, within Epi's eye limits. | Completed | `Near` now fades in from 1 m to 0.45 m with gain 3 and up to 31 degrees (was 0.7-0.3 m, gain 2, 26 degrees). Scripted approach, inward eye angle at each distance (before in parentheses): 0.77 m 3.8 (0), 0.55 m 15.3 (2.9), 0.43 m 19.4 with a 22.4-degree goal (10.6), 0.35 m 25.3 (17.1), 0.30 m 27.1 (21.6), peaking at 30.7. The right eye stays at its 13-degree limit from about 0.43 m and the left eye turns further inward, to about -14 degrees, within its -18-degree limit. Guide updated. Markdown checker clean. Not run on the robot. | `Epi's eyes now converge earlier and more strongly as a face approaches` |
+
+### Outstanding issues and questions
+
+- Not run on the robot: check the longer game with a person and how the stronger convergence looks.
+- At close range the eyes turn asymmetrically, because the right eye stops at 13 degrees while the
+  left goes on; a larger right-eye limit would need the `EpiServos` limits checked on the robot.
+- The camera is in the right eye, which now turns up to 13 degrees inward when someone is close;
+  a very close face can therefore move toward the edge of the image. Watch for lost faces at close range.
