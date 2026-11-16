@@ -83,7 +83,9 @@ expressive movements on top of the gaze:
 - `HEAD_OFFSET` adds a tilt and pan offset to the head goal, for nods or leaning back. The offset
   moves under `head_max_speed`, `head_max_acceleration`, and the tilt scales, but without the dead
   zone, so small gestures are not swallowed. It is kept separately from the following goal, so the
-  dead zone and following are not disturbed. While the gaze is locked, the eyes compensate the
+  dead zone and following are not disturbed. Because the two parts are limited separately, the head
+  goal can change up to twice as fast while both move at once, for example during a gesture while
+  the head turns toward a new target. Keep the offsets small. While the gaze is locked, the eyes compensate the
   offset like any other head movement, so the robot keeps looking at the target while it nods.
 
 All goals are still clipped to the limits. When the camera sits in one eye, set `camera_eye` to that

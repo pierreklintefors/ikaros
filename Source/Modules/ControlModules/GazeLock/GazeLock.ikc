@@ -51,7 +51,7 @@
     <input name="PUPIL_SIZE" optional="yes" size="2" description="Pupil goals in mm for the left and right pupil" />
     <input name="EYE_OFFSET" optional="yes" size="1" description="Degrees added to both eye goals, for example quick glances or darts; the eyes are still clipped to eye_min and eye_max" />
     <input name="VERGENCE" optional="yes" size="1" description="Inward eye rotation in degrees added to the vergence parameter; negative values make the eyes diverge" />
-    <input name="HEAD_OFFSET" optional="yes" size="2" description="Tilt, pan in centered degrees added to the head goal, for example nods; moves under the head speed and acceleration limits without a dead zone" />
+    <input name="HEAD_OFFSET" optional="yes" size="2" description="Tilt, pan in centered degrees added to the head goal, for example nods; moves under its own head speed and acceleration limits without a dead zone, so together with following the goal can change up to twice as fast" />
 
     <output name="GOAL_POSITION" size="@servo_count" description="Servo goal vector for EpiServos" />
     <output name="HEAD_GOAL" size="2" description="Head goal tilt, pan in centered degrees" />
