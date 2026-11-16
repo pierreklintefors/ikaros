@@ -1872,3 +1872,13 @@ person pans their head back and forth.
 - The chirp and the other sounds have not been listened to.
 - The open questions from the earlier sections remain: whether farewells should wait for the
   playing animation, the `epi-head` widget's head axes, and the browser check of the dashboard.
+
+## Longer copycat and stronger convergence
+
+Requested after the chirp was approved: make the mirroring game last longer, and let the eyes converge
+more as a face approaches.
+
+| # | Task | Status | Verification | Commit |
+|---:|---|---|---|---|
+| 1 | Lengthen the copycat game. | Completed | Copycat now lasts 19.6 s at tempo 1 with mirroring from 0.6 to 18 s (was 11 s with 9 s of mirroring); its end squint and giggle moved with it. The behaviour cooldown rose from 15 to 25 s, so panning late in a game cannot restart it. Scripted run: the game lasted 18.3 s at Epi's arousal tempo, with 15.4 s of mirroring (7.9 s before), the pan offset following the person to +-9.9 degrees, and 6 blinks. Markdown checker clean. | `Epi's copycat game now lasts about twice as long` |
+| 2 | Converge more, and from further away, as a face approaches, within Epi's eye limits. | In progress |  |  |

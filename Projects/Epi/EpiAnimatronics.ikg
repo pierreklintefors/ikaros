@@ -30,7 +30,7 @@
     <module class="BehaviorSelector" name="Behaviors" count="11" greeting="0" greeting_delay="0.3" farewell="6"
             idle_weights="0, 0, 0, 0, 0, 0, 0.5, 0, 0, 2, 0" engaged_weights="0, 1, 1.5, 1, 1.5, 1, 0.6, 1, 1.5, 0.3, 0.5"
             arousal_levels="0.8, 0.5, 0.6, 0.5, 0.75, 0.9, 0.3, 0.35, 0.55, 0.15, 0.6" arousal_width="0.3" memory="3"
-            min_interval="8" max_interval="16" excited_interval_scale="0.6" cooldown="15" reaction_cooldown="10" _x="216" _y="264" />
+            min_interval="8" max_interval="16" excited_interval_scale="0.6" cooldown="25" reaction_cooldown="10" _x="216" _y="264" />
     <module class="KeyframeAnimator" name="Animator" file="../Projects/Epi/EpiAnimations.json"
             channels="eye_offset, vergence, head_tilt, head_pan, pupil, eye_r, eye_g, eye_b, eye_mix, mouth_r, mouth_g, mouth_b, mouth_mix, brightness, lid, mirror, hold"
             rest="0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0"

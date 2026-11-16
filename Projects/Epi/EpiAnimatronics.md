@@ -46,7 +46,7 @@ synchronized with the motion:
    once. The choice follows the mood: each animation has an energy
    level, and the ones that match the present arousal are preferred, so Epi is lively right after
    meeting someone and calmer later. The last three animations are avoided, and none comes back
-   within 15 seconds.
+   within 25 seconds.
 6. **Performing.** `KeyframeAnimator` plays the animations from `EpiAnimations.json` on 17
    channels: eye offset, vergence, head tilt and pan, pupil, eye and mouth colors, brightness,
    eyelid, mirroring, and a blink hold. Each play varies a little in tempo and size, and the sideways
@@ -84,7 +84,7 @@ cross-eyed, and the flash comes with the pooof.
 | 7 | Shy | Looks down and away with pink eyes and mouth, peeks back once, half-closed eyes | a soft whistle that lifts and sinks away | 0.35 |
 | 8 | Mischief | The eyes slide slowly to the side under half-closed lids, purple glow, a sly laugh with a flash and a bob on each syllable, then a quick, innocent look back with wide eyes | a sly "he-he-heh" | 0.55 |
 | 9 | Look around | The eyes lead each turn and the head follows slowly, about 12 degrees, to one side and the other | | 0.15 |
-| 10 | Copycat | Started by panning the head back and forth: a bright, inviting look and a little lift of the head, then about nine seconds of mirroring the person's head movements with green eyes, ending with a happy squint | sometimes a hello at the start and a giggle at the end | 0.6 |
+| 10 | Copycat | Started by panning the head back and forth: a bright, inviting look and a little lift of the head, then about 17 seconds of mirroring the person's head movements with green eyes, ending with a happy squint | sometimes a hello at the start and a giggle at the end | 0.6 |
 
 The sound column lists what can play. Each sound event has a probability, from 35 percent for the
 hum of cross-eyed to 85 percent for the giggles; the chirp of found you and the wow and pooof of mind
@@ -255,7 +255,7 @@ the robot needs someone next to it.
    game should start. Then turn and nod your head slowly. Epi should mirror you as described in
    `EpiHeadMirroring.md`, whose checks for `mirror_sign` and the nodding direction apply here too.
    If panning does not start the game, lower `amplitude` on `HeadPan`; if it starts by accident,
-   raise it or `swings`. The game cannot restart within 15 seconds.
+   raise it or `swings`. The game cannot restart within 25 seconds of its start.
 11. **Pacing and mood.** Watch for a few minutes alone and with company. Raise `min_interval` and
    `max_interval` on `Behaviors` if Epi is too busy, and lower them if it is too calm. Lower
    `decay_rate` on `Arousal` if the excitement fades too fast.
