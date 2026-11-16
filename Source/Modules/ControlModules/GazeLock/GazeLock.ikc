@@ -6,7 +6,8 @@
         FOLLOW is 0 the head follows MANUAL_HEAD. GOAL_POSITION is the complete servo goal vector in the
         Epi order: neck tilt, neck pan, left eye, right eye, left pupil, right pupil, followed by any
         remaining joints. Angles are internally centered on zero and position_offset is added for the
-        servo module.
+        servo module. The optional EYE_OFFSET, VERGENCE, and HEAD_OFFSET inputs let behaviour modules add
+        glances, vergence, and head gestures on top of the gaze.
     </description>
 
     <parameter name="servo_count" type="number" default="19" min="6" description="Size of GOAL_POSITION; 19 matches EpiServos" />
@@ -40,6 +41,7 @@
     <parameter name="eye_max" type="number" default="13" description="Maximum eye pan goal, centered degrees; the default keeps both eyes inside the EpiServos default limits" />
     <parameter name="eye_smoothing" type="rate" default="0" min="0" description="Rate in 1/s at which the eye goals follow their target while locked; 0 follows immediately" />
     <parameter name="vergence" type="number" default="0" description="Inward eye rotation in degrees, split between the eyes" />
+    <parameter name="camera_eye" type="number" default="both" options="both,left,right" description="Eye whose present position locates image measurements: the average of both eyes, or the eye that carries the camera; use the camera eye when vergence or eye offsets are used" />
 
     <input name="PRESENT_POSITION" description="Present servo positions in the same order and units as GOAL_POSITION" />
     <input name="TARGET" optional="yes" description="Target center x, y in centered image coordinates" />
@@ -47,6 +49,9 @@
     <input name="FOLLOW" optional="yes" size="1" description="1 turns the head toward the target, 0 uses MANUAL_HEAD; follows when not connected" />
     <input name="MANUAL_HEAD" optional="yes" size="2" description="Manual head goal tilt, pan in centered degrees" />
     <input name="PUPIL_SIZE" optional="yes" size="2" description="Pupil goals in mm for the left and right pupil" />
+    <input name="EYE_OFFSET" optional="yes" size="1" description="Degrees added to both eye goals, for example quick glances or darts; the eyes are still clipped to eye_min and eye_max" />
+    <input name="VERGENCE" optional="yes" size="1" description="Inward eye rotation in degrees added to the vergence parameter; negative values make the eyes diverge" />
+    <input name="HEAD_OFFSET" optional="yes" size="2" description="Tilt, pan in centered degrees added to the head goal, for example nods; moves under the head speed and acceleration limits without a dead zone" />
 
     <output name="GOAL_POSITION" size="@servo_count" description="Servo goal vector for EpiServos" />
     <output name="HEAD_GOAL" size="2" description="Head goal tilt, pan in centered degrees" />

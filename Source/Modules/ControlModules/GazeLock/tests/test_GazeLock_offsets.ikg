@@ -1,0 +1,42 @@
+<group name="GazeLockOffsetsTest"
+       description="HEAD_OFFSET moves under the speed limit, EYE_OFFSET and VERGENCE shift the eyes, and camera_eye locates measurements with the camera eye"
+       start="true" stop="9" tick_duration="0.1"
+       cli_args="-u${TEST_DIR}"
+       expected_output_contains="head = {2, -2}||head = {4, -4}||head = {4, -6}||eye = {5, 1}||right = {4, -5}||both = {4, -3}"
+       expected_output_not_contains="head = {4, -8}||right = {4, -3}">
+    <module class="InputFile" name="Script" filename="fixture_GazeLock_offsets.jsonl" send_end_of_file="false" />
+    <module class="Constant" name="Follow" data="0" />
+    <module class="Constant" name="Manual" data="0, 0" />
+    <module class="Constant" name="HeadOffset" data="4, -6" />
+    <module class="Constant" name="EyeOffset" data="3" />
+    <module class="Constant" name="Vergence" data="4" />
+    <module class="GazeLock" name="Right" camera_eye="right" update_rate="0" latency="0" hold_time="10" head_max_speed="20" head_max_acceleration="0" />
+    <module class="GazeLock" name="Both" update_rate="0" latency="0" hold_time="10" head_max_speed="20" head_max_acceleration="0" />
+    <module class="Print" name="Head" />
+    <module class="Print" name="Eye" />
+    <module class="Print" name="RightTarget" />
+    <module class="Print" name="BothTarget" />
+
+    <connection source="Script.TARGET" target="Right.TARGET" delay="0" />
+    <connection source="Script.VALID" target="Right.VALID" delay="0" />
+    <connection source="Follow.OUTPUT" target="Right.FOLLOW" delay="0" />
+    <connection source="Manual.OUTPUT" target="Right.MANUAL_HEAD" delay="0" />
+    <connection source="HeadOffset.OUTPUT" target="Right.HEAD_OFFSET" delay="0" />
+    <connection source="EyeOffset.OUTPUT" target="Right.EYE_OFFSET" delay="0" />
+    <connection source="Vergence.OUTPUT" target="Right.VERGENCE" delay="0" />
+    <connection source="Right.GOAL_POSITION" target="Right.PRESENT_POSITION" delay="1" />
+
+    <connection source="Script.TARGET" target="Both.TARGET" delay="0" />
+    <connection source="Script.VALID" target="Both.VALID" delay="0" />
+    <connection source="Follow.OUTPUT" target="Both.FOLLOW" delay="0" />
+    <connection source="Manual.OUTPUT" target="Both.MANUAL_HEAD" delay="0" />
+    <connection source="HeadOffset.OUTPUT" target="Both.HEAD_OFFSET" delay="0" />
+    <connection source="EyeOffset.OUTPUT" target="Both.EYE_OFFSET" delay="0" />
+    <connection source="Vergence.OUTPUT" target="Both.VERGENCE" delay="0" />
+    <connection source="Both.GOAL_POSITION" target="Both.PRESENT_POSITION" delay="1" />
+
+    <connection source="Right.HEAD_GOAL" target="Head.INPUT" delay="0" label="head" />
+    <connection source="Right.EYE_GOAL" target="Eye.INPUT" delay="0" label="eye" />
+    <connection source="Right.TARGET_DIRECTION" target="RightTarget.INPUT" delay="0" label="right" />
+    <connection source="Both.TARGET_DIRECTION" target="BothTarget.INPUT" delay="0" label="both" />
+</group>

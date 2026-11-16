@@ -41,6 +41,7 @@ class GazeLock : public Module
     parameter eyeMin;
     parameter eyeMax;
     parameter vergence;
+    parameter cameraEye;
 
     matrix presentPosition;
     matrix target;
@@ -48,6 +49,9 @@ class GazeLock : public Module
     matrix follow;
     matrix manualHead;
     matrix pupilInput;
+    matrix eyeOffset;
+    matrix vergenceInput;
+    matrix headOffset;
 
     matrix goalPosition;
     matrix headGoal;
@@ -65,7 +69,10 @@ class GazeLock : public Module
     bool isLocked = false;
     bool manualLock = false;
     bool headMoving[2] = {false, false};
-    float headVelocity[2] = {0, 0}; // head goal change per tick
+    float baseHead[2] = {0, 0}; // head goal from following or MANUAL_HEAD, before HEAD_OFFSET
+    float headVelocity[2] = {0, 0}; // base head goal change per tick
+    float offsetHead[2] = {0, 0}; // HEAD_OFFSET after the speed and acceleration limits
+    float offsetVelocity[2] = {0, 0};
 
     std::atomic<bool> lockRequested{false};
     std::atomic<bool> releaseRequested{false};
@@ -144,7 +151,7 @@ class GazeLock : public Module
     // and changes by at most head_max_acceleration so that starts and stops are smooth. Near the goal
     // the speed is also limited to what can still be braked within the remaining distance.
     float
-    StepHead(int axis, float current, float desired, bool following, float minimum, float maximum, float dt)
+    StepHead(int axis, float & velocity, float current, float desired, bool following, float minimum, float maximum, float dt)
     {
         // Braking toward a joint limit is as smooth as braking toward the goal.
         desired = std::clamp(desired, minimum, maximum);
@@ -166,7 +173,6 @@ class GazeLock : public Module
         }
         targetVelocity = std::clamp(targetVelocity, -maxStep, maxStep);
 
-        float & velocity = headVelocity[axis];
         const float maxChange = accelerationScale * headMaxAcceleration.as_float() * dt * dt;
         if(maxChange > 0.0f)
         {
@@ -230,6 +236,7 @@ public:
         Bind(eyeMin, "eye_min");
         Bind(eyeMax, "eye_max");
         Bind(vergence, "vergence");
+        Bind(cameraEye, "camera_eye");
 
         Bind(presentPosition, "PRESENT_POSITION");
         Bind(target, "TARGET");
@@ -237,6 +244,9 @@ public:
         Bind(follow, "FOLLOW");
         Bind(manualHead, "MANUAL_HEAD");
         Bind(pupilInput, "PUPIL_SIZE");
+        Bind(eyeOffset, "EYE_OFFSET");
+        Bind(vergenceInput, "VERGENCE");
+        Bind(headOffset, "HEAD_OFFSET");
 
         Bind(goalPosition, "GOAL_POSITION");
         Bind(headGoal, "HEAD_GOAL");
@@ -278,9 +288,11 @@ public:
         const bool presentAvailable = PresentAvailable();
         const float headTilt = presentAvailable ? presentPosition(0) - offset : headGoal(0);
         const float headPan = presentAvailable ? presentPosition(1) - offset : headGoal(1);
-        const float eyePan = presentAvailable ?
-            0.5f * (presentPosition(2) + presentPosition(3)) - offset :
-            0.5f * (eyeGoal(0) + eyeGoal(1));
+        // The gaze history follows the eye that carries the camera, so vergence does not shift measurements.
+        const int camera = cameraEye.as_int();
+        const float leftEyePan = presentAvailable ? presentPosition(2) - offset : eyeGoal(0);
+        const float rightEyePan = presentAvailable ? presentPosition(3) - offset : eyeGoal(1);
+        const float eyePan = camera == 1 ? leftEyePan : camera == 2 ? rightEyePan : 0.5f * (leftEyePan + rightEyePan);
         RecordGaze(headTilt, headPan, eyePan);
 
         if(releaseRequested.exchange(false))
@@ -314,8 +326,8 @@ public:
             targetAzimuth -= release * targetAzimuth;
         }
 
-        float desiredTilt = headGoal(0);
-        float desiredPan = headGoal(1);
+        float desiredTilt = baseHead[0];
+        float desiredPan = baseHead[1];
         if(following)
         {
             desiredTilt = targetElevation;
@@ -327,8 +339,19 @@ public:
             desiredPan = manualHead(1);
         }
 
-        headGoal(0) = StepHead(0, headGoal(0), desiredTilt, following, tiltMin.as_float(), tiltMax.as_float(), dt);
-        headGoal(1) = StepHead(1, headGoal(1), desiredPan, following, panMin.as_float(), panMax.as_float(), dt);
+        baseHead[0] = StepHead(0, headVelocity[0], baseHead[0], desiredTilt, following, tiltMin.as_float(), tiltMax.as_float(), dt);
+        baseHead[1] = StepHead(1, headVelocity[1], baseHead[1], desiredPan, following, panMin.as_float(), panMax.as_float(), dt);
+
+        // HEAD_OFFSET moves on top of the base goal under the same speed and acceleration limits.
+        if(headOffset.connected())
+        {
+            const float tiltRange = tiltMax.as_float() - tiltMin.as_float();
+            const float panRange = panMax.as_float() - panMin.as_float();
+            offsetHead[0] = StepHead(0, offsetVelocity[0], offsetHead[0], headOffset(0), false, -tiltRange, tiltRange, dt);
+            offsetHead[1] = StepHead(1, offsetVelocity[1], offsetHead[1], headOffset(1), false, -panRange, panRange, dt);
+        }
+        headGoal(0) = std::clamp(baseHead[0] + offsetHead[0], tiltMin.as_float(), tiltMax.as_float());
+        headGoal(1) = std::clamp(baseHead[1] + offsetHead[1], panMin.as_float(), panMax.as_float());
 
         if(isLocked)
             eyeCenter += Blend(eyeSmoothing) * (targetAzimuth - headPan - eyeCenter);
@@ -336,9 +359,10 @@ public:
             eyeCenter -= release * eyeCenter;
         eyeCenter = std::clamp(eyeCenter, eyeMin.as_float(), eyeMax.as_float());
 
-        const float halfVergence = 0.5f * vergence.as_float();
-        eyeGoal(0) = std::clamp(eyeCenter + halfVergence, eyeMin.as_float(), eyeMax.as_float());
-        eyeGoal(1) = std::clamp(eyeCenter - halfVergence, eyeMin.as_float(), eyeMax.as_float());
+        const float halfVergence = 0.5f * (vergence.as_float() + (vergenceInput.connected() ? vergenceInput(0) : 0.0f));
+        const float shift = eyeOffset.connected() ? eyeOffset(0) : 0.0f;
+        eyeGoal(0) = std::clamp(eyeCenter + shift + halfVergence, eyeMin.as_float(), eyeMax.as_float());
+        eyeGoal(1) = std::clamp(eyeCenter + shift - halfVergence, eyeMin.as_float(), eyeMax.as_float());
 
         targetDirection(0) = targetElevation;
         targetDirection(1) = targetAzimuth;

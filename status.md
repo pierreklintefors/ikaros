@@ -1626,3 +1626,30 @@ libraries.
 - `max_tilt=10` upward with `aim_y=0.3` brings a very close face near the bottom image edge; lower
   `max_tilt` if close children are lost when they look up.
 - The `InputVideoStream` ReadMe still lacks the uncommitted crop parameters (pre-existing, untouched).
+
+## EpiBlack animatronics
+
+Playful, lifelike behaviour for EpiBlack: frequent LED eyelid blinks, quick eye darts, curious
+look-around when alone, and reactions to people (cross-eyed blue eyes, giggle with pulsing pupils,
+mind-blown wow with diverging eyes and a pooof). Built from general behaviour modules that drive
+`GazeLock` and `EpiExpression` through new optional inputs.
+
+| # | Task | Status | Verification | Commit |
+|---:|---|---|---|---|
+| 1 | `GazeLock` takes optional `EYE_OFFSET`, `VERGENCE`, and `HEAD_OFFSET` inputs and a `camera_eye` parameter. | Completed | Release build without new warnings; all 6 GazeLock tests pass through `kernel_test.py`. The new offsets test checks that the head offset moves 2 degrees per tick under `head_max_speed` to {4, -6}, that eye offset 3 with vergence 4 gives eyes {5, 1}, and that one centered detection is stored at azimuth -5 with `camera_eye=right` and -3 with `both`. The five existing tests are unchanged and pass. Markdown checker reports only the known `InputVideoStream` issue. | `GazeLock can now add eye, vergence, and head offsets from behaviour modules` |
+| 2 | `EpiExpression` takes optional `BLINK` (eyelid sweep), `EYE_OVERLAY`, `MOUTH_OVERLAY`, `BRIGHTNESS`, and `PUPIL_OFFSET` inputs. | Not started |  |  |
+| 3 | Add `Blinker`, a random natural blink generator, in a new `BehaviorModules` category. | Not started |  |  |
+| 4 | Add `GlanceGenerator`, random gaze shifts in any number of dimensions. | Not started |  |  |
+| 5 | Add `KeyframeAnimator`, a keyframe player for named channels and events from a JSON library. | Not started |  |  |
+| 6 | Add `BehaviorSelector`, which chooses spontaneous and greeting behaviours by state, weight, and cooldown. | Not started |  |  |
+| 7 | Render voice clips with Kokoro TTS (offline, venv) and effects with the Ikaros synthesizer. | Not started |  |  |
+| 8 | Add the `Projects/Epi/EpiAnimatronics.ikg` demo with animation library, guide, and dashboard. | Not started |  |  |
+
+### Constraints
+
+- C++ modules only; no kernel changes and no external libraries in the build. Kokoro and its Python
+  packages are used only offline, in `UserData/venvs/kokoro`, to render WAV files.
+- Existing behaviour of `GazeLock` and `EpiExpression` stays unchanged when the new inputs are not
+  connected.
+- Do not include the uncommitted `InputVideoStream` changes, `.Rhistory`, or `CLAUDE.md` in any commit.
+- Do not move the physical robot without the user present.

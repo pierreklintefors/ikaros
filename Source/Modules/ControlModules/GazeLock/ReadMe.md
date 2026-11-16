@@ -72,6 +72,24 @@ removes small jitter from detection noise and servo feedback. A rate of 0 follow
 All goals are clipped to the configured limits. The defaults lie inside the `EpiServos` default
 position limits, and `eye_max` is 13 degrees because that is the right eye's default limit.
 
+### Behaviour offsets
+
+Three optional inputs let behaviour modules, such as `KeyframeAnimator` and `GlanceGenerator`, add
+expressive movements on top of the gaze:
+
+- `EYE_OFFSET` adds degrees to both eye goals, for quick glances or darts from side to side.
+- `VERGENCE` adds inward rotation to the `vergence` parameter. Positive values make the eyes
+  converge, negative values make them diverge.
+- `HEAD_OFFSET` adds a tilt and pan offset to the head goal, for nods or leaning back. The offset
+  moves under `head_max_speed`, `head_max_acceleration`, and the tilt scales, but without the dead
+  zone, so small gestures are not swallowed. It is kept separately from the following goal, so the
+  dead zone and following are not disturbed. While the gaze is locked, the eyes compensate the
+  offset like any other head movement, so the robot keeps looking at the target while it nods.
+
+All goals are still clipped to the limits. When the camera sits in one eye, set `camera_eye` to that
+eye. Image measurements are then combined with that eye's position, so vergence and eye offsets do
+not shift the stored target direction. The default `both` uses the average of the two eyes.
+
 ### Startup
 
 While any of the first four `PRESENT_POSITION` values is more than 90 degrees from
@@ -127,6 +145,7 @@ per second. The kernel converts them to per-tick values, so behavior does not de
 | eye_max | Maximum eye pan goal, centered degrees | number | 13 |
 | eye_smoothing | Rate in 1/s at which the eye goals follow their target while locked; 0 follows immediately | rate | 0 |
 | vergence | Inward eye rotation in degrees, split between the eyes | number | 0 |
+| camera_eye | Eye whose present position locates image measurements: `both` (average), `left`, or `right` | number | both |
 
 The default field of view matches the Raspberry Pi Camera Module v2.
 
@@ -140,6 +159,9 @@ The default field of view matches the Raspberry Pi Camera Module v2.
 | FOLLOW | 1 turns the head toward the target, 0 uses MANUAL_HEAD; follows when not connected | yes |
 | MANUAL_HEAD | Manual head goal tilt, pan in centered degrees | yes |
 | PUPIL_SIZE | Pupil goals in mm for the left and right pupil | yes |
+| EYE_OFFSET | Degrees added to both eye goals | yes |
+| VERGENCE | Inward eye rotation in degrees added to `vergence`; negative diverges | yes |
+| HEAD_OFFSET | Tilt, pan in degrees added to the head goal under the speed and acceleration limits | yes |
 
 ## Outputs
 
@@ -166,4 +188,5 @@ The default field of view matches the Raspberry Pi Camera Module v2.
 
 The tests in `tests/` feed `GOAL_POSITION` back as `PRESENT_POSITION` to model ideal servos. They
 check eye compensation during a manual head move, release after `hold_time`, the head dead zone,
-eye clipping, the pupil input, the aim point, and the acceleration-limited head motion.
+eye clipping, the pupil input, the aim point, the acceleration-limited head motion, the behaviour
+offsets, and `camera_eye`.
