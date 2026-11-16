@@ -4,7 +4,7 @@
 often, glances around, and looks curiously around the room when nobody is there. When someone
 comes close it follows their face, greets them, and now and then plays a little reaction: it goes
 cross-eyed with blue eyes, giggles with pulsing pupils, or is "mind blown" with diverging eyes, a
-"wow", and a "pooof".
+rising whistle of surprise, and a "pooof". It speaks only in robot chirps and whistles.
 
 The model works with every Epi robot that `EpiServos` knows. Choose the robot with `robot`.
 
@@ -38,13 +38,13 @@ with other robots.
 
 | # | Name | What Epi does | Sound |
 | ---: | --- | --- | --- |
-| 0 | Greet | Double blink, warm sparkling eyes, pupils open, a small nod and a smile | sparkle, "Hi!" |
-| 1 | Cross-eyed | Eyes converge 22 degrees and turn blue, pupils contract, head dips a little | "Hmm?" |
+| 0 | Greet | Double blink, warm sparkling eyes, pupils open, a small nod and a smile | climbing blips, then bouncy chirps that end high |
+| 1 | Cross-eyed | Eyes converge 22 degrees and turn blue, pupils contract, head dips a little | a hum, then a rising, questioning chirp |
 | 2 | Eye dart | Eyes swing quickly from side to side three times with flickering cyan eyes | |
-| 3 | Giggle | Pupils pulse, eyes squint happily in pink, the mouth flashes, the head bobs | "Hee hee hee hee!" |
-| 4 | Mind blown | Eyes diverge and glow white, pupils open fully, head leans back, "Wow!"; then a flash, a blackout, small pupils, a dazed wobble, and a purple recovery | "Wow!", pooof |
-| 5 | Curious | Eyes lead, head peeks to the side and up, pupils slowly open, teal eyes | "Hmm?" |
-| 6 | Shy | Looks down and away with pink eyes and mouth, peeks back once, half-closed eyes | "Aww." |
+| 3 | Giggle | Pupils pulse, eyes squint happily in pink, the mouth flashes, the head bobs | quick chirps hopping between high and low |
+| 4 | Mind blown | Eyes diverge and glow white, pupils open fully, head leans back; then a flash, a blackout, small pupils, a dazed wobble, and a purple recovery | a whistle climbing from low to high, then a sputtering power-down and a puff |
+| 5 | Curious | Eyes lead, head peeks to the side and up, pupils slowly open, teal eyes | a hum, then a rising, questioning chirp |
+| 6 | Shy | Looks down and away with pink eyes and mouth, peeks back once, half-closed eyes | a soft whistle that lifts and sinks away |
 
 When nobody is followed, Epi mostly plays curious and eye dart, and sometimes cross-eyed. With
 company it plays cross-eyed, giggle, shy, mind blown, and eye dart. The greeting plays for each new

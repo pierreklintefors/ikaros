@@ -1,65 +1,74 @@
 # Animatronics sounds
 
-Short sounds for `Projects/Epi/EpiAnimatronics.ikg`, played by `SoundOutput`.
+Non-verbal robot sounds for `Projects/Epi/EpiAnimatronics.ikg`, played by `SoundOutput`. Epi does not
+speak. It chirps and whistles, and its feelings come across through intonation: how the pitch
+moves, how fast, and how each sound starts and ends.
 
-| File | Sound | Made with |
+| File | Used for | Sound |
 | --- | --- | --- |
-| `hi.wav` | "Hi!" | Kokoro TTS |
-| `wow.wav` | a slow "Wow!" | Kokoro TTS |
-| `giggle.wav` | a giggle of five "hee" syllables that speed up and fall | Kokoro TTS |
-| `hmm.wav` | a curious "Hmm?" | Kokoro TTS |
-| `aww.wav` | a shy "Aww." | Kokoro TTS |
-| `poof.wav` | a pooof: a soft breath of noise that darkens as it fades, over a low thump | Ikaros synthesizer, `RenderPoof.ikg` |
-| `sparkle.wav` | three soft rising bells that ring on over each other | Ikaros synthesizer, `RenderSparkle.ikg` |
+| `hi.wav` | greeting | three bouncy chirps that end high and open |
+| `wow.wav` | surprise in mind blown | a long whistle that starts low and climbs while its vibrato widens, then a bright "eep" |
+| `poof.wav` | mind blown | a sputtering whistle that powers down inside a soft puff of air and a thump |
+| `giggle.wav` | giggle | eight quick chirps that hop between high and low, speed up, and drift down |
+| `hmm.wav` | cross-eyed and curious | a thoughtful hum, then a chirp that rises like a question |
+| `aww.wav` | shy | a soft, slow whistle that lifts a little and sinks away |
+| `sparkle.wav` | greeting | bright blips that climb into a happy trill |
 
-The voice clips use the Kokoro voice `af_heart` at its natural pitch. Raising the pitch by
-resampling makes a voice sound sped up, so `render_voice.py` allows only small steps and uses none
-by default. Each clip keeps the natural decay of the voice, gets gentle fades and a small, soft
-room, ends once that tail has died away, and is matched to the same loudness (-17 dB RMS over the
-voiced part, peaks below -3 dBFS). The giggle is built from single "hee" syllables that come
-faster, lower, and softer, which sounds more like laughing than a text read aloud.
+## Design
 
-The effects use squared envelopes, which fall smoothly like a natural decay instead of stopping at
-a corner. Each sparkle bell has its own envelope, so a new note does not cut off the previous one.
-`AudioReverb` adds a small room, and a master envelope fades the end of the file after the tail.
-The effects are matched to the voices at about -17 dB RMS.
+The sounds follow how film robots are made to sound alive without words:
 
-All sounds start and end at zero and stop once their tail has died away. `SoundOutput` plays one
-sound at a time, so a long silent ending would hold up the next sound.
+- Ben Burtt found that synthesizer sounds alone were too electronic to express emotion. R2-D2's
+  voice came alive when the chirps followed the inflections of a human voice, including baby-talk
+  wails. The sounds here are original, but they follow the same idea: each syllable has the
+  intonation of a spoken word, without the word.
+- An analysis of WALL-E's sounds found that intonation, pitch, and timbre carry most of the
+  emotion and intention. Pitch movement is therefore the main tool here.
+- Listeners recognize basic emotions such as happy, sad, surprised, and tired from such sounds, but
+  rarely subtle ones, so each sound is one clear gesture.
 
-The files are committed, so the demo needs neither Kokoro nor Python.
+The rules used:
+
+| Feeling | Pitch | Attack and decay |
+| --- | --- | --- |
+| Greeting, joy | bounces and ends high | quick attacks, short decays, a trill at the end |
+| Surprise | starts low and climbs, vibrato widening | slow swell, then a sharp "eep" |
+| Question, curiosity | level, then rising at the end | soft hum, then a clear chirp |
+| Laughter | hops quickly between high and low, speeding up | very short chirps |
+| Shyness | lifts slightly, then sinks | slow, soft attack and long fade |
+| Mind blown | falls from high to low with a stuttering warble | sudden start, long power-down |
+
+Each syllable is a whistle with a few overtones, like a resonant filter, with a smooth pitch
+contour, vibrato, and optional sample-and-hold warble. Its phase is continuous, so pitch glides
+are smooth. A small, soft room is added, each sound ends once its tail has died away, and all are
+matched to -17 dB RMS over the sounding part, with the shy and sparkle sounds a little softer.
+They start and end at zero. `SoundOutput` plays one sound at a time, so short endings keep the next
+sound on time.
 
 ## Rendering again
 
-The effects need only Ikaros. `OutputAudioFile` writes only inside the user directory, so set it to
-this folder:
+`render_sounds.py` needs only numpy:
 
 ```sh
-./Bin/ikaros -b -u Projects/Epi/Sounds/Animatronics Projects/Epi/Sounds/Animatronics/RenderPoof.ikg
-./Bin/ikaros -b -u Projects/Epi/Sounds/Animatronics Projects/Epi/Sounds/Animatronics/RenderSparkle.ikg
+python3 -m venv UserData/venvs/sounds
+UserData/venvs/sounds/bin/pip install numpy
+UserData/venvs/sounds/bin/python Projects/Epi/Sounds/Animatronics/render_sounds.py
 ```
 
-The voice clips need Kokoro in its own virtual environment. The environment and the model files are
-kept in `UserData`, which is not committed:
+Each sound is a short function at the end of the script that lists its syllables with their
+timing, pitch points, attack, decay, vibrato, warble, and brightness. `--only` renders some sounds,
+and `--seed` changes the warbles. To compare takes, render variants into
+`UserData/output/animatronics_sounds` and listen with `afplay`:
 
 ```sh
-python3 -m venv UserData/venvs/kokoro
-UserData/venvs/kokoro/bin/pip install kokoro-onnx soundfile
-mkdir -p UserData/models/kokoro
-curl -L -o UserData/models/kokoro/kokoro-v1.0.onnx https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0/kokoro-v1.0.onnx
-curl -L -o UserData/models/kokoro/voices-v1.0.bin https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0/voices-v1.0.bin
-UserData/venvs/kokoro/bin/python Projects/Epi/Sounds/Animatronics/render_voice.py
+UserData/venvs/sounds/bin/python Projects/Epi/Sounds/Animatronics/render_sounds.py --variants 4
+afplay UserData/output/animatronics_sounds/poof_seed2.wav
 ```
 
-`render_voice.py` takes `--voice` (for example `af_bella`, `af_sky`, or `af_nicole`), `--pitch` in
-semitones, and `--only` to render some clips. To compare voices, render every clip with six voices
-into `UserData/output/animatronics_voices/<voice>/` and listen with `afplay`:
+## Sources
 
-```sh
-UserData/venvs/kokoro/bin/python Projects/Epi/Sounds/Animatronics/render_voice.py --audition
-afplay UserData/output/animatronics_voices/af_bella/giggle.wav
-```
-
-Then render the chosen voice into this folder with `--voice`. The texts and speeds are listed at the top of the
-script. Spellings with stretched vowels, such as "Wooow", are read as separate syllables, so a long
-vowel is made with a lower speed instead.
+- [Ben Burtt on R2-D2's voice](https://designingsound.org/2009/09/10/ben-burtt-special-star-wars-the-sounds-part-2)
+- [The ARP 2600 behind R2-D2](https://www.musicradar.com/how-to/the-40-greatest-synth-sounds-of-all-time-no-22-star-wars-r2-d2)
+- [Ben Burtt and the voice of WALL-E](https://news.symbolicsound.com/?p=4035)
+- [Analysis of WALL-E's sounds](https://www.smc2019.uma.es/articles/P2/P2_07_SMC2019_paper.pdf)
+- [Teaching robots to communicate like R2-D2](https://spectrum.ieee.org/beep-boop-teaching-robots-to-communicate-like-r2d2)

@@ -1748,3 +1748,20 @@ voices are raised four semitones by resampling, which sounds like a sped-up reco
 - If Epi should sound smaller, `--pitch` 1 to 2 semitones keeps the voice natural; more sounds sped up.
 - The giggle is assembled from single syllables; if it still sounds mechanical, the syllable timing
   and pitch steps are at the top of `render_voice.py`.
+
+## Non-verbal robot sounds
+
+The user found the voice clips weird and asked for robotic, non-verbal sounds: chirps and whistles
+whose pitch and prosody alternate, with varied attack and decay, for example a surprise that starts
+low and rises, following the principles of film robot sound design.
+
+| # | Task | Status | Verification | Commit |
+|---:|---|---|---|---|
+| 1 | Replace the voice clips and synthesized effects with non-verbal robot chirp phrases rendered by one script, keeping the file names used by the demo. | Completed | New `render_sounds.py` (numpy only) builds every sound from syllables with their own smooth log-pitch contours, attack, decay, vibrato, sample-and-hold warble, and overtones, with continuous phase, a small room, and matched loudness; the design rules and sources are in the sound ReadMe. Kokoro, `render_voice.py`, `RenderPoof.ikg`, and `RenderSparkle.ikg` are removed; the Ikaros audio modules update pitch once per tick, which would step fast glides. Measured pitch every 40 ms matches each design: hi 940-1480-1180-1860 Hz ending high; wow climbs 171 to 1290 Hz, then 1.7-2 kHz; poof falls 1580 to 160 Hz with a warble; giggle hops between about 1.8 and 1.1 kHz while drifting down; hmm holds 620 Hz, then rises to 1260 Hz; aww lifts 1070 to 1190 Hz, then sinks to 730 Hz; sparkle climbs 1330 to 2050 Hz into a 2.5-2.7 kHz trill. Lengths 0.50-0.97 s; all start and end at 0; RMS -17 dB (aww -20, sparkle -19). The greeting's chirp moved back to 0.55 s because the sparkle now ends at 0.5 s; the mind-blown surprise ends at 1.07 s, before the poof at 1.4 s. 20 simulated ticks of the demo run without warnings. Not listened to here. | `Epi animatronics now speaks in non-verbal robot chirps` |
+
+### Outstanding issues and questions
+
+- The sounds were not listened to here; tune them by ear, either the syllables in
+  `render_sounds.py` or other warble takes with `--variants`.
+- The Kokoro venv and model (about 350 MB) in `UserData/venvs/kokoro` and `UserData/models/kokoro`
+  are no longer used and can be deleted by the user.
