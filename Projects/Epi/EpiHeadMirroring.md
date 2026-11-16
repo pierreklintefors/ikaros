@@ -63,6 +63,16 @@ Start with simulated motors and LEDs to check the camera and the dashboard:
 ./Bin/ikaros simulate=true Projects/Epi/EpiHeadMirroring.ikg
 ```
 
+This uses the robot's eye camera, so the robot's USB hub must be connected. Without the robot, use
+a camera on the Mac:
+
+```sh
+./Bin/ikaros simulate=true camera=InputVideo Projects/Epi/EpiHeadMirroring.ikg
+```
+
+`camera_id` selects the camera when there are several, numbered as macOS lists them; the numbers
+change when cameras are plugged in. List them with `ffmpeg -f avfoundation -list_devices true -i ""`.
+
 Run on a robot, for example EpiWhite:
 
 ```sh
@@ -89,6 +99,8 @@ These model-level settings can be changed on the command line:
 | --- | --- | --- |
 | `robot` | `EpiBlack` | Robot entry used by `EpiServos`, for example `EpiWhite`, `EpiRed`, `EpiGreen`, or `EpiOrange` |
 | `simulate` | `false` | Simulate the servos and LEDs |
+| `camera` | `InputVideoStream` | Camera module: `InputVideoStream` reads `eye_url`; `InputVideo` uses a camera on the Mac |
+| `camera_id` | `0` | Mac camera used with `camera=InputVideo`, numbered as macOS lists them |
 | `eye_url` | `http://RightEye.local:8080/stream/video.mjpeg` | Eye camera stream; every Epi uses the same host names over USB |
 | `x_sign` | `-1` | Direction from image x to head and eye pan; `-1` was found on EpiBlack with the right eye camera |
 | `y_sign` | `1` | Direction from image y to head tilt; `1` was found on EpiBlack. `Mirror` uses the same sign for nodding, so changing it also corrects the nodding direction |
@@ -164,5 +176,9 @@ Check these on each robot with the room empty, then with one person in front of 
 - **Stalled camera stream.** As in `EpiFaceFollowing.ikg`, a stalled stream releases the lock after
   the hold times and the head returns slowly to straight ahead. With `synchronized_tick=true` a stalled
   stream stops the whole model.
+- **Mac camera.** With `camera=InputVideo` the camera does not move with the simulated head, so
+  unless your face is near the middle of the image, the simulated head and eyes keep turning toward
+  it until they reach their limits. Use it to check detection and the dashboard, not to tune the
+  gaze.
 - **Simulation.** Simulated servos start at 0 degrees and take about four seconds to reach the
   straight-ahead position; gaze directions measured in that period are wrong.

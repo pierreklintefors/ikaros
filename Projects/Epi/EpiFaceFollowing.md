@@ -26,6 +26,16 @@ Start with simulated motors and LEDs to check the camera and the dashboard:
 ./Bin/ikaros simulate=true Projects/Epi/EpiFaceFollowing.ikg
 ```
 
+This uses the robot's eye camera, so the robot's USB hub must be connected. Without the robot, use
+a camera on the Mac:
+
+```sh
+./Bin/ikaros simulate=true camera=InputVideo Projects/Epi/EpiFaceFollowing.ikg
+```
+
+`camera_id` selects the camera when there are several, numbered as macOS lists them; the numbers
+change when cameras are plugged in. List them with `ffmpeg -f avfoundation -list_devices true -i ""`.
+
 Run on the robot:
 
 ```sh
@@ -46,6 +56,8 @@ The model-level settings below can be changed on the command line:
 | --- | --- | --- |
 | `robot` | `EpiBlack` | Robot entry used by `EpiServos` |
 | `simulate` | `false` | Simulate the servos and LEDs |
+| `camera` | `InputVideoStream` | Camera module: `InputVideoStream` reads `eye_url`; `InputVideo` uses a camera on the Mac |
+| `camera_id` | `0` | Mac camera used with `camera=InputVideo`, numbered as macOS lists them |
 | `eye_url` | `http://RightEye.local:8080/stream/video.mjpeg` | Eye camera stream that drives the gaze |
 | `x_sign` | `-1` | Direction from image x to neck and eye pan; `-1` is correct for EpiBlack's right eye camera |
 | `y_sign` | `1` | Direction from image y to neck tilt; `1` is correct for EpiBlack |
@@ -130,6 +142,10 @@ Check these on the robot with the room empty, then with one person:
   ended by force.
 - **Video files.** A video file ends, and the model then waits forever for the next frame. Use a
   long file and `synchronized_framegrabber=true` when testing without cameras.
+- **Mac camera.** With `camera=InputVideo` the camera does not move with the simulated head, so
+  unless your face is near the middle of the image, the simulated head and eyes keep turning toward
+  it until they reach their limits. Use it to check detection and the dashboard, not to tune the
+  gaze.
 - **Simulation.** Simulated servos start at 0 degrees and take about four seconds to reach the
   straight-ahead position. Gaze directions measured in that period are wrong, which only matters in
   simulation.

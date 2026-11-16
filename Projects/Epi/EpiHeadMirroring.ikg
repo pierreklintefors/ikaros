@@ -2,6 +2,8 @@
        title="Epi head mirroring"
        robot="EpiBlack"
        simulate="false"
+       camera="InputVideoStream"
+       camera_id="0"
        eye_url="http://RightEye.local:8080/stream/video.mjpeg"
        x_sign="-1"
        y_sign="1"
@@ -16,7 +18,7 @@
        real_time="true">
 
     <!-- Vision: one eye camera finds faces and their head pose -->
-    <module class="InputVideoStream" name="Eye" url="@eye_url" size_x="640" size_y="480" _x="24" _y="168" />
+    <module class="@camera" name="Eye" url="@eye_url" id="@camera_id" size_x="640" size_y="480" _x="24" _y="168" />
     <module class="AppleVisionFaceDetector" name="Faces" max_faces="8" downsample="1" _x="216" _y="168" />
     <module class="FaceTargetSelector" name="Selector" selection="largest" min_width="0.08" min_confidence="0.6"
             switch_ratio="1.5" switch_delay="0.7" hold_time="0.5" _x="408" _y="168" />

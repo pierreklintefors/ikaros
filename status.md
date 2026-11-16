@@ -1715,3 +1715,15 @@ mind-blown wow with diverging eyes and a pooof). Built from general behaviour mo
   the image center.
 - `EpiFaceFollowing.ikg` and `EpiHeadMirroring.ikg` could get the same `camera` setting.
 - The `EpiServos` hardware shutdown path was only build-checked; confirm a normal stop on the robot.
+
+## Camera setting for the other Epi demos
+
+| # | Task | Status | Verification | Commit |
+|---:|---|---|---|---|
+| 1 | `EpiFaceFollowing.ikg` and `EpiHeadMirroring.ikg` get the `camera` and `camera_id` settings of `EpiAnimatronics.ikg`, so they can use the Mac's camera. | Completed | Both eye modules now use `class="@camera"` with `id="@camera_id"`; the default `InputVideoStream` keeps the previous behaviour. Checked in simulation for both models: 50 ticks on the test video end normally; an unreachable stream reports the `InputVideoStream` setup error; `camera=InputVideo camera_id=97` fails cleanly with `Couldn't open input stream`. The real Mac camera was not opened here. Both guides now give the simulation command, how to list and choose cameras, the new settings, and the fixed-camera limitation. Markdown checker clean. | `Epi face following and head mirroring can now use the Mac's camera` |
+
+### Outstanding issues and questions
+
+- The Mac camera was not opened here; check `camera=InputVideo` with a real camera in both demos.
+- With a fixed Mac camera the simulated head and eyes run to their limits unless the face is near
+  the image center.
