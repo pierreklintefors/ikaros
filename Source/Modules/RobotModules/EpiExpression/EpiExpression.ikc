@@ -3,7 +3,9 @@
         EpiExpression gives the Epi robot a simple attentive expression. While ENGAGED is 1 the eye LEDs
         fade toward engaged_color and the pupils open toward engaged_pupil; when it returns to 0 they fade
         back to the idle values. While the optional MIRRORING input is 1 the eyes fade further toward
-        mirror_color, and the mouth moves between mouth_idle_color, mouth_color, and mouth_mirror_color. The LED outputs have the shapes FadeCandy expects and the pupil output can
+        mirror_color, and the mouth moves between mouth_idle_color, mouth_color, and mouth_mirror_color.
+        Optional inputs let behaviour modules add eyelid blinks, color overlays, brightness changes, and
+        pupil dilation on top of the expression. The LED outputs have the shapes FadeCandy expects and the pupil output can
         be connected to GazeLock.PUPIL_SIZE.
     </description>
 
@@ -18,9 +20,19 @@
     <parameter name="engaged_pupil" type="number" default="15" description="Pupil size in mm when engaged; EpiServos clips pupils to 5..16 mm" />
     <parameter name="attack_rate" type="rate" default="4" min="0" description="Rate in 1/s at which the expression moves toward engaged; 0 changes immediately" />
     <parameter name="release_rate" type="rate" default="1" min="0" description="Rate in 1/s at which the expression returns to idle; 0 changes immediately" />
+    <parameter name="pupil_min" type="number" default="5" description="Smallest pupil goal in mm; the default matches the EpiServos limit" />
+    <parameter name="pupil_max" type="number" default="16" description="Largest pupil goal in mm; the default matches the EpiServos limit" />
+    <parameter name="lid_softness" type="number" default="0.3" min="0" description="Width of the eyelid edge in ring heights, where the ring spans 2 from bottom to top; 0 gives a hard edge" />
+    <parameter name="led_first_angle" type="number" default="0" description="Position of the first eye LED in degrees, clockwise from 3 o'clock as seen from the front; used by BLINK" />
+    <parameter name="led_direction" type="number" default="1" description="1 when the eye LEDs are numbered clockwise as seen from the front, -1 when counterclockwise; used by BLINK" />
 
     <input name="ENGAGED" size="1" description="1 while the robot attends to someone, otherwise 0" />
     <input name="MIRRORING" optional="yes" size="1" description="1 while the robot mirrors someone, for example from HeadMirror.MIRRORING; adds a third expression and makes the mouth follow the state" />
+    <input name="BLINK" optional="yes" description="Eyelid closure from 0 (open) to 1 (closed), for example from Blinker.LID; the largest element is used. The eye LEDs go dark from the top down like a closing lid" />
+    <input name="EYE_OVERLAY" optional="yes" size="4" description="Red, green, blue, and weight in 0..1; the eye color blends toward this color by the weight" />
+    <input name="MOUTH_OVERLAY" optional="yes" size="4" description="Red, green, blue, and weight in 0..1; the mouth color blends toward this color by the weight" />
+    <input name="BRIGHTNESS" optional="yes" size="1" description="Factor applied to all LEDs on top of intensity; 0 turns them off and values above 1 brighten them" />
+    <input name="PUPIL_OFFSET" optional="yes" size="1" description="Millimeters added to the pupil size; the result is clipped to pupil_min..pupil_max" />
 
     <output name="LEFT_EYE" size="3,12" description="Left eye LED colors as rows of red, green, blue" />
     <output name="RIGHT_EYE" size="3,12" description="Right eye LED colors as rows of red, green, blue" />

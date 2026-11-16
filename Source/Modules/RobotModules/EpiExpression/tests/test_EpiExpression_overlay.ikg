@@ -1,0 +1,32 @@
+<group name="EpiExpressionOverlayTest"
+       description="BLINK darkens the eye LEDs from the top down, overlays blend colors, BRIGHTNESS scales all LEDs, and PUPIL_OFFSET is clipped to the pupil range"
+       start="true" stop="4" tick_duration="0.1"
+       cli_args="-u${TEST_DIR}"
+       expected_output_contains="Simulate fadecandy||{0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25}||{0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5}||{0, 0.25, 0.25, 0.25, 0.25, 0.25, 0, 0, 0, 0, 0, 0}||{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}||{0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5}||pupils = {9, 9}||pupils = {12, 12}||pupils = {16, 16}||pupils = {5, 5}"
+       expected_output_not_contains="size is not||pupils = {29||pupils = {-11">
+    <module class="InputFile" name="Script" filename="fixture_EpiExpression_overlay.jsonl" send_end_of_file="false" />
+    <module class="Constant" name="Engaged" data="0" />
+    <module class="Constant" name="EyeOverlay" data="0, 0, 1, 0.5" />
+    <module class="Constant" name="MouthOverlay" data="1, 0, 0, 1" />
+    <module class="Constant" name="Brightness" data="0.5" />
+    <module class="EpiExpression" name="Expression" idle_color="1, 1, 1" mouth_color="0.2, 0.2, 0.2" intensity="1" idle_pupil="9" />
+    <module class="FadeCandy" name="LEDs" simulate="true" />
+    <module class="Print" name="Pupils" />
+    <module class="Print" name="Eye" />
+    <module class="Print" name="Mouth" />
+
+    <connection source="Engaged.OUTPUT" target="Expression.ENGAGED" delay="0" />
+    <connection source="Script.BLINK" target="Expression.BLINK" delay="0" />
+    <connection source="Script.PUPIL_OFFSET" target="Expression.PUPIL_OFFSET" delay="0" />
+    <connection source="EyeOverlay.OUTPUT" target="Expression.EYE_OVERLAY" delay="0" />
+    <connection source="MouthOverlay.OUTPUT" target="Expression.MOUTH_OVERLAY" delay="0" />
+    <connection source="Brightness.OUTPUT" target="Expression.BRIGHTNESS" delay="0" />
+    <connection source="Expression.LEFT_EYE" target="LEDs.LEFT_EYE" delay="0" />
+    <connection source="Expression.RIGHT_EYE" target="LEDs.RIGHT_EYE" delay="0" />
+    <connection source="Expression.MOUTH_HIGH" target="LEDs.MOUTH_HIGH" delay="0" />
+    <connection source="Expression.MOUTH_LOW" target="LEDs.MOUTH_LOW" delay="0" />
+
+    <connection source="Expression.PUPIL_SIZE" target="Pupils.INPUT" delay="0" label="pupils" />
+    <connection source="Expression.LEFT_EYE" target="Eye.INPUT" delay="0" label="eye" />
+    <connection source="Expression.MOUTH_LOW" target="Mouth.INPUT" delay="0" label="mouth" />
+</group>
