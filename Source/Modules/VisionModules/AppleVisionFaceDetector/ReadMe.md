@@ -37,6 +37,18 @@ of the face box, and `width` describes the face-box width where a full image wid
 `FACE_WIDTHS` contains one row per detected face with only the face-box width in the same centered
 coordinate scale.
 
+`POSES` contains one head-pose row per detected face, in the same order as `BOXES`:
+
+```text
+yaw, pitch, roll
+```
+
+The angles are in degrees and come from Vision's face rectangle request, revision 3 on macOS 12 and
+later. As Vision defines them, yaw and roll are positive counterclockwise and pitch is positive when
+the head nods down. Check the sign of yaw for a particular camera before using it to drive a robot.
+Angles that Vision does not report, such as pitch before macOS 12, are 0. The pose of small or
+strongly turned faces is noisy.
+
 ## Parameters
 
 | Name | Description |
@@ -58,4 +70,5 @@ coordinate scale.
 | CENTER_BOX | Detected face closest to image center as one centered coordinate row: x, y, width, height, confidence |
 | FACE_CENTERS | Face center rows: center_x, center_y, width in centered image coordinates |
 | FACE_WIDTHS | Face width rows in centered image coordinates |
+| POSES | Head pose rows aligned with BOXES: yaw, pitch, roll in degrees |
 | COUNT | Number of detected faces emitted in BOXES |

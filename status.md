@@ -1573,3 +1573,25 @@ Issues reported after the first runs on EpiBlack.
 - The second-start failure in `SetPupilParameters` should disappear with a clean shutdown; if it persists, it points to the pupil bus problem from task 1.
 - The pupil servos run at 5.3 V, below the XL-320 minimum of 6.0 V; check the pupil power supply. Under-voltage makes them weaker and may still cause unreliable motion.
 - Tune `head_gain`, `head_max_speed`, `head_max_acceleration`, and `eye_smoothing` on EpiBlack; the servo-side profile velocity and acceleration in `ServoParametersEpiTorso_Position.json` also shape the motion.
+
+## EpiBlack head-mirroring demo
+
+EpiBlack copies the head movements (yaw and pitch) of the closest person as a mirror image, hands
+over smoothly between people, and shows idle, watching, and mirroring with the eye and mouth LEDs.
+Head pose comes from Apple Vision, which the face detector already runs; no Python or external
+libraries.
+
+| # | Task | Status | Verification | Commit |
+|---:|---|---|---|---|
+| 1 | `AppleVisionFaceDetector` outputs the head pose (yaw, pitch, roll in degrees) of every face in `POSES`, aligned with `BOXES`. | Completed | Release build without new warnings; Vision face request set to revision 3. Still-image probe through the WebUI `/data` route: `UserData/pierre.jpg` gives one row, yaw -5.7, pitch 4.4, roll -0.5 degrees (continuous, not quantized); the horizontally flipped image gives yaw +4.2 and pitch 3.0, so yaw changes sign as expected. Roll is noisy on the 120 x 168 test image. `BOXES` unchanged. Live camera check of the yaw and pitch signs needs a person in front of EpiBlack and is left for task 5. | `AppleVisionFaceDetector now outputs the head pose of each face` |
+| 2 | `FaceTargetSelector` passes on the pose of the selected face (`TARGET_POSE`), signals identity switches (`NEW_TARGET`), and can delay switches (`switch_delay`). | Pending | | |
+| 3 | Add `HeadMirror`, which turns the selected face pose into a mirrored head goal for `GazeLock` with smooth fade-in, fade-out, and handover between people. | Pending | | |
+| 4 | `EpiExpression` shows a third, mirroring state on the eye and mouth LEDs through an optional `MIRRORING` input. | Pending | | |
+| 5 | Add the `Projects/Epi/EpiHeadMirroring.ikg` demo with guide and WebUI dashboard. | Pending | | |
+
+### Constraints
+
+- C++ and Objective-C++ modules only; no kernel changes, Python, or external libraries.
+- `EpiFaceFollowing.ikg` and existing module behavior stay unchanged when the new inputs are not connected.
+- Do not include the uncommitted `InputVideoStream` changes, `.Rhistory`, or `CLAUDE.md` in any commit.
+- Do not move the physical robot without the user present.

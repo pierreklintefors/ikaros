@@ -22,6 +22,15 @@ namespace
         return static_cast<unsigned char>(std::clamp(std::lround(v), 0l, 255l));
     }
 
+
+    float
+    degrees(NSNumber * radians)
+    {
+        if(radians == nil)
+            return 0.0f;
+        return static_cast<float>([radians doubleValue] * 180.0 / M_PI);
+    }
+
     bool
     copy_to_rgba(const matrix & input, std::vector<unsigned char> & pixels)
     {
@@ -132,6 +141,7 @@ class AppleVisionFaceDetector : public Module
     matrix center_box_;
     matrix face_centers_;
     matrix face_widths_;
+    matrix poses_;
     matrix count_;
     parameter max_faces_;
     parameter downsample_;
@@ -160,6 +170,7 @@ public:
         Bind(center_box_, "CENTER_BOX");
         Bind(face_centers_, "FACE_CENTERS");
         Bind(face_widths_, "FACE_WIDTHS");
+        Bind(poses_, "POSES");
         Bind(count_, "COUNT");
         Bind(max_faces_, "max_faces");
         Bind(downsample_, "downsample");
@@ -167,6 +178,9 @@ public:
         @autoreleasepool
         {
             request_ = [[VNDetectFaceRectanglesRequest alloc] init];
+            // Revision 3 reports continuous yaw and roll and adds pitch.
+            if(@available(macOS 12.0, *))
+                request_.revision = VNDetectFaceRectanglesRequestRevision3;
             sequence_handler_ = [[VNSequenceRequestHandler alloc] init];
             requests_ = [[NSArray alloc] initWithObjects:request_, nil];
         }
@@ -178,6 +192,7 @@ public:
         center_box_.clear();
         face_centers_.clear();
         face_widths_.clear();
+        poses_.clear();
         count_.reset();
 
         @autoreleasepool
@@ -235,6 +250,13 @@ public:
                 matrix width_row(1);
                 width_row(0) = row(2);
                 face_widths_.append(width_row);
+
+                matrix pose_row(3);
+                pose_row(0) = degrees(face.yaw);
+                if(@available(macOS 12.0, *))
+                    pose_row(1) = degrees(face.pitch);
+                pose_row(2) = degrees(face.roll);
+                poses_.append(pose_row);
 
                 float distance = center_x * center_x + center_y * center_y;
                 if(distance < best_distance)
