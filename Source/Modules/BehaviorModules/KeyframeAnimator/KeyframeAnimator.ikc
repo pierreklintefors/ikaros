@@ -16,9 +16,17 @@
     <parameter name="event_count" type="number" default="1" min="1" description="Size of EVENTS; must be at least the number of event names" />
     <parameter name="release_rate" type="rate" default="3" min="0" description="Rate in 1/s at which unused channels return to rest; 0 returns immediately" />
     <parameter name="interrupt" type="bool" default="true" description="A new animation replaces a playing one; when false, starts are ignored while an animation plays" />
+    <parameter name="intensity_channels" type="string" default="" description="Comma-separated channels whose movement around rest is scaled by INTENSITY and intensity_variation; empty scales all channels" />
+    <parameter name="mirror_channels" type="string" default="" description="Comma-separated channels whose movement around rest changes sign together in some plays, for example to look left or right" />
+    <parameter name="mirror_probability" type="number" default="0.5" min="0" max="1" description="Probability that a play mirrors the mirror_channels" />
+    <parameter name="speed_variation" type="number" default="0" min="0" max="0.9" description="Each play runs at a random tempo up to this fraction faster or slower" />
+    <parameter name="intensity_variation" type="number" default="0" min="0" max="1" description="Each play moves a random fraction up to this much more or less around rest" />
+    <parameter name="seed" type="number" default="-1" min="-1" description="Random seed for the variations; negative selects nondeterministic seeding" />
 
     <input name="TRIGGER" optional="yes" description="A change from 0 to 1 in element i plays animation i of the library" />
     <input name="STOP" optional="yes" size="1" description="A change from 0 to 1 stops the playing animation; the channels return to rest" />
+    <input name="SPEED" optional="yes" size="1" description="Tempo factor; 2 plays animations twice as fast, including their events" />
+    <input name="INTENSITY" optional="yes" size="1" description="Size factor for the movement of intensity_channels around their rest values" />
 
     <output name="OUTPUT" size="rest.size" description="Present value of each channel" />
     <output name="EVENTS" size="@event_count" description="1 on the tick an event of the playing animation fires, otherwise 0" />
@@ -26,4 +34,5 @@
     <output name="ANIMATION" size="1" description="Index of the playing animation in the library, or -1" />
     <output name="PROGRESS" size="1" description="Fraction of the playing animation that has passed, from 0 to 1" />
     <output name="DONE" size="1" description="1 on the tick an animation plays to its end" />
+    <output name="VARIATION" size="3" description="Present tempo factor, size factor, and mirror sign (1 or -1)" />
 </class>

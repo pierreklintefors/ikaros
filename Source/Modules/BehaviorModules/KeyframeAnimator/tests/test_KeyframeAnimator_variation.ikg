@@ -1,0 +1,29 @@
+<group name="KeyframeAnimatorVariationTest"
+       description="SPEED plays faster including events, INTENSITY scales the chosen channels around rest, and mirror_channels flip their movement"
+       start="true" stop="8" tick_duration="0.1" threads="1"
+       cli_args="-u${TEST_DIR}"
+       expected_output_contains="tick = {1}&#10;variation = {1, 0.5, -1}&#10;small = {0, 0}&#10;fast_events = {1, 0}&#10;fast = {0, 0}||tick = {2}&#10;variation = {1, 0.5, -1}&#10;small = {-1, 0}&#10;fast_events = {0, 0}&#10;fast = {4, 0}||tick = {3}&#10;variation = {1, 0.5, -1}&#10;small = {-2, 0}&#10;fast_events = {0, 1}&#10;fast = {8, 0}||tick = {5}&#10;variation = {1, 0.5, -1}&#10;small = {-4, 0}||tick = {6}&#10;variation = {1, 0.5, -1}&#10;small = {-4, 0}&#10;fast_events = {0, 0}&#10;fast = {4, 0}">
+    <module class="InputFile" name="Script" filename="fixture_KeyframeAnimator_variation.jsonl" send_end_of_file="false" />
+    <module class="Constant" name="Double" data="2" />
+    <module class="Constant" name="Half" data="0.5" />
+    <module class="KeyframeAnimator" name="Fast" file="animations_test.json" channels="a, b" rest="0, 0"
+            events="start, middle" event_count="2" seed="1" />
+    <module class="KeyframeAnimator" name="Small" file="animations_test.json" channels="a, b" rest="0, 0"
+            events="start, middle" event_count="2" intensity_channels="a" mirror_channels="a" mirror_probability="1" seed="1" />
+    <module class="Print" name="Tick" />
+    <module class="Print" name="FastOut" />
+    <module class="Print" name="FastEvents" />
+    <module class="Print" name="SmallOut" />
+    <module class="Print" name="SmallVariation" />
+
+    <connection source="Script.TRIGGER" target="Fast.TRIGGER" delay="0" />
+    <connection source="Double.OUTPUT" target="Fast.SPEED" delay="0" />
+    <connection source="Script.TRIGGER" target="Small.TRIGGER" delay="0" />
+    <connection source="Half.OUTPUT" target="Small.INTENSITY" delay="0" />
+
+    <connection source="Script.TICK" target="Tick.INPUT" delay="0" label="tick" />
+    <connection source="Fast.OUTPUT" target="FastOut.INPUT" delay="0" label="fast" />
+    <connection source="Fast.EVENTS" target="FastEvents.INPUT" delay="0" label="fast_events" />
+    <connection source="Small.OUTPUT" target="SmallOut.INPUT" delay="0" label="small" />
+    <connection source="Small.VARIATION" target="SmallVariation.INPUT" delay="0" label="variation" />
+</group>

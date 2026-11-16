@@ -4,6 +4,7 @@
 #include <atomic>
 #include <cmath>
 #include <filesystem>
+#include <random>
 #include <string>
 #include <vector>
 
@@ -55,9 +56,17 @@ class KeyframeAnimator : public Module
     parameter eventCount;
     parameter releaseRate;
     parameter interrupt;
+    parameter intensityChannels;
+    parameter mirrorChannels;
+    parameter mirrorProbability;
+    parameter speedVariation;
+    parameter intensityVariation;
+    parameter seed;
 
     matrix trigger;
     matrix stop;
+    matrix speedInput;
+    matrix intensityInput;
 
     matrix output;
     matrix eventOutput;
@@ -65,6 +74,7 @@ class KeyframeAnimator : public Module
     matrix animationIndex;
     matrix progress;
     matrix done;
+    matrix variation;
 
     std::vector<std::string> channelNames;
     std::vector<std::string> eventNames;
@@ -73,6 +83,12 @@ class KeyframeAnimator : public Module
     matrix startValue; // channel values when the present animation started
     matrix lastTrigger;
     std::vector<bool> driven; // channels with a track in the present animation
+    std::vector<bool> scaled; // channels whose deviation from rest follows INTENSITY
+    std::vector<bool> mirrored; // channels whose deviation from rest may change sign per play
+    std::mt19937 randomGenerator;
+    float playSpeed = 1; // random tempo factor of the present play
+    float playIntensity = 1; // random size factor of the present play
+    float playMirror = 1; // -1 when the mirrored channels are flipped in the present play
     float lastStop = 0;
 
     int current = -1;
@@ -269,21 +285,49 @@ class KeyframeAnimator : public Module
     }
 
 
-    // Value of a track at time t. Before the first key the channel moves from its start value.
+    // Value of a track at time t. Key values are taken as rest + gain * (value - rest), which scales
+    // and mirrors the movement around rest. Before the first key the channel moves from its start value.
     static float
-    Evaluate(const Track & track, float t, float start)
+    Evaluate(const Track & track, float t, float start, float rest, float gain)
     {
         const std::vector<Key> & keys = track.keys;
+        auto value = [&](const Key & key) { return rest + gain * (key.value - rest); };
         if(t < keys.front().time)
-            return start + Shape(keys.front().ease, t / keys.front().time) * (keys.front().value - start);
+            return start + Shape(keys.front().ease, t / keys.front().time) * (value(keys.front()) - start);
         for(size_t k = 1; k < keys.size(); ++k)
             if(t < keys[k].time)
             {
                 const Key & a = keys[k - 1];
                 const Key & b = keys[k];
-                return a.value + Shape(b.ease, (t - a.time) / (b.time - a.time)) * (b.value - a.value);
+                return value(a) + Shape(b.ease, (t - a.time) / (b.time - a.time)) * (value(b) - value(a));
             }
-        return keys.back().value;
+        return value(keys.back());
+    }
+
+
+    float
+    Uniform(float low, float high)
+    {
+        if(high <= low)
+            return low;
+        return std::uniform_real_distribution<float>(low, high)(randomGenerator);
+    }
+
+
+    // Marks the channels named in list; an empty list marks all channels when allIfEmpty is true.
+    std::vector<bool>
+    ChannelSet(const std::string & list, bool allIfEmpty, const std::string & parameterName) const
+    {
+        const std::vector<std::string> names = Names(list);
+        std::vector<bool> set(channelNames.size(), allIfEmpty && names.empty());
+        for(const std::string & name : names)
+        {
+            const int channel = Find(channelNames, name);
+            if(channel < 0)
+                throw exception("KeyframeAnimator: " + parameterName + " names unknown channel \"" + name + "\".", path_);
+            set[channel] = true;
+        }
+        return set;
     }
 
 
@@ -300,6 +344,9 @@ class KeyframeAnimator : public Module
         current = index;
         time = 0;
         nextEvent = 0;
+        playSpeed = 1.0f + Uniform(-speedVariation.as_float(), speedVariation.as_float());
+        playIntensity = 1.0f + Uniform(-intensityVariation.as_float(), intensityVariation.as_float());
+        playMirror = Uniform(0.0f, 1.0f) < mirrorProbability.as_float() ? -1.0f : 1.0f;
         startValue.copy(output);
         std::fill(driven.begin(), driven.end(), false);
         for(const Track & track : animations[index].tracks)
@@ -326,9 +373,17 @@ public:
         Bind(eventCount, "event_count");
         Bind(releaseRate, "release_rate");
         Bind(interrupt, "interrupt");
+        Bind(intensityChannels, "intensity_channels");
+        Bind(mirrorChannels, "mirror_channels");
+        Bind(mirrorProbability, "mirror_probability");
+        Bind(speedVariation, "speed_variation");
+        Bind(intensityVariation, "intensity_variation");
+        Bind(seed, "seed");
 
         Bind(trigger, "TRIGGER");
         Bind(stop, "STOP");
+        Bind(speedInput, "SPEED");
+        Bind(intensityInput, "INTENSITY");
 
         Bind(output, "OUTPUT");
         Bind(eventOutput, "EVENTS");
@@ -336,6 +391,7 @@ public:
         Bind(animationIndex, "ANIMATION");
         Bind(progress, "PROGRESS");
         Bind(done, "DONE");
+        Bind(variation, "VARIATION");
 
         channelNames = Names(channels.as_string());
         eventNames = Names(events.as_string());
@@ -348,6 +404,13 @@ public:
             throw exception("KeyframeAnimator: event_count must be at least the number of event names.", path_);
 
         LoadLibrary();
+        scaled = ChannelSet(intensityChannels.as_string(), true, "intensity_channels");
+        mirrored = ChannelSet(mirrorChannels.as_string(), false, "mirror_channels");
+
+        if(seed.as_int() < 0)
+            randomGenerator.seed(std::random_device{}());
+        else
+            randomGenerator.seed(static_cast<std::mt19937::result_type>(seed.as_int()));
 
         startValue.realloc(rest.size());
         driven.assign(rest.size(), false);
@@ -411,8 +474,10 @@ public:
 
         const bool started = startIndex >= 0 && Start(startIndex);
 
+        const float speed = playSpeed * (speedInput.connected() ? std::max(speedInput(0), 0.05f) : 1.0f);
+        const float intensity = playIntensity * (intensityInput.connected() ? std::max(intensityInput(0), 0.0f) : 1.0f);
         if(current >= 0 && !started)
-            time += static_cast<float>(GetTickDuration());
+            time += speed * static_cast<float>(GetTickDuration());
 
         // Rate parameters are delivered per tick by the kernel.
         const float release = releaseRate.as_float() <= 0.0f ? 1.0f : 1.0f - std::exp(-releaseRate.as_float());
@@ -422,7 +487,11 @@ public:
             const Animation & animation = animations[current];
             const float t = std::min(time, animation.duration);
             for(const Track & track : animation.tracks)
-                output(track.channel) = Evaluate(track, t, startValue(track.channel));
+            {
+                const int c = track.channel;
+                const float gain = (scaled[c] ? intensity : 1.0f) * (mirrored[c] ? playMirror : 1.0f);
+                output(c) = Evaluate(track, t, startValue(c), rest(c), gain);
+            }
             while(nextEvent < animation.events.size() && animation.events[nextEvent].time <= time + epsilon)
                 eventOutput(animation.events[nextEvent++].index) = 1;
             progress(0) = animation.duration > 0.0f ? std::clamp(time / animation.duration, 0.0f, 1.0f) : 1.0f;
@@ -444,6 +513,9 @@ public:
 
         playing(0) = current >= 0 ? 1.0f : 0.0f;
         animationIndex(0) = static_cast<float>(current);
+        variation(0) = speed;
+        variation(1) = intensity;
+        variation(2) = playMirror;
     }
 };
 

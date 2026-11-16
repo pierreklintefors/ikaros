@@ -70,6 +70,24 @@ to 1. On the last tick of an animation the final values are output and `DONE` is
 starts on the next tick. A rising edge on `STOP`, or the `stop` command, stops the animation and
 releases all channels.
 
+## Variation
+
+Hand-made animations soon look repetitive when they play the same way every time. Five settings
+make every play a little different, and two inputs let another module, such as `Arousal`, change
+how animations play:
+
+- `SPEED` is a tempo factor. At 2 an animation, including its events, plays twice as fast.
+- `INTENSITY` scales the movement of the `intensity_channels` around their rest values. At 0.5 a
+  head nod is half as deep. Leave color channels out, so that colors are not dimmed.
+- `speed_variation` and `intensity_variation` give each play a random tempo and size, up to that
+  fraction faster or slower, and larger or smaller.
+- `mirror_channels` change the sign of their movement around rest together, with probability
+  `mirror_probability` per play. Name for example the eye and head pan channels, so that the
+  robot glances to the left one time and to the right the next.
+
+`VARIATION` shows the present tempo, size, and mirror sign. `seed` makes the variation
+reproducible.
+
 ## Commands
 
 | Name | Description |
@@ -88,6 +106,12 @@ releases all channels.
 | event_count | Size of EVENTS; at least the number of event names | number | 1 |
 | release_rate | Rate in 1/s at which unused channels return to rest; 0 returns immediately | rate | 3 |
 | interrupt | A new animation replaces a playing one; when false, starts are ignored while one plays | bool | true |
+| intensity_channels | Channels whose movement around rest is scaled by INTENSITY and intensity_variation; empty scales all | string |  |
+| mirror_channels | Channels whose movement around rest changes sign together in some plays | string |  |
+| mirror_probability | Probability that a play mirrors the mirror_channels | number | 0.5 |
+| speed_variation | Each play runs at a random tempo up to this fraction faster or slower | number | 0 |
+| intensity_variation | Each play moves a random fraction up to this much more or less around rest | number | 0 |
+| seed | Random seed for the variations; negative selects nondeterministic seeding | number | -1 |
 
 ## Inputs
 
@@ -95,6 +119,8 @@ releases all channels.
 | --- | --- | --- |
 | TRIGGER | A change from 0 to 1 in element i plays animation i | yes |
 | STOP | A change from 0 to 1 stops the playing animation | yes |
+| SPEED | Tempo factor; 2 plays animations and their events twice as fast | yes |
+| INTENSITY | Size factor for the movement of intensity_channels around rest | yes |
 
 ## Outputs
 
@@ -106,6 +132,7 @@ releases all channels.
 | ANIMATION | Index of the playing animation, or -1 |
 | PROGRESS | Fraction of the playing animation that has passed, from 0 to 1 |
 | DONE | 1 on the tick an animation plays to its end |
+| VARIATION | Present tempo factor, size factor, and mirror sign |
 
 ## Example
 
@@ -122,4 +149,5 @@ releases all channels.
 
 The tests in `tests/` check linear keys, events on the right ticks, a repeated step track, an
 interruption that starts from the present value, the release to rest, and that an unknown channel
-stops the model at startup.
+stops the model at startup. The variation test checks `SPEED` with its events, and `INTENSITY` with
+mirroring.
