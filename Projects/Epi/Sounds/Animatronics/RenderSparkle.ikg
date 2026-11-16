@@ -1,32 +1,61 @@
 <group name="RenderSparkle"
        title="Render the sparkle sound"
-       description="Renders sparkle.wav with the Ikaros synthesizer: three quick rising bell-like notes. Run with -b and -u set to this folder."
+       description="Renders sparkle.wav with the Ikaros synthesizer: three soft rising bells that ring on over each other in a small room. Run with -b and -u set to this folder."
        sample_rate="24000"
        tick_duration="0.01"
-       stop="42"
+       stop="92"
        start="true"
        real_time="false">
 
-    <!-- Notes E6, G6, C7, 70 ms apart; TRIG restarts the envelope on each note -->
-    <module class="TimeSeries" name="Notes" data="1318.51; 1567.98; 2093.00" base_duration="0.07" _x="24" _y="24" />
-    <module class="TimeSeries" name="Start" data="1; 0" base_duration="0.01" _x="24" _y="168" />
-    <module class="Maximum" name="Retrigger" _x="216" _y="168" />
+    <!-- Bells E6, G6, C7 start 80 ms apart; each has its own envelope, so every note rings on.
+         The squared envelope gives a smooth, bell-like decay. -->
+    <module class="TimeSeries" name="Start1" data="1, 1; 1, 0" first_column_duration="true" base_duration="0.01" _x="24" _y="24" />
+    <module class="AudioOscillator" name="Tone1" wave_shape="sine" frequency="1318.51" volume="0.28" _x="216" _y="24" />
+    <module class="ADSREnvelope" name="Envelope1" attack="0.004" decay="0.7" sustain="0" release="0.02" _x="408" _y="24" />
+    <module class="Multiply" name="Curve1" _x="600" _y="24" />
+    <module class="Multiply" name="Bell1" _x="792" _y="24" />
+    <module class="TimeSeries" name="Start2" data="8, 0; 1, 1; 1, 0" first_column_duration="true" base_duration="0.01" _x="24" _y="120" />
+    <module class="AudioOscillator" name="Tone2" wave_shape="sine" frequency="1567.98" volume="0.28" _x="216" _y="120" />
+    <module class="ADSREnvelope" name="Envelope2" attack="0.004" decay="0.7" sustain="0" release="0.02" _x="408" _y="120" />
+    <module class="Multiply" name="Curve2" _x="600" _y="120" />
+    <module class="Multiply" name="Bell2" _x="792" _y="120" />
+    <module class="TimeSeries" name="Start3" data="16, 0; 1, 1; 1, 0" first_column_duration="true" base_duration="0.01" _x="24" _y="216" />
+    <module class="AudioOscillator" name="Tone3" wave_shape="sine" frequency="2093.0" volume="0.28" _x="216" _y="216" />
+    <module class="ADSREnvelope" name="Envelope3" attack="0.004" decay="0.7" sustain="0" release="0.02" _x="408" _y="216" />
+    <module class="Multiply" name="Curve3" _x="600" _y="216" />
+    <module class="Multiply" name="Bell3" _x="792" _y="216" />
 
-    <module class="AudioOscillator" name="Tone" wave_shape="triangle" volume="0.85" _x="216" _y="24" />
-    <module class="AudioOscillator" name="Shimmer" wave_shape="sine" multiplier="2" volume="0.28" _x="216" _y="96" />
-    <module class="Add" name="Bell" _x="408" _y="48" />
-    <module class="ADSREnvelope" name="Envelope" attack="0.004" decay="0.22" sustain="0" release="0.03" _x="408" _y="168" />
-    <module class="Multiply" name="Level" _x="600" _y="96" />
-    <module class="OutputAudioFile" name="File" filename="sparkle.wav" bits_per_sample="16" _x="792" _y="96" />
+    <!-- Mix, room, and the final fade -->
+    <module class="Add" name="Mix12" _x="984" _y="72" />
+    <module class="Add" name="Mix" _x="1176" _y="120" />
+    <module class="AudioReverb" name="Room" mix="0.25" decay="0.7" damping="0.45" pre_delay="0.015" _x="1368" _y="120" />
+    <module class="TimeSeries" name="Gate" data="70, 1; 1, 0" first_column_duration="true" base_duration="0.01" _x="984" _y="312" />
+    <module class="ADSREnvelope" name="MasterEnvelope" attack="0" decay="0" sustain="1" release="0.2" _x="1176" _y="312" />
+    <module class="Multiply" name="Master" _x="1560" _y="120" />
+    <module class="OutputAudioFile" name="File" filename="sparkle.wav" bits_per_sample="16" _x="1752" _y="120" />
 
-    <connection source="Notes.OUTPUT" target="Tone.INPUT" />
-    <connection source="Notes.OUTPUT" target="Shimmer.INPUT" />
-    <connection source="Tone.OUTPUT" target="Bell.INPUT1" />
-    <connection source="Shimmer.OUTPUT" target="Bell.INPUT2" />
-    <connection source="Notes.TRIG" target="Retrigger.INPUT1" />
-    <connection source="Start.OUTPUT" target="Retrigger.INPUT2" />
-    <connection source="Retrigger.OUTPUT" target="Envelope.TRIG" />
-    <connection source="Bell.OUTPUT" target="Level.INPUT1" />
-    <connection source="Envelope.OUTPUT" target="Level.INPUT2" />
-    <connection source="Level.OUTPUT" target="File.INPUT" />
+    <connection source="Start1.OUTPUT" target="Envelope1.TRIG" />
+    <connection source="Envelope1.OUTPUT" target="Curve1.INPUT1" />
+    <connection source="Envelope1.OUTPUT" target="Curve1.INPUT2" />
+    <connection source="Tone1.OUTPUT" target="Bell1.INPUT1" />
+    <connection source="Curve1.OUTPUT" target="Bell1.INPUT2" />
+    <connection source="Start2.OUTPUT" target="Envelope2.TRIG" />
+    <connection source="Envelope2.OUTPUT" target="Curve2.INPUT1" />
+    <connection source="Envelope2.OUTPUT" target="Curve2.INPUT2" />
+    <connection source="Tone2.OUTPUT" target="Bell2.INPUT1" />
+    <connection source="Curve2.OUTPUT" target="Bell2.INPUT2" />
+    <connection source="Start3.OUTPUT" target="Envelope3.TRIG" />
+    <connection source="Envelope3.OUTPUT" target="Curve3.INPUT1" />
+    <connection source="Envelope3.OUTPUT" target="Curve3.INPUT2" />
+    <connection source="Tone3.OUTPUT" target="Bell3.INPUT1" />
+    <connection source="Curve3.OUTPUT" target="Bell3.INPUT2" />
+    <connection source="Bell1.OUTPUT" target="Mix12.INPUT1" />
+    <connection source="Bell2.OUTPUT" target="Mix12.INPUT2" />
+    <connection source="Mix12.OUTPUT" target="Mix.INPUT1" />
+    <connection source="Bell3.OUTPUT" target="Mix.INPUT2" />
+    <connection source="Mix.OUTPUT" target="Room.INPUT" />
+    <connection source="Gate.OUTPUT" target="MasterEnvelope.GATE" />
+    <connection source="Room.OUTPUT" target="Master.INPUT1" />
+    <connection source="MasterEnvelope.OUTPUT" target="Master.INPUT2" />
+    <connection source="Master.OUTPUT" target="File.INPUT" />
 </group>
