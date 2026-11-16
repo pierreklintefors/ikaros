@@ -65,6 +65,13 @@
             pitch_sign="@y_sign" tilt_dead_zone="3" pan_dead_zone="3" settle_time="0.2" max_pan="10" max_tilt="10" engage_time="0.6"
             min_width="0.12" facing_limit="35" lost_time="0.6" fade_in="2" fade_out="4" pose_smoothing="8" _x="216" _y="768" />
 
+    <!-- Near response: the eyes converge and the pupils narrow when a face comes really close -->
+    <module class="ProximityVergence" name="Near" object_width="0.15" start_distance="0.7" full_distance="0.3" gain="1.5"
+            max_vergence="18" rate="4" hold_time="0.5" _x="408" _y="864" />
+    <module class="Add" name="Vergence" _x="600" _y="1008" />
+    <module class="Scale" name="NearPupil" factor="-2" _x="408" _y="960" />
+    <module class="Add" name="Pupil" _x="600" _y="1104" />
+
     <!-- Gaze and expression -->
     <module class="GazeLock" name="Gaze" head_gain="3" head_max_speed="90" head_max_acceleration="300" head_dead_zone="5" eye_smoothing="20"
             tilt_speed_scale="1" tilt_acceleration_scale="0.6" _x="792" _y="24" />
@@ -124,7 +131,11 @@
     <connection source="Target.VALID" target="Gaze.VALID" delay="0" />
     <connection source="Expression.PUPIL_SIZE" target="Gaze.PUPIL_SIZE" delay="1" />
     <connection source="EyeOffset.OUTPUT" target="Gaze.EYE_OFFSET" delay="0" />
-    <connection source="Animator.OUTPUT[1:2]" target="Gaze.VERGENCE" delay="0" />
+    <connection source="Target.TARGET" target="Near.TARGET" delay="0" />
+    <connection source="Target.VALID" target="Near.VALID" delay="0" />
+    <connection source="Animator.OUTPUT[1:2]" target="Vergence.INPUT1" delay="0" />
+    <connection source="Near.VERGENCE" target="Vergence.INPUT2" delay="0" />
+    <connection source="Vergence.OUTPUT" target="Gaze.VERGENCE" delay="0" />
     <connection source="HeadOffset.OUTPUT" target="Gaze.HEAD_OFFSET" delay="0" />
 
     <connection source="Gaze.LOCKED" target="Expression.ENGAGED" delay="0" />
@@ -135,7 +146,10 @@
     <connection source="Animator.OUTPUT[13:14]" target="Expression.BRIGHTNESS" delay="0" />
     <connection source="Animator.OUTPUT[4:5]" target="PupilOffset.INPUT1" delay="0" />
     <connection source="Arousal.MAPPED[3:4]" target="PupilOffset.INPUT2" delay="0" />
-    <connection source="PupilOffset.OUTPUT" target="Expression.PUPIL_OFFSET" delay="0" />
+    <connection source="Near.NEAR" target="NearPupil.INPUT" delay="0" />
+    <connection source="PupilOffset.OUTPUT" target="Pupil.INPUT1" delay="0" />
+    <connection source="NearPupil.OUTPUT" target="Pupil.INPUT2" delay="0" />
+    <connection source="Pupil.OUTPUT" target="Expression.PUPIL_OFFSET" delay="0" />
 
     <connection source="Gaze.GOAL_POSITION" target="Servos.GOAL_POSITION" delay="0" />
     <connection source="Expression.LEFT_EYE" target="LEDs.LEFT_EYE" delay="0" />

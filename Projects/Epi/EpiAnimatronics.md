@@ -21,7 +21,10 @@ synchronized with the motion:
    closest face in the right eye camera, as in `EpiHeadMirroring.ikg`.
 2. **Looking.** `GazeLock` keeps the eyes on the face and turns the head after it. `camera_eye`
    tells it that the camera is in the right eye, so the face direction stays correct while the eyes
-   cross or dart.
+   cross or dart. When someone comes really close, `ProximityVergence` estimates their distance from
+   the size of the face box and makes the eyes converge on them, as people's eyes do: not at all
+   beyond 0.7 m, gradually closer in, and up to 18 degrees at 0.3 m and nearer. The pupils narrow
+   a little at the same time, as in the human near response.
 3. **Background life.** `Blinker` blinks every 1.5 to 4.5 seconds, sometimes twice, as an eyelid
    that closes from the top of the LED ring down. `EyeGlances` makes quick glances away and back, and
    `HeadGlances` slowly looks around while nobody is followed, which also lets the camera find new
@@ -169,6 +172,8 @@ The character is tuned on the modules:
 | `Animator` | `speed_variation`, `intensity_variation`, `mirror_channels` | How much each play varies |
 | `Blinker`, `EyeGlances`, `HeadGlances` | intervals and sizes | The background life |
 | `Mirror` | `max_pan`, `max_tilt`, dead zones, `engage_time` | The copycat game; see `EpiHeadMirroring.md` |
+| `Near` | `start_distance`, `full_distance`, `gain`, `max_vergence`, `object_width` | When and how strongly the eyes converge on a close face |
+| `NearPupil` | `factor` | How much the pupils narrow when a face is close, in mm (negative) |
 
 The camera settings in `EpiFaceFollowing.md` (640 x 480, 30 frames per second, JPEG quality about
 70) apply here too.
@@ -234,10 +239,14 @@ the robot needs someone next to it.
    and mind blown look much better with working pupils. Check the pupil supply.
 8. **Sound.** Play every animation and set the speaker volume so that the calm sounds are still
    heard; arousal plays them at 35 to 100 percent.
-9. **Copycat.** Press **10 Copycat**, stand in front of Epi, face it, and turn and nod your head.
+9. **Close up.** Lean slowly toward Epi's face. Beyond about 0.7 m the eyes should stay parallel,
+   and from there they should cross more and more. If convergence starts too early or too late,
+   the face box size differs from the assumed 0.15 m; adjust `object_width` or the distances on
+   `Near`. The **Eye goal** plot shows the two eyes moving apart in opposite directions.
+10. **Copycat.** Press **10 Copycat**, stand in front of Epi, face it, and turn and nod your head.
    It should mirror you as described in `EpiHeadMirroring.md`, whose checks for `mirror_sign` and
    the nodding direction apply here too.
-10. **Pacing and mood.** Watch for a few minutes alone and with company. Raise `min_interval` and
+11. **Pacing and mood.** Watch for a few minutes alone and with company. Raise `min_interval` and
    `max_interval` on `Behaviors` if Epi is too busy, and lower them if it is too calm. Lower
    `decay_rate` on `Arousal` if the excitement fades too fast.
 
