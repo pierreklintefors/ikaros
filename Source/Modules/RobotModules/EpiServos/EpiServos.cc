@@ -3243,7 +3243,8 @@ class EpiServos : public Module
     // destructor, which may run during process exit when the kernel is already being torn down.
     void Stop() override
     {
-        if (simulate || !hardwarePowered)
+        // hardwarePowered is only set on the hardware path; parameters may be unbound if setup failed.
+        if (!hardwarePowered)
             return;
 
         hardwarePowered = false;
@@ -3255,8 +3256,8 @@ class EpiServos : public Module
 
     ~EpiServos()
     {
-        if (simulate)
-            return;
+        // Parameters are not read here: when another module fails during setup, Init() never ran and
+        // reading an unbound parameter would throw from the destructor and abort the process.
 
         // Fallback for a module destroyed without Stop(); normally the servos are already released.
         if (hardwarePowered)

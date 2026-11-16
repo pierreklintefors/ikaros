@@ -1686,3 +1686,18 @@ mind-blown wow with diverging eyes and a pooof). Built from general behaviour mo
 - Kernel tests 207 and 210 failed in the parallel full-suite run (210 after an HTTP 500 from remote
   session logging) and pass when run alone; possibly flaky under load.
 - The `InputVideoStream` ReadMe still lacks the uncommitted crop parameters (pre-existing, untouched).
+
+## EpiAnimatronics simulation without the robot camera
+
+`./Bin/ikaros simulate=True Projects/Epi/EpiAnimatronics.ikg` without the robot connected aborted with
+`Uninitialized parameter` after the eye stream `RightEye.local` could not be resolved.
+
+| # | Task | Status | Verification | Commit |
+|---:|---|---|---|---|
+| 1 | `EpiServos` no longer aborts when another module fails during setup, so the real error is reported. | Completed | Cause: `Stop()` and the destructor read the `simulate` parameter, which is unbound when another module fails before `EpiServos::Init()` runs; the exception escaped the destructor and aborted the process. Both now rely only on `hardwarePowered`, which is set only on the hardware path, and the hardware pointers, which start as `nullptr`. Release build without warnings. `EpiAnimatronics.ikg` with `simulate=True` and an unresolvable eye URL now ends with `SetUp Failed ... InputVideoStream could not create its frame grabber` instead of the abort; a 50-tick simulated `EpiHeadMirroring.ikg` run on the test video ends normally. The hardware shutdown path is unchanged apart from the removed parameter checks and was not run on a robot. The stale note in `EpiAnimatronics.md` is removed. | `EpiServos no longer aborts when another module fails during setup` |
+| 2 | `EpiAnimatronics.ikg` can use the Mac's own camera through a `camera` setting, so it can be simulated without the robot. | Not started |  |  |
+
+### Constraints
+
+- Do not change the uncommitted `InputVideoStream` changes.
+- Do not include `.Rhistory` or `CLAUDE.md` in any commit.

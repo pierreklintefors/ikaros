@@ -178,6 +178,3 @@ the robot needs someone next to it.
   camera points away from the face for a moment, so the face can be lost briefly.
 - **Simulation.** Simulated servos start at 0 degrees and move at 45 degrees per second, so the
   first seconds and fast eye movements look different from the robot.
-- **Startup failures.** If a module fails during startup, for example when the camera stream cannot
-  be opened, Ikaros currently ends with "Uninitialized parameter" from `EpiServos` instead of the
-  real error. Check the camera and the stream URL first.
