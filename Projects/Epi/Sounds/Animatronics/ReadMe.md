@@ -6,13 +6,19 @@ Short sounds for `Projects/Epi/EpiAnimatronics.ikg`, played by `SoundOutput`.
 | --- | --- | --- |
 | `hi.wav` | "Hi!" | Kokoro TTS |
 | `wow.wav` | a slow "Wow!" | Kokoro TTS |
-| `giggle.wav` | "Hee hee hee hee!" | Kokoro TTS |
+| `giggle.wav` | a giggle of five "hee" syllables that speed up and fall | Kokoro TTS |
 | `hmm.wav` | a curious "Hmm?" | Kokoro TTS |
 | `aww.wav` | a shy "Aww." | Kokoro TTS |
 | `poof.wav` | a pooof: a low thump under a breath of noise that darkens as it fades | Ikaros synthesizer, `RenderPoof.ikg` |
 | `sparkle.wav` | three quick rising bell notes | Ikaros synthesizer, `RenderSparkle.ikg` |
 
-The voice clips use the Kokoro voice `af_heart`, raised by four semitones so that Epi sounds small.
+The voice clips use the Kokoro voice `af_heart` at its natural pitch. Raising the pitch by
+resampling makes a voice sound sped up, so `render_voice.py` allows only small steps and uses none
+by default. Each clip keeps the natural decay of the voice, gets gentle fades and a small, soft
+room, ends once that tail has died away, and is matched to the same loudness (-17 dB RMS over the
+voiced part, peaks below -3 dBFS). The giggle is built from single "hee" syllables that come
+faster, lower, and softer, which sounds more like laughing than a text read aloud.
+
 The files are committed, so the demo needs neither Kokoro nor Python.
 
 ## Rendering again
@@ -38,6 +44,14 @@ UserData/venvs/kokoro/bin/python Projects/Epi/Sounds/Animatronics/render_voice.p
 ```
 
 `render_voice.py` takes `--voice` (for example `af_bella`, `af_sky`, or `af_nicole`), `--pitch` in
-semitones, and `--only` to render some clips. The texts and speeds are listed at the top of the
+semitones, and `--only` to render some clips. To compare voices, render every clip with six voices
+into `UserData/output/animatronics_voices/<voice>/` and listen with `afplay`:
+
+```sh
+UserData/venvs/kokoro/bin/python Projects/Epi/Sounds/Animatronics/render_voice.py --audition
+afplay UserData/output/animatronics_voices/af_bella/giggle.wav
+```
+
+Then render the chosen voice into this folder with `--voice`. The texts and speeds are listed at the top of the
 script. Spellings with stretched vowels, such as "Wooow", are read as separate syllables, so a long
 vowel is made with a lower speed instead.

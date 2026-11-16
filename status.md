@@ -1727,3 +1727,15 @@ mind-blown wow with diverging eyes and a pooof). Built from general behaviour mo
 - The Mac camera was not opened here; check `camera=InputVideo` with a real camera in both demos.
 - With a fixed Mac camera the simulated head and eyes run to their limits unless the face is near
   the image center.
+
+## Natural animatronics sounds
+
+The user found the animatronics sounds abrupt and unnatural. Measured causes: every voice clip and
+the sparkle end about 45 ms after their last loud sample, which cuts the natural decay; all sounds
+are completely dry; loudness differs by about 10 dB (sparkle -9 dB RMS, poof -19 dB RMS); and the
+voices are raised four semitones by resampling, which sounds like a sped-up recording.
+
+| # | Task | Status | Verification | Commit |
+|---:|---|---|---|---|
+| 1 | Render the voice clips naturally: no chipmunk pitch shift, full decay with gentle fades, a small room, matched loudness, a giggle built from natural syllables, and an audition set of voices. | Completed | `render_voice.py` now asks Kokoro not to trim (its own trim also cut the decay), keeps a 60 ms lead and the decay down to -55 dB of the peak, applies raised-cosine fades, adds a soft 0.35 s room at 12 percent, ends each clip when that tail falls below -50 dB, and matches the voiced loudness to -17 dB RMS with peaks below -3 dBFS. Default pitch is 0 instead of +4 semitones. The giggle is five "hee" syllables, accelerating from 150 to 100 ms apart and falling 2 semitones and to 60 percent in level. Measured: hi 0.76 s, wow 0.90 s, hmm 0.75 s, aww 0.80 s, giggle 1.10 s; all start and end at exactly 0; voiced RMS -17.0 dB for all; peaks 0.47-0.63. The voice now ends at about 0.5 s, with the tail fading out over the following 0.25 s, instead of being cut 45 ms after the last loud sample. `--audition` renders all clips with six voices (af_heart, af_bella, af_nicole, af_sky, af_jessica, bf_lily) into `UserData/output/animatronics_voices`. Not listened to here. | `Epi animatronics voice clips now sound natural` |
+| 2 | Render the poof and sparkle with smooth decays, overlapping bell notes, a reverb tail, and loudness matched to the voices. | Not started |  |  |
