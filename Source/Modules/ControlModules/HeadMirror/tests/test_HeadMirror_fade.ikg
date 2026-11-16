@@ -1,0 +1,20 @@
+<group name="HeadMirrorFadeTest"
+       description="Mirroring fades in at fade_in, and after the person is lost fades out with the offset frozen while FOLLOW stays 0 until the fade has ended"
+       start="true" stop="15" tick_duration="0.1"
+       cli_args="-u${TEST_DIR}"
+       expected_output_contains="offset = {0, -3.1606}||offset = {0, -4.90842}||offset = {0, -1.80571}||offset = {0, 0}"
+       expected_output_once="offset = {0, -0.244376}||offset = {0, -0.0899009}">
+    <module class="InputFile" name="Script" filename="fixture_HeadMirror_fade.jsonl" send_end_of_file="false" />
+    <module class="HeadMirror" name="Mirror" engage_time="0" lost_time="0.15" pose_smoothing="0" fade_in="10" fade_out="10" />
+    <module class="Print" name="State" />
+    <module class="Print" name="Offset" />
+    <module class="Print" name="Follow" />
+
+    <connection source="Script.POSE" target="Mirror.POSE" delay="0" />
+    <connection source="Script.VALID" target="Mirror.VALID" delay="0" />
+    <connection source="Script.DIRECTION" target="Mirror.DIRECTION" delay="0" />
+
+    <connection source="Mirror.STATE" target="State.INPUT" delay="0" label="state" />
+    <connection source="Mirror.OFFSET" target="Offset.INPUT" delay="0" label="offset" />
+    <connection source="Mirror.FOLLOW" target="Follow.INPUT" delay="0" label="follow" />
+</group>

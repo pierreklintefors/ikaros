@@ -1,0 +1,23 @@
+<group name="HeadMirrorEngageTest"
+       description="Mirroring starts after engage_time, applies gain, sign, and limits, stops on a new person, waits for a close person who faces the robot, and ends when the person is lost"
+       start="true" stop="13" tick_duration="0.1"
+       cli_args="-u${TEST_DIR}"
+       expected_output_contains="state = {1}||state = {2}||state = {0}||follow = {1}||follow = {0}"
+       expected_output_once="head = {3, 15}||head = {15, 10}">
+    <module class="InputFile" name="Script" filename="fixture_HeadMirror_engage.jsonl" send_end_of_file="false" />
+    <module class="HeadMirror" name="Mirror" engage_time="0.25" min_width="0.2" facing_limit="35" lost_time="0.25"
+            pose_smoothing="0" fade_in="0" fade_out="0" yaw_gain="0.5" pitch_gain="0.5" max_pan="10" max_tilt="10" />
+    <module class="Print" name="State" />
+    <module class="Print" name="Head" />
+    <module class="Print" name="Follow" />
+
+    <connection source="Script.POSE" target="Mirror.POSE" delay="0" />
+    <connection source="Script.VALID" target="Mirror.VALID" delay="0" />
+    <connection source="Script.NEW" target="Mirror.NEW_TARGET" delay="0" />
+    <connection source="Script.TARGET" target="Mirror.TARGET" delay="0" />
+    <connection source="Script.DIRECTION" target="Mirror.DIRECTION" delay="0" />
+
+    <connection source="Mirror.STATE" target="State.INPUT" delay="0" label="state" />
+    <connection source="Mirror.HEAD_GOAL" target="Head.INPUT" delay="0" label="head" />
+    <connection source="Mirror.FOLLOW" target="Follow.INPUT" delay="0" label="follow" />
+</group>

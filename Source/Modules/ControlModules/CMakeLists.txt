@@ -1,6 +1,7 @@
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 add_subdirectory(GazeLock)
+add_subdirectory(HeadMirror)
 add_subdirectory(KalmanFilter)
 add_subdirectory(PIDController)
 

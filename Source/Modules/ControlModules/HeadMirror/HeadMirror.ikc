@@ -1,0 +1,46 @@
+<class name="HeadMirror" description="Mirrors the head pose of a tracked person with a pan-tilt head while the gaze stays on the person">
+    <description type="text">
+        HeadMirror turns the head pose of the followed person, for example FaceTargetSelector.TARGET_POSE,
+        into a head goal for GazeLock.MANUAL_HEAD. The goal is the direction of the person, from
+        GazeLock.TARGET_DIRECTION, plus a mirrored head offset, so GazeLock keeps the eyes on the person
+        while the head copies the person's yaw and pitch. Mirroring starts after the person has been
+        tracked and roughly facing the robot for engage_time, fades in and out smoothly, and fades out
+        whenever another person is selected or the person is lost. While mirroring or fading, FOLLOW is 0
+        so GazeLock takes the head goal from HEAD_GOAL; otherwise FOLLOW is 1 and GazeLock follows the
+        person on its own.
+    </description>
+
+    <parameter name="yaw_gain" type="number" default="0.5" min="0" description="Head pan per degree of the person's yaw" />
+    <parameter name="pitch_gain" type="number" default="0.5" min="0" description="Head tilt per degree of the person's pitch" />
+    <parameter name="yaw_sign" type="number" default="-1" description="Sign from the person's yaw to head pan; flip it to change between a mirror image and an anatomical copy" />
+    <parameter name="pitch_sign" type="number" default="-1" description="Sign from the person's pitch (positive nodding down) to head tilt (positive looking up)" />
+    <parameter name="max_pan" type="number" default="10" min="0" description="Largest pan offset from the person's direction in degrees; keep it inside the range the eyes can compensate" />
+    <parameter name="max_tilt" type="number" default="10" min="0" description="Largest tilt offset from the person's direction in degrees; keep the face inside the vertical field of view" />
+    <parameter name="pose_smoothing" type="rate" default="6" min="0" description="Rate in 1/s at which the filtered pose follows new measurements; 0 follows immediately" />
+
+    <parameter name="engage_time" type="number" default="1" min="0" description="Seconds a person must be tracked, close enough, and facing the robot before mirroring starts" />
+    <parameter name="min_width" type="number" default="0" min="0" description="Smallest face width from TARGET, where the image width is 2, at which mirroring starts; 0 disables the check" />
+    <parameter name="facing_limit" type="number" default="35" min="0" description="Mirroring starts only while the person's yaw is within this many degrees" />
+    <parameter name="lost_time" type="number" default="0.5" min="0" description="Seconds without a valid detection after which the person counts as lost" />
+    <parameter name="fade_in" type="rate" default="2" min="0" description="Rate in 1/s at which mirroring fades in; 0 is immediate" />
+    <parameter name="fade_out" type="rate" default="4" min="0" description="Rate in 1/s at which mirroring fades out after a switch or loss; 0 is immediate" />
+
+    <parameter name="view_compensation" type="number" default="0" min="-1" max="1" description="Factor and sign with which the face's angle from the image center is subtracted from the measured yaw and pitch; 0 disables" />
+    <parameter name="horizontal_fov" type="number" default="62.2" min="1" max="179" description="Horizontal camera field of view in degrees, used by view_compensation" />
+    <parameter name="vertical_fov" type="number" default="48.8" min="1" max="179" description="Vertical camera field of view in degrees, used by view_compensation" />
+
+    <input name="POSE" description="Pose of the followed person: yaw, pitch, and optionally roll in degrees" />
+    <input name="VALID" size="1" description="1 when POSE comes from a new detection" />
+    <input name="DIRECTION" size="2" description="Direction of the person as elevation, azimuth in centered degrees, such as GazeLock.TARGET_DIRECTION" />
+    <input name="NEW_TARGET" optional="yes" size="1" description="1 when a different person has been selected" />
+    <input name="TARGET" optional="yes" description="Face center x, y and width in centered image coordinates, used by min_width and view_compensation" />
+    <input name="LOCKED" optional="yes" size="1" description="1 while the gaze is locked on the person; the person counts as lost otherwise" />
+    <input name="ENABLE" optional="yes" size="1" description="1 allows mirroring, 0 fades it out; enabled when not connected" />
+
+    <output name="HEAD_GOAL" size="2" description="Head goal tilt, pan in centered degrees for GazeLock.MANUAL_HEAD" />
+    <output name="FOLLOW" size="1" description="1 when GazeLock should follow the person itself, 0 while HEAD_GOAL drives the head" />
+    <output name="MIRRORING" size="1" description="1 while mirroring is active" />
+    <output name="WEIGHT" size="1" description="Mirroring fade level from 0 to 1" />
+    <output name="OFFSET" size="2" description="Applied head offset tilt, pan in degrees, including WEIGHT" />
+    <output name="STATE" size="1" description="0 no person, 1 person tracked but not mirrored, 2 mirroring" />
+</class>
