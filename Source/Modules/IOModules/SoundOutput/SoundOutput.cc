@@ -23,6 +23,8 @@
 #include "ikaros.h"
 
 #include <fcntl.h>
+#include <algorithm>
+#include <cstdio>
 #include <cstring>
 #include <sstream>
 #include <spawn.h>
@@ -133,7 +135,8 @@ public:
 
     int frame;
     Timer *timer;
-    bool Play(const char *command, std::string & error)
+    // gain below 1 plays the sound more quietly through afplay's -v option; 1 keeps the plain command.
+    bool Play(const char *command, float gain, std::string & error)
     {
         if (!std::filesystem::exists(sound_path))
         {
@@ -145,11 +148,22 @@ public:
 
         timer->Restart();
         frame = 0;
-        char * argv[] = {
+        char volume_text[16];
+        std::snprintf(volume_text, sizeof(volume_text), "%.3f", std::clamp(gain, 0.0f, 1.0f));
+        char volume_option[] = "-v";
+        char * plain_argv[] = {
             const_cast<char *>(command),
             const_cast<char *>(sound_path.c_str()),
             nullptr,
         };
+        char * volume_argv[] = {
+            const_cast<char *>(command),
+            volume_option,
+            volume_text,
+            const_cast<char *>(sound_path.c_str()),
+            nullptr,
+        };
+        char ** argv = gain < 1.0f ? volume_argv : plain_argv;
         pid_t pid;
 
         int status = posix_spawn(&pid, command, nullptr, nullptr, argv, nullptr);
@@ -185,6 +199,7 @@ class SoundOutput : public Module
 
     matrix trig;
     matrix inhibition;
+    matrix gain;
     matrix playing;
     matrix completed;
     matrix active;
@@ -208,6 +223,7 @@ class SoundOutput : public Module
         current_sound = -1;
         last_sound = -1;
         Bind(inhibition, "INHIBITION");
+        Bind(gain, "GAIN");
         Bind(playing, "PLAYING");
         Bind(completed, "COMPLETED");
         Bind(active, "ACTIVE");
@@ -238,7 +254,8 @@ class SoundOutput : public Module
             current_sound = queued_sound;
             queued_sound = -1;
             std::string playback_error;
-            if (!sound[current_sound].Play(kPlaybackCommand, playback_error))
+            const float playback_gain = gain.connected() ? gain(0) : 1.0f;
+            if (!sound[current_sound].Play(kPlaybackCommand, playback_gain, playback_error))
             {
                 Warning(playback_error);
                 current_sound = -1;

@@ -15,6 +15,7 @@ Plays a sound file
 | --- | --- | --- |
 | TRIG | vector with sounds to play. A transition from zero to one in an element starts the corresponding sound. A sound can be triggered several times even if it is already playing. |  |
 | INHIBITION | No new sound is started while this input > 0. A single triggering input will be queued and start when the inhibition is removed. | yes |
+| GAIN | Playback volume from 0 to 1, read when a sound starts. When not connected, sounds play at full volume. RMS and VOLUME still describe the sound file. | yes |
 
 ## Outputs
 
@@ -36,3 +37,7 @@ Plays a sound file
 
 ## Long description
 Plays one or several named sound files. Requires that a command to play sounds is available that can be started from the system() call. The dafult is the afplay command available in OS X. On Linux, this can be replaced with the "play" command. There is no way to stop a playing sound so beware of long sound files.
+
+`GAIN` lets another module set how loud a sound plays, for example a robot that speaks more loudly
+when it is excited. Below 1 it is passed to `afplay` with its `-v` option; at 1, or when not
+connected, the command is unchanged.
