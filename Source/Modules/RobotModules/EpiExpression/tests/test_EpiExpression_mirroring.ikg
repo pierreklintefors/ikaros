@@ -1,0 +1,27 @@
+<group name="EpiExpressionMirroringTest"
+       description="With MIRRORING connected the eyes and mouth show three states: idle, engaged, and mirroring"
+       start="true" stop="5" tick_duration="0.1"
+       cli_args="-u${TEST_DIR}"
+       expected_output_contains="Simulate fadecandy||mirror = {0}||{0, 0, 0, 0, 0, 0, 0, 0}||{0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25}||{1, 1, 1, 1, 1, 1, 1, 1}"
+       expected_output_not_contains="size is not"
+       expected_output_once="mirror = {1}">
+    <module class="InputFile" name="Script" filename="fixture_EpiExpression_mirroring.jsonl" send_end_of_file="false" />
+    <module class="EpiExpression" name="Expression" idle_color="1, 0.5, 0" engaged_color="0, 0.5, 1" mirror_color="0, 1, 0"
+            mouth_idle_color="0, 0, 0" mouth_color="0.25, 0.25, 0.25" mouth_mirror_color="1, 1, 1" intensity="1"
+            attack_rate="0" release_rate="0" />
+    <module class="FadeCandy" name="LEDs" simulate="true" />
+    <module class="Print" name="Eye" />
+    <module class="Print" name="Mouth" />
+    <module class="Print" name="Mirror" />
+
+    <connection source="Script.ENGAGED" target="Expression.ENGAGED" delay="0" />
+    <connection source="Script.MIRRORING" target="Expression.MIRRORING" delay="0" />
+    <connection source="Expression.LEFT_EYE" target="LEDs.LEFT_EYE" delay="0" />
+    <connection source="Expression.RIGHT_EYE" target="LEDs.RIGHT_EYE" delay="0" />
+    <connection source="Expression.MOUTH_HIGH" target="LEDs.MOUTH_HIGH" delay="0" />
+    <connection source="Expression.MOUTH_LOW" target="LEDs.MOUTH_LOW" delay="0" />
+
+    <connection source="Expression.LEFT_EYE" target="Eye.INPUT" delay="0" label="eye" />
+    <connection source="Expression.MOUTH_LOW" target="Mouth.INPUT" delay="0" label="mouth" />
+    <connection source="Expression.MIRROR_LEVEL" target="Mirror.INPUT" delay="0" label="mirror" />
+</group>
