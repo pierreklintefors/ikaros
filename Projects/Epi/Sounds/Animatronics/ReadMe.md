@@ -6,13 +6,14 @@ moves, how fast, and how each sound starts and ends.
 
 | File | Used for | Sound |
 | --- | --- | --- |
-| `hi.wav` | greeting | three bouncy chirps that end high and open |
+| `hi.wav` | greet | three bouncy chirps that end high and open |
 | `wow.wav` | surprise in mind blown | a long whistle that starts low and climbs while its vibrato widens, then a bright "eep" |
 | `poof.wav` | mind blown | a sputtering whistle that powers down inside a soft puff of air and a thump |
-| `giggle.wav` | giggle | eight quick chirps that hop between high and low, speed up, and drift down |
+| `giggle.wav` | found you, giggle | eight quick chirps that hop between high and low, speed up, and drift down |
+| `hehe.wav` | mischief | a sly, low "he-he-heh" of three clipped chirps that slide down, and a sneaky rise at the end |
 | `hmm.wav` | cross-eyed and curious | a thoughtful hum, then a chirp that rises like a question |
 | `aww.wav` | shy | a soft, slow whistle that lifts a little and sinks away |
-| `sparkle.wav` | greeting | bright blips that climb into a happy trill |
+| `sparkle.wav` | found you | bright blips that climb into a happy trill |
 
 ## Design
 
@@ -35,6 +36,7 @@ The rules used:
 | Surprise | starts low and climbs, vibrato widening | slow swell, then a sharp "eep" |
 | Question, curiosity | level, then rising at the end | soft hum, then a clear chirp |
 | Laughter | hops quickly between high and low, speeding up | very short chirps |
+| Mischief | low, each syllable sliding down, a sneaky rise at the end | clipped, nasal chirps |
 | Shyness | lifts slightly, then sinks | slow, soft attack and long fade |
 | Mind blown | falls from high to low with a stuttering warble | sudden start, long power-down |
 
@@ -43,7 +45,11 @@ contour, vibrato, and optional sample-and-hold warble. Its phase is continuous, 
 are smooth. A small, soft room is added, each sound ends once its tail has died away, and all are
 matched to -17 dB RMS over the sounding part, with the shy and sparkle sounds a little softer.
 They start and end at zero. `SoundOutput` plays one sound at a time, so short endings keep the next
-sound on time.
+sound on time. In the demo, `Arousal` sets the playback volume through `SoundOutput.GAIN`, so the
+same sound is softer when Epi is calm and louder when it is excited.
+
+The giggle and "he-he-heh" onsets are listed in `render_sounds.py`; `EpiAnimations.json` flashes the
+mouth and bobs the head on those beats, so motion and sound land together.
 
 ## Rendering again
 

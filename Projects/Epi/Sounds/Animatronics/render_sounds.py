@@ -186,11 +186,14 @@ def poof(rng):
     ]))
 
 
+# Onsets of the giggle chirps in seconds; EpiAnimations.json flashes the mouth on these beats.
+GIGGLE_ONSETS = [0.0, 0.10, 0.185, 0.26, 0.325, 0.385, 0.44, 0.49]
+
+
 def giggle(rng):
     """Laughter: quick chirps that hop between high and low, speed up, and drift down."""
-    onsets = [0.0, 0.10, 0.185, 0.26, 0.325, 0.385, 0.44, 0.49]
     parts = []
-    for i, onset in enumerate(onsets):
+    for i, onset in enumerate(GIGGLE_ONSETS):
         base = 1500 * 2 ** (-i * 0.6 / 12) * (1.18 if i % 2 == 0 else 0.9)
         parts.append((onset, syllable(0.06, [(0, base), (1, base * 1.2)], attack=0.003, release=0.03,
                                       brightness=0.3, gain=1.0 - 0.05 * i, rng=rng)))
@@ -225,7 +228,17 @@ def sparkle(rng):
     return finish(phrase(parts), gain_db=-2.0)
 
 
-SOUNDS = {"hi": hi, "wow": wow, "poof": poof, "giggle": giggle, "hmm": hmm, "aww": aww, "sparkle": sparkle}
+def hehe(rng):
+    """Mischief: a sly, low "he-he-heh" of three clipped chirps that slide down, and a sneaky rise at the end."""
+    syllables = [(0.00, 760), (0.16, 700), (0.32, 650)]
+    parts = [(onset, syllable(0.09, [(0, f), (1, f * 0.82)], attack=0.004, release=0.04, brightness=0.55,
+                              gain=1.0 - 0.08 * i, rng=rng)) for i, (onset, f) in enumerate(syllables)]
+    parts.append((0.50, syllable(0.2, [(0, 620), (0.5, 640), (1, 980)], attack=0.02, release=0.07,
+                                 vibrato=(7, 0.2), brightness=0.35, gain=0.8, rng=rng)))
+    return finish(phrase(parts))
+
+
+SOUNDS = {"hi": hi, "hehe": hehe, "wow": wow, "poof": poof, "giggle": giggle, "hmm": hmm, "aww": aww, "sparkle": sparkle}
 
 
 def write(path, samples):
