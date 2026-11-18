@@ -1890,3 +1890,21 @@ more as a face approaches.
   left goes on; a larger right-eye limit would need the `EpiServos` limits checked on the robot.
 - The camera is in the right eye, which now turns up to 13 degrees inward when someone is close;
   a very close face can therefore move toward the edge of the image. Watch for lost faces at close range.
+
+## Pupil range from EpiServos
+
+After the pupil voltage was fixed, the user found that the pupils move too little. `EpiServos` ignores limits set in Dynamixel Wizard: `AutoCalibratePupil` resets them to 0..1023, finds the stop, and uses a fixed range of 80 steps from it.
+
+| # | Task | Status | Verification | Commit |
+|---:|---|---|---|---|
+| 1 | `EpiServos` gets a `pupil_range` setting (steps, default 80 as before) for the usable pupil servo range from the calibrated stop. | Completed | After the regulator repair a read-only reader built against the Dynamixel SDK showed the pupil servos at 7.5 and 7.4 V with no alerts. With the user moving the pupils by hand between the stops, servo 2 travelled 0 to 286 and servo 3 15 to 332 steps (about 290-320 steps, 84-93 degrees), against the 80 steps `EpiServos` used. New `pupil_range` setting (default 80, unchanged behaviour; clamped to 10..1023 and to the servo's limit); the demo sets 260 as a model-level `pupil_range`. Release build without warnings; a sweep of 10, 16, 5, 16, 5, 10 mm on EpiBlack calibrates to limits 5-265 and 11-271, inside the measured stops, without warnings or alerts. The amount the pupils open was not measured; the user judges it. | `EpiServos can now use the full mechanical range of the pupils` |
+
+### Outstanding issues and questions
+
+- `EpiServos` reports the commanded pupil size as the present size instead of reading it from the
+  servos, so the pupil position cannot be seen in the Ikaros log; reading it back (address 37) would
+  allow a check without a separate tool.
+- The 260-step range was measured on EpiBlack only. Other robots keep the default of 80 unless they
+  are started with `pupil_range`; measure them the same way before raising it.
+- Calibration finds only the closed stop; if the top end is reached by a worn or loosened pupil
+  mechanism, the servo can push against it. Watch for hardware alerts or warm servos at full open.

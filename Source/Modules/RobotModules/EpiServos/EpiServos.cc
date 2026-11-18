@@ -128,6 +128,7 @@ class EpiServos : public Module
 {
     // Paramteters
     parameter simulate;
+    parameter pupilRange;
     parameter requirePupils;
     matrix minLimitPosition;
     matrix maxLimitPosition;
@@ -946,6 +947,7 @@ class EpiServos : public Module
         // Ikaros parameter simulate
         Bind(simulate, "simulate");
         Bind(requirePupils, "require_pupils");
+        Bind(pupilRange, "pupil_range");
 
         if (simulate)
         {
@@ -3213,8 +3215,10 @@ class EpiServos : public Module
         AngleMinLimitPupil[0] = present_postition_value[0] + 5;
         AngleMinLimitPupil[1] = present_postition_value[1] + 5;
 
-        AngleMaxLimitPupil[0] = AngleMinLimitPupil[0] + 80;
-        AngleMaxLimitPupil[1] = AngleMinLimitPupil[1] + 80;
+        // The usable range starts at the calibrated stop; pupil_range is its length in servo steps.
+        const int range = std::clamp(pupilRange.as_int(), 10, 1023);
+        AngleMaxLimitPupil[0] = std::min(AngleMinLimitPupil[0] + range, 1023);
+        AngleMaxLimitPupil[1] = std::min(AngleMinLimitPupil[1] + range, 1023);
 
         // Not implemented.
         Notify(msg_debug, "Position limits pupil servos (auto calibrate): min " +

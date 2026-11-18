@@ -157,6 +157,7 @@ These model-level settings can be changed on the command line:
 | `camera_eye` | `right` | Eye that carries the camera; must match `eye_url` |
 | `mirror_sign` | `-1` | `-1` mirrors the person in copycat like a mirror image; `1` copies the movement with the same side |
 | `mirror_gain` | `0.5` | Robot head movement per degree of the person's head movement in copycat |
+| `pupil_range` | `260` | Usable range of the pupil servos in steps from the stop found at start-up; measured on EpiBlack, see the pupil check below |
 | `vergence_sign` | `-1` | Direction of vergence; `-1` makes positive vergence turn the eyes inward on Epi, where a positive eye pan turns the eye to the robot's left |
 | `x_sign` | `-1` | Direction from image x to head and eye pan; `-1` was found on EpiBlack |
 | `y_sign` | `1` | Direction from image y to head tilt; `1` was found on EpiBlack |
@@ -243,9 +244,14 @@ the robot needs someone next to it.
 6. **Nod direction.** In the greeting, the head should first lift a little and then dip down. If it
    does the opposite, the tilt direction of the robot is the opposite of what the animations
    assume; change the sign of the `head_tilt` values in `EpiAnimations.json`.
-7. **Pupils.** EpiBlack's pupil servos have measured 5.3 V, below their 6.0 V minimum. The model
-   runs without pupils when they fail to start (`require_pupils="false"`), but found you, giggle,
-   and mind blown look much better with working pupils. Check the pupil supply.
+7. **Pupils.** The pupil servos need 6.0 to 8.4 V; EpiBlack had 5.3 V before its regulator was
+   repaired and now has 7.5 V. The model runs without pupils when they fail to start
+   (`require_pupils="false"`), but found you, giggle, and mind blown look much better with working
+   pupils. `EpiServos` ignores limits set in Dynamixel Wizard: at every start it finds the stop of each
+   pupil and uses `pupil_range` steps from there (80 by default). To set it for a robot, move each
+   pupil by hand, with torque off, between its two mechanical stops and note the servo positions
+   (1 step is 0.29 degrees); on EpiBlack the pupils travel about 290 to 320 steps, so the demo uses
+   260, a little short of the nearer stop so that the servo does not push against it.
 8. **Sound.** Play every animation and set the speaker volume so that the calm sounds are still
    heard; arousal plays them at 35 to 100 percent.
 9. **Close up.** Lean slowly toward Epi's face. Beyond about 1 m the eyes should stay parallel,

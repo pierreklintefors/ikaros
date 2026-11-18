@@ -42,6 +42,7 @@
     <parameter name="robot" type="string" options="EpiWhite,EpiGreen,EpiBlue,EpiBlack,EpiRed,EpiOrange" default="EpiWhite" descrition="Robot to connect to." />
 
 
+	<parameter name="pupil_range" type="number" default="80" min="10" max="1023" description="Usable range of the pupil servos in steps (0.29 degrees each) from the stop that is found at start-up. Limits set with Dynamixel Wizard are overwritten at start-up, so set the mechanical travel of the pupil here." />
 	<parameter name="require_pupils" type="bool" default="true" description="Fail startup when the pupil servos cannot be set up. When false, a pupil failure gives a warning and the robot runs without pupils." />
 	<parameter name="simulate" type="bool" default="False" description="Simulation mode. No connecting is made to servos. The PRESENT POSITION output is calculated using previous position, goal position, maximum velocoty (no acceleration) and the time base of the simulation." />
 	<parameter name="MinLimitPosition" type="matrix" description="The minimum limit of the position in degrees of the servos. Not including pupils"
