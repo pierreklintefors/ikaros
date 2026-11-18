@@ -129,6 +129,7 @@ class EpiServos : public Module
     // Paramteters
     parameter simulate;
     parameter pupilRange;
+    matrix pupilLimits;
     parameter requirePupils;
     matrix minLimitPosition;
     matrix maxLimitPosition;
@@ -948,6 +949,18 @@ class EpiServos : public Module
         Bind(simulate, "simulate");
         Bind(requirePupils, "require_pupils");
         Bind(pupilRange, "pupil_range");
+        Bind(pupilLimits, "pupil_limits");
+        if (PupilLimitsSet())
+        {
+            // Left open, left closed, right open, right closed; the open end has the lower position.
+            for (int k = 0; k < 2; ++k)
+            {
+                const float open = pupilLimits(2 * k);
+                const float closed = pupilLimits(2 * k + 1);
+                if (open < 0 || closed > 1023 || closed - open < 20)
+                    throw exception("EpiServos: pupil_limits must be open and closed positions in 0..1023 for each pupil, at least 20 steps apart.", path_);
+            }
+        }
 
         if (simulate)
         {
@@ -3156,9 +3169,35 @@ class EpiServos : public Module
 
         return success;
     }
+    // True when pupil_limits holds positions for both pupils; all zeros mean not set.
+    bool PupilLimitsSet() const
+    {
+        if (pupilLimits.size() < 4)
+            return false;
+        for (int i = 0; i < 4; ++i)
+            if (pupilLimits(i) != 0.0f)
+                return true;
+        return false;
+    }
+
+
     // XL320 is using 2.0 but with a very limited controltable.
     bool AutoCalibratePupil()
     {
+        // With given limits no pupil is driven to a stop; the limits are written by SetPupilParameters.
+        if (PupilLimitsSet())
+        {
+            for (int k = 0; k < 2; ++k)
+            {
+                AngleMinLimitPupil[k] = static_cast<int>(pupilLimits(2 * k));
+                AngleMaxLimitPupil[k] = static_cast<int>(pupilLimits(2 * k + 1));
+            }
+            Notify(msg_print, "Pupil limits from pupil_limits: left " + std::to_string(AngleMinLimitPupil[0]) + " to " +
+                                  std::to_string(AngleMaxLimitPupil[0]) + ", right " + std::to_string(AngleMinLimitPupil[1]) +
+                                  " to " + std::to_string(AngleMaxLimitPupil[1]));
+            return true;
+        }
+
         int dxl_comm_result = COMM_TX_FAIL; // Communication result
         uint8_t dxl_error = 0;              // Dynamixel error
         Timer t;

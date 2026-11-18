@@ -1927,3 +1927,19 @@ The left pupil is slightly smaller than the right one. The pupil servos have dif
 - Matching the pupils mechanically still needs a safer method, for example measuring both stops by
   hand with torque off, as before, and giving each pupil its own range as parameters instead of
   moving toward the stop with the servo.
+
+## Pupil limits set by Ikaros
+
+After the failed auto calibration, the user asked for Ikaros to set the pupil limits to a safe range instead of Dynamixel Wizard.
+
+| # | Task | Status | Verification | Commit |
+|---:|---|---|---|---|
+| 1 | `EpiServos` gets `pupil_limits`: the servo positions of the open and closed end of each pupil. When set, they are written to the servos at start-up and the pupils are not driven to any stop. The demo sets them to the hand-measured stops minus a margin. | Completed | New `pupil_limits` matrix (left open, left closed, right open, right closed; all zeros keep the previous calibration with `pupil_range`). When set, `AutoCalibratePupil` returns before any pupil motion with these limits, which `SetPupilParameters` writes as the servos' CW and CCW limits; invalid values (outside 0..1023 or less than 20 steps apart) stop the model at startup. The demo's model-level `pupil_limit_steps` is 12, 274, 27, 320: the hand-measured stops (about 0-286 and 15-332 steps) minus about 12 steps. Release build without warnings; the demo starts in simulation with the new setting and rejects invalid limits; Markdown checker clean. Not run on the robot: the user is to power it on and run it with the pupils unobstructed. | `EpiServos can now take safe pupil limits instead of finding the stops` |
+
+### Outstanding issues and questions
+
+- Not run on the robot. The first run should be short, with the user present, watching that neither
+  pupil strains at either end. The limits written to the servos can be read back with the read-only
+  reader (addresses 6 and 8 of IDs 2 and 3).
+- The values come from a hand measurement made before the pupils were strained; they should be
+  measured again if the mechanism changed.
