@@ -1908,3 +1908,22 @@ After the pupil voltage was fixed, the user found that the pupils move too littl
   are started with `pupil_range`; measure them the same way before raising it.
 - Calibration finds only the closed stop; if the top end is reached by a worn or loosened pupil
   mechanism, the servo can push against it. Watch for hardware alerts or warm servos at full open.
+
+## Per-servo pupil calibration
+
+The left pupil is slightly smaller than the right one. The pupil servos have different mechanical travel
+(about 286 and 332 steps), but `EpiServos` calibrates only the stop at goal position 0 and adds the same
+`pupil_range` to both, so the other end of the range differs mechanically between the pupils.
+
+| # | Task | Status | Verification | Commit |
+|---:|---|---|---|---|
+| 1 | `AutoCalibratePupil` finds both mechanical stops of each pupil servo by driving toward the second stop with the lowered torque limit until it stalls, and maps the pupil size onto each servo's own range. `pupil_range` 0 selects this; other values keep the fixed range. | Abandoned | The stall detection did not stop the servos: with the torque limit at 500 the auto calibration drove both pupils to calibrated limits of 718 and 990 steps, far beyond the stops of about 286 and 332 steps measured by hand, and the pupil servos then stopped answering ("no status packet"). The user reported that the sweep almost broke the pupils. The change was reverted and never committed; the committed fixed `pupil_range` of 260 is unchanged. Do not retry with motion tests on the robot before the pupil mechanism and servos are inspected. | None |
+
+### Outstanding issues and questions
+
+- The pupils and their servos need inspection after the failed calibration: look for skipped gear
+  teeth or a loose linkage, power-cycle the robot, and read the servos' hardware error status
+  (read-only) before any further motion.
+- Matching the pupils mechanically still needs a safer method, for example measuring both stops by
+  hand with torque off, as before, and giving each pupil its own range as parameters instead of
+  moving toward the stop with the servo.
