@@ -1,0 +1,20 @@
+<group name="StereoDistanceTest"
+       description="Triangulates a target straight ahead with parallel and converged eyes and a target off to the side, holds the distance briefly after a camera loses the target, and rejects detections at different heights"
+       start="true" stop="7" tick_duration="0.1" threads="1"
+       cli_args="-u${TEST_DIR}"
+       expected_output_contains="tick = {0}&#10;valid = {1}&#10;distance = {0.5}||tick = {1}&#10;valid = {1}&#10;distance = {0.499999}||tick = {2}&#10;valid = {1}&#10;distance = {1}||tick = {4}&#10;valid = {1}&#10;distance = {1}||tick = {5}&#10;valid = {0}&#10;distance = {0}||tick = {6}&#10;valid = {0}&#10;distance = {0}">
+    <module class="InputFile" name="Script" filename="fixture_StereoDistance.jsonl" send_end_of_file="false" />
+    <module class="StereoDistance" name="Stereo" baseline="0.06" horizontal_fov="90" x_sign="1" smoothing="0" hold_time="0.2" />
+    <module class="Print" name="Tick" />
+    <module class="Print" name="Distance" />
+    <module class="Print" name="Valid" />
+
+    <connection source="Script.L" target="Stereo.LEFT_TARGET" delay="0" />
+    <connection source="Script.VL" target="Stereo.LEFT_VALID" delay="0" />
+    <connection source="Script.R" target="Stereo.RIGHT_TARGET" delay="0" />
+    <connection source="Script.VR" target="Stereo.RIGHT_VALID" delay="0" />
+    <connection source="Script.EYE" target="Stereo.EYE_PAN" delay="0" />
+    <connection source="Script.TICK" target="Tick.INPUT" delay="0" label="tick" />
+    <connection source="Stereo.DISTANCE" target="Distance.INPUT" delay="0" label="distance" />
+    <connection source="Stereo.VALID" target="Valid.INPUT" delay="0" label="valid" />
+</group>

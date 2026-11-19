@@ -1,0 +1,31 @@
+<class name="StereoDistance" description="Measures the distance of a target seen by two cameras in panning eyes by triangulation">
+    <description type="text">
+        StereoDistance measures how far away a target is when it is seen by two cameras, one in each eye of a
+        robot whose eyes pan. The direction to the target from each eye is the eye's pan angle plus the
+        target's angle in that eye's image. The two directions meet at the target; with the eyes baseline
+        meters apart, its distance in front of the eyes is baseline / (tan right angle - tan left angle),
+        with angles counted positive toward the left eye. Because the eye angles are included, the
+        measurement stays correct while the eyes converge or move. Detections whose heights differ by more
+        than max_height_difference count as different targets.
+    </description>
+
+    <parameter name="baseline" type="number" default="0.058" min="0.001" description="Distance between the two cameras in meters; 0.058 matches Epi" />
+    <parameter name="horizontal_fov" type="number" default="62.2" min="1" max="179" description="Horizontal field of view of both cameras in degrees" />
+    <parameter name="x_sign" type="number" default="1" description="Sign that maps image x to an angle in the same direction as the eye pan, as in GazeLock" />
+    <parameter name="left_sign" type="number" default="1" description="1 when positive angles turn toward the left eye, -1 when toward the right eye" />
+    <parameter name="position_offset" type="number" default="0" description="Value subtracted from EYE_PAN, for example 180 for Epi servo positions" />
+    <parameter name="min_distance" type="number" default="0.05" min="0" description="Shorter measurements are ignored, in meters" />
+    <parameter name="max_distance" type="number" default="3" min="0" description="Longer measurements are ignored, in meters; small angle differences are unreliable" />
+    <parameter name="max_height_difference" type="number" default="0.3" min="0" description="Largest difference of the target heights in the two images, in centered image coordinates, for the detections to count as the same target" />
+    <parameter name="smoothing" type="rate" default="6" min="0" description="Rate in 1/s at which DISTANCE follows new measurements; 0 follows immediately" />
+    <parameter name="hold_time" type="number" default="0.3" min="0" description="Seconds DISTANCE stays valid after the last measurement" />
+
+    <input name="LEFT_TARGET" description="Target x, y, and optionally width in centered image coordinates of the left camera, such as FaceTargetSelector.TARGET" />
+    <input name="LEFT_VALID" size="1" description="1 when LEFT_TARGET is a current detection" />
+    <input name="RIGHT_TARGET" description="Target x, y, and optionally width in centered image coordinates of the right camera" />
+    <input name="RIGHT_VALID" size="1" description="1 when RIGHT_TARGET is a current detection" />
+    <input name="EYE_PAN" size="2" description="Pan of the left and the right eye in degrees, minus position_offset, for example EpiServos.PRESENT_POSITION[2:4]" />
+
+    <output name="DISTANCE" size="1" description="Distance of the target in front of the eyes in meters; 0 when not valid" />
+    <output name="VALID" size="1" description="1 while a measurement is less than hold_time old" />
+</class>
