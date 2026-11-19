@@ -63,10 +63,19 @@ synchronized with the motion:
    and then by itself. During the copycat animation its `mirror` channel turns on `HeadMirror`,
    which copies the person's head turns and nods as a mirror image, as in `EpiHeadMirroring.ikg`,
    while the eyes stay on the person and glow green.
-8. **Voice.** Most sounds play only in some of the plays, and each time one of three variants is
+8. **Following a finger.** Hold up an open palm toward Epi for 2 seconds: Epi chirps, its eyes
+   flash cyan, and it starts following the tip of your index finger instead of your face, with eyes
+   and head. Bring the finger slowly toward its nose and the eyes cross, as with a close face, using
+   the distance measured by both cameras. `AppleVisionHandDetector` finds the hand in each camera and
+   tells how open it is, `HoldLatch` starts the mode when the palm has been open for 2 seconds, and
+   four `Arbiter` modules switch the inputs of `GazeLock`, `StereoDistance`, and `ProximityVergence`
+   from the face to the fingertip. During the mode the spontaneous animations, the eye glances, and
+   copycat pause. When no hand has been seen for 3 seconds, Epi gives a soft "aww", blinks, and
+   returns to faces.
+9. **Voice.** Most sounds play only in some of the plays, and each time one of three variants is
    chosen, so Epi is not chatty and never repeats itself exactly. The signature sounds of mind
    blown always play.
-9. **Body.** `EpiExpression` shows the state and the animation on the LEDs and pupils. `SoundOutput`
+10. **Body.** `EpiExpression` shows the state and the animation on the LEDs and pupils. `SoundOutput`
    plays the sounds, and `EpiServos` and `FadeCandy` drive the hardware.
 
 All modules apart from `EpiServos`, `EpiExpression`, and `FadeCandy` are general and can be used
@@ -93,6 +102,8 @@ cross-eyed, and the flash comes with the pooof.
 | 8 | Mischief | The eyes slide slowly to the side under half-closed lids, purple glow, a sly laugh with a flash and a bob on each syllable, then a quick, innocent look back with wide eyes | a sly "he-he-heh" | 0.55 |
 | 9 | Look around | The eyes lead each turn and the head follows slowly, about 12 degrees, to one side and the other | | 0.15 |
 | 10 | Copycat | Started by panning the head back and forth: a bright, inviting look and a little lift of the head, then about 17 seconds of mirroring the person's head movements with green eyes, ending with a happy squint | sometimes a hello at the start and a giggle at the end | 0.6 |
+| 11 | Finger on | Starts finger following: a quick blink, cyan eyes, wider pupils, and a glow; the eyes and head keep tracking | a one-syllable chirp | 0.6 |
+| 12 | Finger off | Ends finger following: a soft blue-violet look with narrower pupils and a slow blink | a soft "aww" | 0.3 |
 
 The sound column lists what can play. Each sound event has a probability, from 35 percent for the
 hum of cross-eyed to 85 percent for the giggles; the chirp of found you and the wow and pooof of mind
@@ -242,6 +253,8 @@ The character is tuned on the modules:
 | `LightShow` | `show_patterns`, `pattern_time`, `wave_rate`, `circle_rate`, `brightness` | The light patterns |
 | `Near` | `start_distance`, `full_distance`, `gain`, `max_vergence`, `object_width` | When and how strongly the eyes converge on a close face |
 | `NearPupil` | `factor` | How much the pupils narrow when a face is close, in mm (negative) |
+| `Palm` | `hold_time`, `release_time`, `threshold` | How long the open palm must be held to start finger following, how long the hand may be gone before it ends, and how open the hand must be (0.7 means at least three of the four fingers stretched out) |
+| `Hands`, `LeftHands` | `point`, `extension_ratio`, `hold_time` | The point followed (index fingertip or palm), when a finger counts as stretched out, and how long a hand that is briefly missed is kept |
 | `HeadPan` | `amplitude`, `swings`, `window`, `smoothing` | How large and quick a back-and-forth head pan must be to start copycat; `smoothing` 20 keeps quick head shakes large enough to count |
 
 ### Camera settings
@@ -262,7 +275,8 @@ the other program and start again.
 - **Faces**, **Locked**, **Animation**, **Next in**, and **Arousal** show how many faces passed the
   filters, whether the gaze is locked, the playing animation (-1 for none), the quiet seconds left
   before the next spontaneous animation, and the excitement level.
-- The eleven numbered buttons play each animation at once.
+- The eleven numbered buttons play each animation at once. Finger on and finger off have no
+  buttons; they play when finger following starts and ends.
 - **Wave (5 s)** and **Circle (5 s)** play a light pattern, and the other buttons in those rows run the
   LED orientation check. **Lights** shows the playing pattern (0 none, 1 wave, 2 circle, 3 check),
   and **LEDs saved** whether the robot's LED orientation is stored.
@@ -273,6 +287,8 @@ the other program and start again.
 - At the bottom, **Face distance** shows how far away the followed face is, **Distance measured by
   both eyes** whether it comes from the two cameras (1) or from the face size (0), and **Near** how
   close the face is; above 0.3 the head holds still. The left eye camera is shown beside them.
+- **Open palm held** fills from 0 to 1 while an open palm is held up and starts finger following at 1,
+  and **Following a finger** shows 1 while the mode is on.
 
 ## Changing the animations
 
@@ -345,11 +361,24 @@ the robot needs someone next to it.
    `EpiHeadMirroring.md`, whose checks for `mirror_sign` and the nodding direction apply here too.
    If panning does not start the game, lower `amplitude` on `HeadPan`; if it starts by accident,
    raise it or `swings`. The game cannot restart within 25 seconds of its start.
-12. **Pacing and mood.** Watch for a few minutes alone and with company. Raise `min_interval` and
+12. **Finger following.** Hold up an open palm about 0.5 m in front of Epi. **Open palm held** should
+   fill to 1 in 2 seconds and **Following a finger** turn 1 with a chirp. Point with your index finger
+   and move it slowly; the eyes and head should follow the fingertip. Bring it toward the nose; the
+   eyes should cross. Drop the hand; after 3 seconds Epi should say "aww" and return to faces. If the
+   open palm is not noticed, lower `threshold` on `Palm` or `extension_ratio` on `Hands`.
+13. **Pacing and mood.** Watch for a few minutes alone and with company. Raise `min_interval` and
    `max_interval` on `Behaviors` if Epi is too busy, and lower them if it is too calm. Lower
    `decay_rate` on `Arousal` if the excitement fades too fast.
 
 ## Known limitations
+
+- **Finger following untested on the robot.** It has been checked in simulation with photos of an
+  open palm, not with a live camera or the robot.
+- **Finger cues and cooldown.** Like every behaviour, finger on and finger off cannot play again
+  within 25 seconds, so a second start or end soon after the first is silent. The mode itself still
+  starts and ends.
+- **Hand size.** Without the left camera, the distance to the finger comes from the width of the
+  hand, using the face width of 0.15 m, so convergence on a finger is then only rough.
 
 - **Untested on the robot.** The model has been checked in simulation with a scripted person, not
   on a robot. The head tilt sign, the LED ring layout, the motion speeds, and the pacing must be

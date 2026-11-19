@@ -40,11 +40,24 @@
     <module class="UV4LSettings" name="RightCameraSettings" url="@eye_url" width="640" height="480" frame_rate="30" quality="70" _x="24" _y="1488" />
     <module class="UV4LSettings" name="LeftCameraSettings" url="@left_eye_url" width="640" height="480" frame_rate="30" quality="70" _x="216" _y="1488" />
 
+    <!-- Finger following: an open palm held up for 2 s starts it; Epi then follows the index fingertip
+         instead of the face until no hand has been seen for 3 s -->
+    <module class="AppleVisionHandDetector" name="Hands" point="index_tip" _x="216" _y="1584" />
+    <module class="HoldLatch" name="Palm" hold_time="2" release_time="3" threshold="0.7" _x="408" _y="1584" />
+    <module class="AppleVisionHandDetector" name="LeftHands" point="index_tip" _x="216" _y="1704" />
+    <module class="Constant" name="FaceFirst" data="1" _x="24" _y="1824" />
+    <module class="Arbiter" name="FollowTarget" arbitration="hierarchy" stack_values="yes" _x="600" _y="1584" />
+    <module class="Arbiter" name="FollowValid" arbitration="hierarchy" stack_values="yes" _x="792" _y="1584" />
+    <module class="Arbiter" name="LeftFollowTarget" arbitration="hierarchy" stack_values="yes" _x="600" _y="1704" />
+    <module class="Arbiter" name="LeftFollowValid" arbitration="hierarchy" stack_values="yes" _x="792" _y="1704" />
+    <module class="Maximum" name="GlanceInhibit" _x="408" _y="1824" />
+    <module class="Subtract" name="FaceOnly" _x="216" _y="1824" />
+
     <!-- Behaviour: when to do what, and how it looks -->
     <module class="Constant" name="BehaviorsEnable" data="1" _x="24" _y="264" />
-    <module class="BehaviorSelector" name="Behaviors" count="11" greeting="0" greeting_delay="0.3" farewell="6"
-            idle_weights="0, 0, 0, 0, 0, 0, 0.5, 0, 0, 2, 0" engaged_weights="0, 1, 1.5, 1, 1.5, 1, 0.6, 1, 1.5, 0.3, 0.5"
-            arousal_levels="0.8, 0.5, 0.6, 0.5, 0.75, 0.9, 0.3, 0.35, 0.55, 0.15, 0.6" arousal_width="0.3" memory="3"
+    <module class="BehaviorSelector" name="Behaviors" count="13" greeting="0" greeting_delay="0.3" farewell="6"
+            idle_weights="0, 0, 0, 0, 0, 0, 0.5, 0, 0, 2, 0, 0, 0" engaged_weights="0, 1, 1.5, 1, 1.5, 1, 0.6, 1, 1.5, 0.3, 0.5, 0, 0"
+            arousal_levels="0.8, 0.5, 0.6, 0.5, 0.75, 0.9, 0.3, 0.35, 0.55, 0.15, 0.6, 0.6, 0.3" arousal_width="0.3" memory="3"
             min_interval="8" max_interval="16" excited_interval_scale="0.6" cooldown="25" reaction_cooldown="10" _x="216" _y="264" />
     <module class="KeyframeAnimator" name="Animator" file="../Projects/Epi/EpiAnimations.json"
             channels="eye_offset, vergence, head_tilt, head_pan, pupil, eye_r, eye_g, eye_b, eye_mix, mouth_r, mouth_g, mouth_b, mouth_mix, brightness, lid, mirror, hold"
@@ -126,7 +139,7 @@
     <connection source="Arousal.MAPPED[2:3]" target="Sounds.GAIN" delay="0" />
     <connection source="Animator.EVENTS[0:1]" target="Blinker.TRIGGER" delay="0" />
     <connection source="Animator.OUTPUT[16:17]" target="Blinker.INHIBIT" delay="0" />
-    <connection source="Animator.PLAYING" target="EyeGlances.INHIBIT" delay="0" />
+    <connection source="GlanceInhibit.OUTPUT" target="EyeGlances.INHIBIT" delay="0" />
     <connection source="Gaze.LOCKED" target="HeadIdle.INPUT1" delay="1" />
     <connection source="Animator.PLAYING" target="HeadIdle.INPUT2" delay="0" />
     <connection source="HeadIdle.OUTPUT" target="HeadGlances.INHIBIT" delay="0" />
@@ -146,28 +159,28 @@
     <connection source="Gaze.LOCKED" target="Mirror.LOCKED" delay="1" />
     <connection source="Animator.OUTPUT[15:16]" target="Mirror.ENABLE" delay="0" />
     <connection source="Target.TARGET_POSE[0:1]" target="HeadPan.INPUT" delay="0" />
-    <connection source="Target.VALID" target="HeadPan.VALID" delay="0" />
+    <connection source="FaceOnly.OUTPUT" target="HeadPan.VALID" delay="0" />
     <connection source="HeadPan.DETECTED" target="Behaviors.REQUEST[10:11]" delay="0" />
 
     <connection source="Servos.PRESENT_POSITION" target="Gaze.PRESENT_POSITION" delay="1" />
     <connection source="Mirror.FOLLOW" target="Gaze.FOLLOW" delay="0" />
     <connection source="Mirror.HEAD_GOAL" target="Gaze.MANUAL_HEAD" delay="0" />
-    <connection source="Target.TARGET" target="Gaze.TARGET" delay="0" />
-    <connection source="Target.VALID" target="Gaze.VALID" delay="0" />
+    <connection source="FollowTarget.OUTPUT" target="Gaze.TARGET" delay="0" />
+    <connection source="FollowValid.OUTPUT" target="Gaze.VALID" delay="0" />
     <connection source="Expression.PUPIL_SIZE" target="Gaze.PUPIL_SIZE" delay="1" />
     <connection source="EyeOffset.OUTPUT" target="Gaze.EYE_OFFSET" delay="0" />
     <connection source="LeftEye.OUTPUT" target="LeftFaces.INPUT" delay="0" />
     <connection source="LeftFaces.BOXES" target="LeftTarget.BOXES" delay="0" />
-    <connection source="LeftTarget.TARGET" target="Stereo.LEFT_TARGET" delay="0" />
-    <connection source="LeftTarget.VALID" target="Stereo.LEFT_VALID" delay="0" />
-    <connection source="Target.TARGET" target="Stereo.RIGHT_TARGET" delay="0" />
-    <connection source="Target.VALID" target="Stereo.RIGHT_VALID" delay="0" />
+    <connection source="LeftFollowTarget.OUTPUT" target="Stereo.LEFT_TARGET" delay="0" />
+    <connection source="LeftFollowValid.OUTPUT" target="Stereo.LEFT_VALID" delay="0" />
+    <connection source="FollowTarget.OUTPUT" target="Stereo.RIGHT_TARGET" delay="0" />
+    <connection source="FollowValid.OUTPUT" target="Stereo.RIGHT_VALID" delay="0" />
     <connection source="Servos.PRESENT_POSITION[2:4]" target="Stereo.EYE_PAN" delay="1" />
     <connection source="Stereo.DISTANCE" target="Near.MEASURED_DISTANCE" delay="0" />
     <connection source="Stereo.VALID" target="Near.MEASURED_VALID" delay="0" />
     <connection source="Near.NEAR" target="Gaze.HOLD_HEAD" delay="1" />
-    <connection source="Target.TARGET" target="Near.TARGET" delay="0" />
-    <connection source="Target.VALID" target="Near.VALID" delay="0" />
+    <connection source="FollowTarget.OUTPUT" target="Near.TARGET" delay="0" />
+    <connection source="FollowValid.OUTPUT" target="Near.VALID" delay="0" />
     <connection source="Animator.OUTPUT[1:2]" target="Vergence.INPUT1" delay="0" />
     <connection source="Near.VERGENCE" target="Vergence.INPUT2" delay="0" />
     <connection source="Vergence.OUTPUT" target="Gaze.VERGENCE" delay="0" />
@@ -203,6 +216,36 @@
     <connection source="LightShow.MOUTH_LOW" target="LEDs.MOUTH_LOW" delay="0" />
 
     <!-- Dashboard: controls and state -->
+
+    <!-- Finger following -->
+    <connection source="Eye.OUTPUT" target="Hands.INPUT" delay="0" />
+    <connection source="LeftEye.OUTPUT" target="LeftHands.INPUT" delay="0" />
+    <connection source="Hands.OPEN" target="Palm.INPUT" delay="0" />
+    <connection source="Hands.VALID" target="Palm.PRESENT" delay="0" />
+    <connection source="Target.TARGET" target="FollowTarget.INPUT" delay="0" />
+    <connection source="Hands.TARGET" target="FollowTarget.INPUT" delay="0" />
+    <connection source="FaceFirst.OUTPUT" target="FollowTarget.VALUE" delay="0" />
+    <connection source="Palm.ACTIVE" target="FollowTarget.VALUE" delay="0" />
+    <connection source="Target.VALID" target="FollowValid.INPUT" delay="0" />
+    <connection source="Hands.VALID" target="FollowValid.INPUT" delay="0" />
+    <connection source="FaceFirst.OUTPUT" target="FollowValid.VALUE" delay="0" />
+    <connection source="Palm.ACTIVE" target="FollowValid.VALUE" delay="0" />
+    <connection source="LeftTarget.TARGET" target="LeftFollowTarget.INPUT" delay="0" />
+    <connection source="LeftHands.TARGET" target="LeftFollowTarget.INPUT" delay="0" />
+    <connection source="FaceFirst.OUTPUT" target="LeftFollowTarget.VALUE" delay="0" />
+    <connection source="Palm.ACTIVE" target="LeftFollowTarget.VALUE" delay="0" />
+    <connection source="LeftTarget.VALID" target="LeftFollowValid.INPUT" delay="0" />
+    <connection source="LeftHands.VALID" target="LeftFollowValid.INPUT" delay="0" />
+    <connection source="FaceFirst.OUTPUT" target="LeftFollowValid.VALUE" delay="0" />
+    <connection source="Palm.ACTIVE" target="LeftFollowValid.VALUE" delay="0" />
+    <connection source="Palm.ACTIVE" target="Behaviors.PAUSE" delay="0" />
+    <connection source="Palm.START" target="Behaviors.REQUEST[11:12]" delay="0" />
+    <connection source="Palm.END" target="Behaviors.REQUEST[12:13]" delay="0" />
+    <connection source="Animator.PLAYING" target="GlanceInhibit.INPUT1" delay="0" />
+    <connection source="Palm.ACTIVE" target="GlanceInhibit.INPUT2" delay="0" />
+    <connection source="Target.VALID" target="FaceOnly.INPUT1" delay="0" />
+    <connection source="Palm.ACTIVE" target="FaceOnly.INPUT2" delay="0" />
+
     <widget class="text" name="Title" text="Epi animatronics" style="font-size:20px;font-weight:bold;"
             x="1032" y="24" _x="1032" _y="24" width="880" height="32" show_title="no" show_frame="no" />
 
@@ -310,6 +353,10 @@
             x="1032" y="1184" _x="1032" _y="1184" width="236" height="56" show_title="yes" show_frame="yes" />
     <widget class="table" name="HoldTable" title="Near (head holds above 0.3)" source="Near.NEAR" decimals="2" colorize="no"
             x="1276" y="1184" _x="1276" _y="1184" width="236" height="56" show_title="yes" show_frame="yes" />
+    <widget class="table" name="PalmTable" title="Open palm held (starts at 1)" source="Palm.PROGRESS" decimals="2" colorize="no"
+            x="1032" y="1248" _x="1032" _y="1248" width="236" height="56" show_title="yes" show_frame="yes" />
+    <widget class="table" name="FingerTable" title="Following a finger" source="Palm.ACTIVE" decimals="0" colorize="no"
+            x="1276" y="1248" _x="1276" _y="1248" width="236" height="56" show_title="yes" show_frame="yes" />
     <widget class="text" name="LeftCameraCaption" text="Left eye camera"
             x="1528" y="1040" _x="1528" _y="1040" width="384" height="24" show_title="no" show_frame="no" />
     <widget class="image" name="LeftCameraImage" source="LeftEye.OUTPUT" format="rgb" scale="both"
