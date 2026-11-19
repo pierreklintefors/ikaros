@@ -36,6 +36,10 @@
             switch_ratio="1.5" switch_delay="0.7" hold_time="0.5" _x="408" _y="1296" />
     <module class="StereoDistance" name="Stereo" position_offset="180" left_sign="1" max_distance="2" smoothing="6" hold_time="0.3" _x="600" _y="1296" />
 
+    <!-- Camera setup: both eye cameras get the same settings before their streams open -->
+    <module class="UV4LSettings" name="RightCameraSettings" url="@eye_url" width="640" height="480" frame_rate="30" quality="70" _x="24" _y="1488" />
+    <module class="UV4LSettings" name="LeftCameraSettings" url="@left_eye_url" width="640" height="480" frame_rate="30" quality="70" _x="216" _y="1488" />
+
     <!-- Behaviour: when to do what, and how it looks -->
     <module class="Constant" name="BehaviorsEnable" data="1" _x="24" _y="264" />
     <module class="BehaviorSelector" name="Behaviors" count="11" greeting="0" greeting_delay="0.3" farewell="6"

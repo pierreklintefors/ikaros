@@ -1,0 +1,7 @@
+<group name="UV4LSettingsRequiredTest"
+       description="With required set, an unreachable camera server stops the model at start-up"
+       start="true" stop="2" threads="1"
+       expected_exit="1"
+       expected_output_contains="UV4LSettings: could not reach the camera server at 127.0.0.1:9.">
+    <module class="UV4LSettings" name="Camera" url="http://127.0.0.1:9/stream/video.mjpeg" timeout="0.5" required="true" />
+</group>

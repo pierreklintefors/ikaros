@@ -1,0 +1,20 @@
+<class name="UV4LSettings" description="Sets the resolution, frame rate, and JPEG quality of a UV4L camera server, such as an Epi eye camera, when the model starts">
+    <description type="text">
+        UV4LSettings configures a UV4L camera server, such as the Raspberry Pi camera in each Epi eye, when the
+        model is built, before any camera stream is opened; the server cannot change its resolution while it
+        streams, and it forgets runtime settings when the Pi restarts. It sends width, height, frame_rate, and
+        quality to the server's settings page, reads the page back, and sets APPLIED to 1 when the server
+        reports the requested values. A url that is not an http address, such as a video file, is skipped.
+    </description>
+
+    <parameter name="url" type="string" default="" description="Camera stream or server address, such as http://RightEye.local:8080/stream/video.mjpeg; only the host and port are used" />
+    <parameter name="width" type="number" default="640" min="64" description="Image width in pixels" />
+    <parameter name="height" type="number" default="480" min="64" description="Image height in pixels" />
+    <parameter name="frame_rate" type="number" default="30" min="1" description="Frames per second" />
+    <parameter name="quality" type="number" default="70" min="1" max="100" description="JPEG quality from 1 to 100" />
+    <parameter name="extra" type="string" default="" description="More settings for the server's settings page as name=value pairs separated by &amp;" />
+    <parameter name="timeout" type="number" default="3" min="0.1" description="Seconds to wait for the camera server" />
+    <parameter name="required" type="bool" default="false" description="Stop the model when the settings cannot be applied; otherwise warn and continue" />
+
+    <output name="APPLIED" size="1" description="1 when the server reported the requested width, height, frame rate, and quality" />
+</class>

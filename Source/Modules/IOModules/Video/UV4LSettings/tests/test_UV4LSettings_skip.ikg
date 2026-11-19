@@ -1,0 +1,9 @@
+<group name="UV4LSettingsSkipTest"
+       description="A url that is not an http address, such as a video file, is skipped without a warning"
+       start="true" stop="2" threads="1"
+       expected_output_twice="applied = {0}"
+       expected_output_not_contains="UV4LSettings:">
+    <module class="UV4LSettings" name="Camera" url="video.mp4" />
+    <module class="Print" name="Out" />
+    <connection source="Camera.APPLIED" target="Out.INPUT" delay="0" label="applied" />
+</group>

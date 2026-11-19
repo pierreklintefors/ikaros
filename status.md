@@ -2022,3 +2022,16 @@ mode may come later.
   `ikaros-bot` token is not installed here.
 - A finger-following mode is planned next; Apple Vision's hand pose detection can provide the
   index fingertip.
+
+## Camera settings at start-up
+
+Both eye cameras streamed 1280 x 720 at up to 45 frames/s and JPEG quality 85 (about 590 kB per frame), which overloaded the USB link (realtime lag, corrupt frames) and, in the cropped 1280 x 720 sensor mode, narrowed the field of view, so the stereo distance came out too short and the eyes stayed converged. The settings were set by hand to 640 x 480, 30 frames/s, quality 70 on both Pis (identical otherwise), but the camera server forgets them when a Pi restarts. Requested: Ikaros sets them automatically at start-up.
+
+| # | Task | Status | Verification | Commit |
+|---:|---|---|---|---|
+| 1 | Add `UV4LSettings`, which sets the resolution, frame rate, and JPEG quality of a UV4L camera server when the model is built, before the camera stream opens, and checks that they took effect; use it for both eyes in the animatronics demo. | Done | Build without warnings. `UV4LSettings` tests: 3 of 3 pass (non-http url skipped, unreachable server warns, `required` stops the model). On EpiBlack: quality 71 and back to 70 on both eyes; the demo (`simulate=true`) restored the right eye from quality 85 and from 1280 x 720 to 640 x 480 / 30 / 70 with no warnings, and the stream then delivered 640 x 480 frames; requesting 1280 x 720 while another client streamed gave the expected warning and left the camera unchanged. | This commit |
+
+### Outstanding issues and questions
+
+- Without the robot, each eye adds about 2.5 s to start-up while the `.local` host name fails to resolve, followed by a warning.
+- Frame rate and quality use the raspicam driver's control ids; another UV4L driver may need different ids.

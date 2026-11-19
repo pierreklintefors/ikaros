@@ -3,6 +3,7 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 add_subdirectory(InputVideo)
 add_subdirectory(InputVideoStream)
+add_subdirectory(UV4LSettings)
 
 
 set(SOURCE ${SOURCE} PARENT_SCOPE)

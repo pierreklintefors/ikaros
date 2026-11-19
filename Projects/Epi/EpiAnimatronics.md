@@ -21,7 +21,8 @@ synchronized with the motion:
 1. **Seeing.** `InputVideoStream`, `AppleVisionFaceDetector`, and `FaceTargetSelector` find the
    closest face in the right eye camera, as in `EpiHeadMirroring.ikg`, and a second chain finds it
    in the left eye camera. `StereoDistance` combines the two views with the eyes' angles to measure
-   how far away the face is, without assuming its size.
+   how far away the face is, without assuming its size. Before either stream opens, two
+   `UV4LSettings` modules give both eye cameras the same resolution, frame rate, and JPEG quality.
 2. **Looking.** `GazeLock` keeps the eyes on the face and turns the head after it. `camera_eye`
    tells it that the camera is in the right eye, so the face direction stays correct while the eyes
    cross or dart. When someone comes really close, `ProximityVergence` makes the eyes converge on
@@ -166,6 +167,9 @@ your face on the dashboard and plays its animations and sounds:
 no face is found, so the distance comes from the size of the face box. Use it also on a robot whose
 left eye camera does not work.
 
+Without the robot, the camera settings cannot be sent. Start-up then takes a few seconds longer, and
+a warning says that `RightEye.local` and `LeftEye.local` could not be reached; the model runs anyway.
+
 `camera_id` selects the camera when there are several, numbered as macOS lists them; the numbers
 change when cameras are plugged in. To list them:
 
@@ -240,8 +244,17 @@ The character is tuned on the modules:
 | `NearPupil` | `factor` | How much the pupils narrow when a face is close, in mm (negative) |
 | `HeadPan` | `amplitude`, `swings`, `window` | How large and quick a back-and-forth head pan must be to start copycat |
 
-The camera settings in `EpiFaceFollowing.md` (640 x 480, 30 frames per second, JPEG quality about
-70) apply here too.
+### Camera settings
+
+The eye cameras forget their settings when a Pi restarts, and both eyes must use the same settings
+for the distance measurement: a camera at 1280 x 720 sees a narrower view, so a face looks nearer
+than it is. `RightCameraSettings` and `LeftCameraSettings` therefore set both cameras to 640 x 480,
+30 frames per second, and JPEG quality 70 each time the model starts, before the streams open. This
+replaces setting them by hand on the `/panel` page described in `EpiFaceFollowing.md`.
+
+A camera cannot change its resolution while another program, such as a browser showing the stream
+or another Ikaros, is reading it. The model then warns that the camera reports other settings; close
+the other program and start again.
 
 ## Dashboard
 

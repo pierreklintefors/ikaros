@@ -1,0 +1,9 @@
+<group name="UV4LSettingsUnreachableTest"
+       description="An unreachable camera server gives a warning, APPLIED stays 0, and the model keeps running"
+       start="true" stop="2" threads="1"
+       expected_output_twice="applied = {0}"
+       expected_output_once="UV4LSettings: could not reach the camera server at 127.0.0.1:9.">
+    <module class="UV4LSettings" name="Camera" url="http://127.0.0.1:9/stream/video.mjpeg" timeout="0.5" />
+    <module class="Print" name="Out" />
+    <connection source="Camera.APPLIED" target="Out.INPUT" delay="0" label="applied" />
+</group>
