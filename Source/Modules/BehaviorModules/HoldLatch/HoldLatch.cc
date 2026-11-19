@@ -10,7 +10,7 @@ class HoldLatch : public Module
 
     parameter holdTime;
     parameter releaseTime;
-    parameter threshold;
+    matrix threshold;
 
     matrix input;
     matrix present;
@@ -22,6 +22,22 @@ class HoldLatch : public Module
     float held = 0;
     float absent = 0;
 
+    // INPUT counts as held when every element is above its threshold; a shorter threshold list
+    // repeats its last value.
+    bool
+    Held() const
+    {
+        if(input.size() == 0)
+            return false;
+        for(int i = 0; i < input.size(); ++i)
+        {
+            const int t = std::min(i, threshold.size() - 1);
+            if(input.data()[i] <= threshold.data()[t])
+                return false;
+        }
+        return true;
+    }
+
 public:
     void
     Init() override
@@ -31,6 +47,8 @@ public:
         Bind(threshold, "threshold");
         Bind(input, "INPUT");
         Bind(present, "PRESENT");
+        if(threshold.size() == 0)
+            throw exception("HoldLatch: threshold needs at least one value.", path_);
         Bind(active, "ACTIVE");
         Bind(start, "START");
         Bind(end, "END");
@@ -42,16 +60,16 @@ public:
     Tick() override
     {
         const float dt = static_cast<float>(GetTickDuration());
-        const float level = threshold.as_float();
+        const bool holding = Held();
         start(0) = 0;
         end(0) = 0;
 
         if(active(0) < 0.5f)
         {
-            held = input(0) > level ? held + dt : 0.0f;
+            held = holding ? held + dt : 0.0f;
             const float needed = holdTime.as_float();
-            progress(0) = needed > 0 ? std::min(held / needed, 1.0f) : (input(0) > level ? 1.0f : 0.0f);
-            if(input(0) > level && held >= needed - epsilon)
+            progress(0) = needed > 0 ? std::min(held / needed, 1.0f) : (holding ? 1.0f : 0.0f);
+            if(holding && held >= needed - epsilon)
             {
                 active(0) = 1;
                 start(0) = 1;
@@ -60,8 +78,8 @@ public:
             return;
         }
 
-        const float presence = present.connected() ? present(0) : input(0);
-        absent = presence > level ? 0.0f : absent + dt;
+        const bool isPresent = present.connected() ? present(0) > 0.5f : holding;
+        absent = isPresent ? 0.0f : absent + dt;
         if(absent >= releaseTime.as_float() - epsilon)
         {
             active(0) = 0;

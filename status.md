@@ -2069,3 +2069,17 @@ After finger following was added, the WebUI stopped responding and Ikaros report
 
 - The timings are from this Mac with still images; live camera streams and the WebUI add work, and the other computer may be slower. If the lag returns, raise `interval` on `Hands` to 3.
 - `AppleVisionFaceDetector` measured slower with `downsample="1"` (about 26 ms per tick) than without (about 15 ms), apparently because the Ikaros downsampling before Vision costs more than it saves. The demo still uses `downsample="1"` on both face detectors; switching to 0 may save more time but was not checked for its effect on face detection.
+
+## Finger following only on a deliberate palm
+
+Finger following started too easily: Epi was distracted by hands and followed them instead of faces.
+
+| # | Task | Status | Verification | Commit |
+|---:|---|---|---|---|
+| 1 | Start finger following only on a deliberate gesture: `HoldLatch` accepts several INPUT elements with one threshold each, all of which must hold at once; `AppleVisionHandDetector` gets `min_width`; the demo requires all four fingers stretched out (OPEN above 0.9), a hand wider than 0.15 (within about 0.8 m), and the gaze locked on a face, for 2 s. | Done | Build without warnings. HoldLatch tests 2 of 2 pass; the new one shows that the hold does not build up while any one condition is missing and starts on the right tick when all hold. Hand detector test passes; `min_width` 0.5 keeps and 1.0 ignores a hand 0.73 wide. Demo with still images: an open palm without a face does not start the mode; a face with an open palm beside it starts it 2.0 s after the gaze locks; the same images with the face condition forced off do not start it. (`FaceTargetSelector.ignore_repeated` was switched off in the test copy only, since still images repeat the same face box.) | This commit |
+
+### Outstanding issues and questions
+
+- `min_width` on the detector is not used in the demo, because the same detector tracks the pointing finger, whose hand is narrower than an open palm; the width condition is applied in `HoldLatch` instead.
+- If a raised palm covers the face for more than 1.5 s, the gaze lock ends and the hold starts again; hold the palm beside the face.
+- The WebUI rendering problem reported on the other computer could not be reproduced here: the WebUI server answers the page, network, and update requests in milliseconds with the demo running.

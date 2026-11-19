@@ -80,6 +80,7 @@ class AppleVisionHandDetector : public Module
     parameter holdTime;
     parameter downsample;
     parameter interval;
+    parameter minWidth;
 
     matrix input;
     matrix enable;
@@ -173,6 +174,7 @@ public:
         Bind(holdTime, "hold_time");
         Bind(downsample, "downsample");
         Bind(interval, "interval");
+        Bind(minWidth, "min_width");
         Bind(input, "INPUT");
         Bind(enable, "ENABLE");
         Bind(target, "TARGET");
@@ -262,7 +264,7 @@ public:
                     right = std::max(right, static_cast<float>(p.location.x) * width);
                 }
                 const float handWidth = right > left ? 2.0f * (right - left) / width : 0.0f;
-                if(handWidth <= bestWidth)
+                if(handWidth <= bestWidth || handWidth < minWidth.as_float())
                     continue;
 
                 std::array<bool, 4> extended = {false, false, false, false};

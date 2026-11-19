@@ -17,6 +17,9 @@ counts as stretched out when its tip is more than `extension_ratio` times as far
 middle joint. An open palm gives 1 and a fist 0. `POINTING` is 1 when only the index finger is
 stretched out.
 
+`min_width` ignores hands that look narrower than the given width, such as the hands of people
+farther away, so that only a hand held up close to the camera counts.
+
 Vision sometimes misses a hand for a frame. The last hand is then kept for `hold_time` seconds before
 `VALID` becomes 0 and the outputs are cleared.
 

@@ -1,0 +1,20 @@
+<group name="HoldLatchAllTest"
+       description="With several INPUT elements and one threshold each, the hold counts only while all are above their thresholds; without PRESENT, the mode ends when the hold stops"
+       start="true" stop="32" tick_duration="0.1" threads="1"
+       cli_args="-u${TEST_DIR}"
+       expected_output_once="start = {1}||end = {1}"
+       expected_output_contains="progress = {0}&#10;tick = {20}||start = {1}&#10;progress = {1}&#10;tick = {25}||end = {1}&#10;start = {0}&#10;progress = {0}&#10;tick = {29}">
+    <module class="InputFile" name="Script" filename="fixture_HoldLatch_all.jsonl" send_end_of_file="false" />
+    <module class="HoldLatch" name="Palm" hold_time="0.5" release_time="0.3" threshold="0.9, 0.15, 0.5" />
+    <module class="Print" name="Out1" />
+    <module class="Print" name="Out2" />
+    <module class="Print" name="Out3" />
+    <module class="Print" name="Out4" />
+
+    <connection source="Script.INPUT" target="Palm.INPUT" delay="0" />
+
+    <connection source="Script.TICK" target="Out1.INPUT" delay="0" label="tick" />
+    <connection source="Palm.PROGRESS" target="Out2.INPUT" delay="0" label="progress" />
+    <connection source="Palm.START" target="Out3.INPUT" delay="0" label="start" />
+    <connection source="Palm.END" target="Out4.INPUT" delay="0" label="end" />
+</group>

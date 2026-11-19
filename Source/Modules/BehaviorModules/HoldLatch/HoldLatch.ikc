@@ -1,18 +1,18 @@
 <class name="HoldLatch" description="Becomes active when an input has been held for a while, such as a gesture held for two seconds, and stays active until the person or thing has been gone for a while">
     <description type="text">
-        HoldLatch turns a held signal into a mode. ACTIVE becomes 1 when INPUT has been above threshold for
-        hold_time seconds without a break, and stays 1 until PRESENT has been at or below threshold for
-        release_time seconds. Without PRESENT, INPUT itself must be gone for release_time. START and END are 1 for
+        HoldLatch turns a held signal into a mode. ACTIVE becomes 1 when every element of INPUT has been above its
+        threshold for hold_time seconds without a break, and stays 1 until PRESENT has been at or below 0.5
+        for release_time seconds. Without PRESENT, INPUT itself must be gone for release_time. START and END are 1 for
         one tick when the mode begins and ends, and PROGRESS shows how far the hold has come, for example on a
         dashboard or as a light cue.
     </description>
 
-    <parameter name="hold_time" type="number" default="2" min="0" description="Seconds INPUT must stay above threshold to start the mode" />
-    <parameter name="release_time" type="number" default="3" min="0" description="Seconds PRESENT must stay at or below threshold to end the mode" />
-    <parameter name="threshold" type="number" default="0.5" description="Level above which INPUT and PRESENT count as on" />
+    <parameter name="hold_time" type="number" default="2" min="0" description="Seconds INPUT must stay above its thresholds to start the mode" />
+    <parameter name="release_time" type="number" default="3" min="0" description="Seconds PRESENT must stay at or below 0.5, or INPUT stop being held when PRESENT is not connected, to end the mode" />
+    <parameter name="threshold" type="matrix" default="0.5" description="Level above which each element of INPUT counts as on, one value per element; a shorter list repeats its last value" />
 
-    <input name="INPUT" size="1" description="Signal that must be held, for example AppleVisionHandDetector.OPEN" />
-    <input name="PRESENT" size="1" optional="yes" description="Signal that keeps the mode going, for example AppleVisionHandDetector.VALID; INPUT is used when this is not connected" />
+    <input name="INPUT" description="Signal that must be held, for example AppleVisionHandDetector.OPEN; with several elements, all must be above their thresholds at once" />
+    <input name="PRESENT" size="1" optional="yes" description="Signal that keeps the mode going while above 0.5, for example AppleVisionHandDetector.VALID; without it, INPUT must stay held" />
 
     <output name="ACTIVE" size="1" description="1 while the mode is on" />
     <output name="START" size="1" description="1 for one tick when the mode begins" />

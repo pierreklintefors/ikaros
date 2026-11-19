@@ -67,11 +67,13 @@ synchronized with the motion:
    flash cyan, and it starts following the tip of your index finger instead of your face, with eyes
    and head. Bring the finger slowly toward its nose and the eyes cross, as with a close face, using
    the distance measured by both cameras. `AppleVisionHandDetector` finds the hand in each camera and
-   tells how open it is, `HoldLatch` starts the mode when the palm has been open for 2 seconds, and
+   tells how open it is, `HoldLatch` starts the mode when the palm has been held up for 2 seconds, and
    four `Arbiter` modules switch the inputs of `GazeLock`, `StereoDistance`, and `ProximityVergence`
    from the face to the fingertip. During the mode the spontaneous animations, the eye glances, and
    copycat pause. When no hand has been seen for 3 seconds, Epi gives a soft "aww", blinks, and
-   returns to faces.
+   returns to faces. Epi stays with faces unless the gesture is clearly meant for it: all four fingers
+   must be stretched out, the hand must be close (within about 0.8 m), and Epi must be looking at
+   someone, all at once for the whole 2 seconds. Hands that move while talking do not start it.
 9. **Voice.** Most sounds play only in some of the plays, and each time one of three variants is
    chosen, so Epi is not chatty and never repeats itself exactly. The signature sounds of mind
    blown always play.
@@ -253,7 +255,7 @@ The character is tuned on the modules:
 | `LightShow` | `show_patterns`, `pattern_time`, `wave_rate`, `circle_rate`, `brightness` | The light patterns |
 | `Near` | `start_distance`, `full_distance`, `gain`, `max_vergence`, `object_width` | When and how strongly the eyes converge on a close face |
 | `NearPupil` | `factor` | How much the pupils narrow when a face is close, in mm (negative) |
-| `Palm` | `hold_time`, `release_time`, `threshold` | How long the open palm must be held to start finger following, how long the hand may be gone before it ends, and how open the hand must be (0.7 means at least three of the four fingers stretched out) |
+| `Palm` | `hold_time`, `release_time`, `threshold` | How long the open palm must be held to start finger following, and how long the hand may be gone before it ends. `threshold` has three values, for how open the hand must be (0.9: all four fingers), how wide it must look (0.15: within about 0.8 m), and the gaze lock on a face; lower the first two if a deliberate palm is not noticed |
 | `Hands`, `LeftHands` | `point`, `extension_ratio`, `hold_time`, `downsample`, `interval` | The point followed (index fingertip or palm), when a finger counts as stretched out, how long a hand that is briefly missed is kept, and how much work hand detection takes: both detect at half resolution on every second tick, and `LeftHands` runs only during finger following. Detecting on every tick in both cameras made the model lag behind real time |
 | `HeadPan` | `amplitude`, `swings`, `window`, `smoothing` | How large and quick a back-and-forth head pan must be to start copycat; `smoothing` 20 keeps quick head shakes large enough to count |
 
@@ -365,7 +367,9 @@ the robot needs someone next to it.
    fill to 1 in 2 seconds and **Following a finger** turn 1 with a chirp. Point with your index finger
    and move it slowly; the eyes and head should follow the fingertip. Bring it toward the nose; the
    eyes should cross. Drop the hand; after 3 seconds Epi should say "aww" and return to faces. If the
-   open palm is not noticed, lower `threshold` on `Palm` or `extension_ratio` on `Hands`.
+   open palm is not noticed, hold it closer, or lower the first two `threshold` values on `Palm` or
+   `extension_ratio` on `Hands`. Then talk with your hands in front of Epi; this must not start the
+   mode.
 13. **Pacing and mood.** Watch for a few minutes alone and with company. Raise `min_interval` and
    `max_interval` on `Behaviors` if Epi is too busy, and lower them if it is too calm. Lower
    `decay_rate` on `Arousal` if the excitement fades too fast.

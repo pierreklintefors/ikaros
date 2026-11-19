@@ -10,6 +10,7 @@
     <parameter name="point" type="number" options="index_tip,palm" default="index_tip" description="Point given as TARGET: the index fingertip, or the middle of the palm" />
     <parameter name="max_hands" type="number" default="2" min="1" description="Largest number of hands Vision looks for" />
     <parameter name="min_confidence" type="number" default="0.3" min="0" max="1" description="Joints with lower confidence are not used" />
+    <parameter name="min_width" type="number" default="0" min="0" description="Hands narrower than this, in centered image coordinates, are ignored; a larger value accepts only hands close to the camera" />
     <parameter name="extension_ratio" type="number" default="1.15" min="1" description="A finger counts as stretched out when its tip is this many times farther from the wrist than its middle joint" />
     <parameter name="hold_time" type="number" default="0.2" min="0" description="Seconds the last hand is kept when it is briefly not found" />
     <parameter name="downsample" type="number" default="0" min="0" description="Number of 2x downsample passes before detection" />
@@ -22,5 +23,5 @@
     <output name="VALID" size="1" description="1 while a hand is found or held" />
     <output name="OPEN" size="1" description="Fraction of the four fingers that are stretched out: 1 for an open palm, 0 for a fist" />
     <output name="POINTING" size="1" description="1 when the index finger is stretched out and the other three fingers are not" />
-    <output name="COUNT" size="1" description="Number of hands found in this image" />
+    <output name="COUNT" size="1" description="Number of hands found in this image, including those narrower than min_width" />
 </class>
