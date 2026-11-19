@@ -42,9 +42,9 @@
 
     <!-- Finger following: an open palm held up for 2 s starts it; Epi then follows the index fingertip
          instead of the face until no hand has been seen for 3 s -->
-    <module class="AppleVisionHandDetector" name="Hands" point="index_tip" _x="216" _y="1584" />
+    <module class="AppleVisionHandDetector" name="Hands" point="index_tip" downsample="1" interval="2" _x="216" _y="1584" />
     <module class="HoldLatch" name="Palm" hold_time="2" release_time="3" threshold="0.7" _x="408" _y="1584" />
-    <module class="AppleVisionHandDetector" name="LeftHands" point="index_tip" _x="216" _y="1704" />
+    <module class="AppleVisionHandDetector" name="LeftHands" point="index_tip" downsample="1" interval="2" _x="216" _y="1704" />
     <module class="Constant" name="FaceFirst" data="1" _x="24" _y="1824" />
     <module class="Arbiter" name="FollowTarget" arbitration="hierarchy" stack_values="yes" _x="600" _y="1584" />
     <module class="Arbiter" name="FollowValid" arbitration="hierarchy" stack_values="yes" _x="792" _y="1584" />
@@ -220,6 +220,7 @@
     <!-- Finger following -->
     <connection source="Eye.OUTPUT" target="Hands.INPUT" delay="0" />
     <connection source="LeftEye.OUTPUT" target="LeftHands.INPUT" delay="0" />
+    <connection source="Palm.ACTIVE" target="LeftHands.ENABLE" delay="1" />
     <connection source="Hands.OPEN" target="Palm.INPUT" delay="0" />
     <connection source="Hands.VALID" target="Palm.PRESENT" delay="0" />
     <connection source="Target.TARGET" target="FollowTarget.INPUT" delay="0" />

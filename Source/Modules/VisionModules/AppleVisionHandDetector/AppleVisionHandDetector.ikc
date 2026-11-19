@@ -13,8 +13,10 @@
     <parameter name="extension_ratio" type="number" default="1.15" min="1" description="A finger counts as stretched out when its tip is this many times farther from the wrist than its middle joint" />
     <parameter name="hold_time" type="number" default="0.2" min="0" description="Seconds the last hand is kept when it is briefly not found" />
     <parameter name="downsample" type="number" default="0" min="0" description="Number of 2x downsample passes before detection" />
+    <parameter name="interval" type="number" default="1" min="1" description="Ticks between detections; the last result is kept in between. Hand detection is costly, so 2 or 3 saves time when the hand need not be tracked on every frame" />
 
     <input name="INPUT" description="Grayscale image, or RGB image with shape 3,height,width" />
+    <input name="ENABLE" size="1" optional="yes" description="0 stops detection and clears the outputs, for example to look for hands only during a game; detection runs when not connected" />
 
     <output name="TARGET" size="3" description="x, y of the chosen point and the hand width, in centered image coordinates from -1 to 1 with y downward; zero when no hand is found" />
     <output name="VALID" size="1" description="1 while a hand is found or held" />

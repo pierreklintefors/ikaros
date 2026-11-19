@@ -20,6 +20,11 @@ stretched out.
 Vision sometimes misses a hand for a frame. The last hand is then kept for `hold_time` seconds before
 `VALID` becomes 0 and the outputs are cleared.
 
+Hand detection costs about as much as face detection, so it can be made cheaper. `downsample`
+halves the image before detection, `interval` detects only on every second or third tick and keeps
+the last result in between, and `ENABLE` at 0 stops detection altogether, for example in a second
+camera that is only needed during a game.
+
 ## Example
 
 An open palm held up for two seconds, measured with `HoldLatch`:

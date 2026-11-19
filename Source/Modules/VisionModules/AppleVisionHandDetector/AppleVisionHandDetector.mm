@@ -79,8 +79,10 @@ class AppleVisionHandDetector : public Module
     parameter extensionRatio;
     parameter holdTime;
     parameter downsample;
+    parameter interval;
 
     matrix input;
+    matrix enable;
     matrix target;
     matrix valid;
     matrix open;
@@ -91,6 +93,7 @@ class AppleVisionHandDetector : public Module
     matrix downsampledB;
     std::vector<unsigned char> pixels;
     float sinceFound = 1e9f;
+    int sinceDetection = 1 << 20;
 
     VNDetectHumanHandPoseRequest * request = nil;
     VNSequenceRequestHandler * handler = nil;
@@ -139,6 +142,15 @@ class AppleVisionHandDetector : public Module
         return *image;
     }
 
+    void
+    Clear()
+    {
+        valid(0) = 0;
+        target.set(0);
+        open(0) = 0;
+        pointing(0) = 0;
+    }
+
 public:
     ~AppleVisionHandDetector() override
     {
@@ -160,7 +172,9 @@ public:
         Bind(extensionRatio, "extension_ratio");
         Bind(holdTime, "hold_time");
         Bind(downsample, "downsample");
+        Bind(interval, "interval");
         Bind(input, "INPUT");
+        Bind(enable, "ENABLE");
         Bind(target, "TARGET");
         Bind(valid, "VALID");
         Bind(open, "OPEN");
@@ -181,6 +195,20 @@ public:
     Tick() override
     {
         sinceFound += static_cast<float>(GetTickDuration());
+
+        // Detection is the expensive part, so it can be switched off or run on every interval-th tick;
+        // in between, the last result is kept.
+        if(enable.connected() && enable(0) <= 0.5f)
+        {
+            sinceFound = 1e9f;
+            sinceDetection = 1 << 20;
+            count(0) = 0;
+            Clear();
+            return;
+        }
+        if(++sinceDetection < std::max(1, interval.as_int()))
+            return;
+        sinceDetection = 0;
         count(0) = 0;
 
         @autoreleasepool
@@ -287,11 +315,7 @@ public:
 
         valid(0) = sinceFound <= holdTime.as_float() ? 1.0f : 0.0f;
         if(valid(0) == 0.0f)
-        {
-            target.set(0);
-            open(0) = 0;
-            pointing(0) = 0;
-        }
+            Clear();
     }
 };
 

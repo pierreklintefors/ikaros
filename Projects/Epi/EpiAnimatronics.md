@@ -254,7 +254,7 @@ The character is tuned on the modules:
 | `Near` | `start_distance`, `full_distance`, `gain`, `max_vergence`, `object_width` | When and how strongly the eyes converge on a close face |
 | `NearPupil` | `factor` | How much the pupils narrow when a face is close, in mm (negative) |
 | `Palm` | `hold_time`, `release_time`, `threshold` | How long the open palm must be held to start finger following, how long the hand may be gone before it ends, and how open the hand must be (0.7 means at least three of the four fingers stretched out) |
-| `Hands`, `LeftHands` | `point`, `extension_ratio`, `hold_time` | The point followed (index fingertip or palm), when a finger counts as stretched out, and how long a hand that is briefly missed is kept |
+| `Hands`, `LeftHands` | `point`, `extension_ratio`, `hold_time`, `downsample`, `interval` | The point followed (index fingertip or palm), when a finger counts as stretched out, how long a hand that is briefly missed is kept, and how much work hand detection takes: both detect at half resolution on every second tick, and `LeftHands` runs only during finger following. Detecting on every tick in both cameras made the model lag behind real time |
 | `HeadPan` | `amplitude`, `swings`, `window`, `smoothing` | How large and quick a back-and-forth head pan must be to start copycat; `smoothing` 20 keeps quick head shakes large enough to count |
 
 ### Camera settings

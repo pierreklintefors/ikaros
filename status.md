@@ -2056,3 +2056,16 @@ Requested: a finger-following mode for the animatronics demo. An open palm held 
 - Finger on and finger off share the 25 s behaviour cooldown, so a quick second start or end of the mode plays no cue.
 - While testing, `InputVideoStream` with a video file and `synchronized_framegrabber=true` blocked the tick for more than 5 s, and with `false` it ran through the whole file at once and showed only its last frame. This was with the uncommitted `InputVideoStream` changes in the working tree, so it may come from them; the guide's advice to test with a recorded video may not work at present.
 - A model saved from the WebUI (`UserData/EpiAnimatronics.ikg`) replaces `class="@camera"` with the resolved class, so the saved copy can no longer switch cameras from the command line. This may be worth an Ikaros issue.
+
+## Finger following lag
+
+After finger following was added, the WebUI stopped responding and Ikaros reported "Realtime lag exceeded 1 seconds" every few seconds.
+
+| # | Task | Status | Verification | Commit |
+|---:|---|---|---|---|
+| 1 | Make hand detection cheaper: `AppleVisionHandDetector` gets `interval` (detect on every n-th tick, keep the result in between) and an optional `ENABLE` input; the demo detects hands at half resolution on every second tick and in the left camera only during finger following. | Done | 250 ticks without real time, still images, three runs each on an Apple M2: before finger following 5.0-5.6 s (about 21 ms per tick), with finger following 11.4-12.5 s (about 45 ms per tick, over the 40 ms tick), after this change 5.7-7.1 s (about 23 ms per tick). Open-palm photo: `ENABLE` 0 gives VALID 0 on every tick, and `interval="3"` keeps the fingertip on every tick. The palm-then-nothing sequence still starts the mode at tick 48 and ends it at tick 177, with the fingertip within 0.006 of the full-resolution result. Hand detector test passes. | This commit |
+
+### Outstanding issues and questions
+
+- The timings are from this Mac with still images; live camera streams and the WebUI add work, and the other computer may be slower. If the lag returns, raise `interval` on `Hands` to 3.
+- `AppleVisionFaceDetector` measured slower with `downsample="1"` (about 26 ms per tick) than without (about 15 ms), apparently because the Ikaros downsampling before Vision costs more than it saves. The demo still uses `downsample="1"` on both face detectors; switching to 0 may save more time but was not checked for its effect on face detection.
