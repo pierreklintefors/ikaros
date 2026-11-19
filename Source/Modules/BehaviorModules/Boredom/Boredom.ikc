@@ -1,0 +1,22 @@
+<class name="Boredom" description="Signals bored episodes after quiet, calm time and ends them when something happens">
+    <description type="text">
+        Boredom decides when a robot gets bored. While nothing happens, that is while ACTIVITY is 0 and
+        AROUSAL, if connected, is below arousal_threshold, the quiet time grows. After a random wait between
+        min_wait and max_wait seconds of quiet, BORED becomes 1 for a random duration between min_duration
+        and max_duration seconds, then the quiet time starts over. Any activity, for example a face that
+        appears, ends a bored episode at once and starts the wait again.
+    </description>
+
+    <parameter name="min_wait" type="number" default="20" min="0" description="Shortest quiet time in seconds before a bored episode" />
+    <parameter name="max_wait" type="number" default="45" min="0" description="Longest quiet time in seconds before a bored episode" />
+    <parameter name="min_duration" type="number" default="6" min="0" description="Shortest bored episode in seconds" />
+    <parameter name="max_duration" type="number" default="15" min="0" description="Longest bored episode in seconds" />
+    <parameter name="arousal_threshold" type="number" default="0.3" min="0" max="1" description="AROUSAL at or above this counts as activity" />
+    <parameter name="seed" type="number" default="-1" min="-1" description="Random seed; negative selects nondeterministic seeding" />
+
+    <input name="ACTIVITY" description="Above 0.5 while something happens, for example a face is seen" />
+    <input name="AROUSAL" optional="yes" size="1" description="Present excitement; at or above arousal_threshold counts as activity" />
+
+    <output name="BORED" size="1" description="1 during a bored episode, otherwise 0" />
+    <output name="QUIET" size="1" description="Seconds of quiet since the last activity or the last bored episode" />
+</class>

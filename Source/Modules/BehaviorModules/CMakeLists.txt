@@ -2,6 +2,7 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 add_subdirectory(Arousal)
 add_subdirectory(BehaviorSelector)
+add_subdirectory(Boredom)
 add_subdirectory(Blinker)
 add_subdirectory(GlanceGenerator)
 add_subdirectory(KeyframeAnimator)

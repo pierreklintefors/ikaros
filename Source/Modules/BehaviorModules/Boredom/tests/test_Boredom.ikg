@@ -1,0 +1,21 @@
+<group name="BoredomTest"
+       description="A bored episode starts after the quiet wait, activity ends it at once, a later episode ends after its duration, and high arousal prevents boredom"
+       start="true" stop="32" tick_duration="0.1" threads="1"
+       cli_args="-u${TEST_DIR}"
+       expected_output_contains="tick = {8}&#10;excited = {0}&#10;bored = {0}||tick = {9}&#10;excited = {0}&#10;bored = {1}||tick = {13}&#10;excited = {0}&#10;bored = {1}||tick = {14}&#10;excited = {0}&#10;bored = {0}||tick = {23}&#10;excited = {0}&#10;bored = {0}||tick = {24}&#10;excited = {0}&#10;bored = {1}||tick = {28}&#10;excited = {0}&#10;bored = {1}||tick = {29}&#10;excited = {0}&#10;bored = {0}"
+       expected_output_not_contains="excited = {1}">
+    <module class="InputFile" name="Script" filename="fixture_Boredom.jsonl" send_end_of_file="false" />
+    <module class="Constant" name="High" data="0.5" />
+    <module class="Boredom" name="Calm" min_wait="1" max_wait="1" min_duration="0.5" max_duration="0.5" seed="1" />
+    <module class="Boredom" name="Excited" min_wait="1" max_wait="1" min_duration="0.5" max_duration="0.5" seed="1" />
+    <module class="Print" name="Tick" />
+    <module class="Print" name="CalmOut" />
+    <module class="Print" name="ExcitedOut" />
+
+    <connection source="Script.ACTIVITY" target="Calm.ACTIVITY" delay="0" />
+    <connection source="Script.ACTIVITY" target="Excited.ACTIVITY" delay="0" />
+    <connection source="High.OUTPUT" target="Excited.AROUSAL" delay="0" />
+    <connection source="Script.TICK" target="Tick.INPUT" delay="0" label="tick" />
+    <connection source="Calm.BORED" target="CalmOut.INPUT" delay="0" label="bored" />
+    <connection source="Excited.BORED" target="ExcitedOut.INPUT" delay="0" label="excited" />
+</group>
