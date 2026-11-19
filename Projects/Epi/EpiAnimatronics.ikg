@@ -8,6 +8,7 @@
        camera_eye="right"
        vergence_sign="-1"
        pupil_travel="255, 290"
+       light_colors="random"
        mirror_sign="-1"
        mirror_gain="0.5"
        x_sign="-1"
@@ -82,9 +83,13 @@
     <module class="EpiExpression" name="Expression" idle_color="0.5, 0.35, 0.05" engaged_color="1, 0.8, 0.35" mouth_color="0.25, 0.2, 0.05" mouth_idle_color="0.25, 0.2, 0.05"
             idle_pupil="9" engaged_pupil="12" attack_rate="4" release_rate="1" _x="792" _y="360" />
 
+    <!-- Light shows: when Epi has been alone and calm for a while it plays LED patterns; a face stops them -->
+    <module class="Boredom" name="Boredom" min_wait="20" max_wait="45" min_duration="6" max_duration="15" arousal_threshold="0.3" _x="216" _y="1200" />
+    <module class="EpiLightShow" name="LightShow" color_mode="@light_colors" _x="792" _y="696" />
+
     <!-- Hardware -->
     <module class="EpiServos" name="Servos" pupil_ranges="@pupil_travel" require_pupils="false" _x="600" _y="24" />
-    <module class="FadeCandy" name="LEDs" _x="792" _y="696" />
+    <module class="FadeCandy" name="LEDs" _x="792" _y="1152" />
 
     <connection source="Eye.OUTPUT" target="Faces.INPUT" delay="0" />
     <connection source="Faces.BOXES" target="Target.BOXES" delay="0" />
@@ -159,10 +164,20 @@
     <connection source="Pupil.OUTPUT" target="Expression.PUPIL_OFFSET" delay="0" />
 
     <connection source="Gaze.GOAL_POSITION" target="Servos.GOAL_POSITION" delay="0" />
-    <connection source="Expression.LEFT_EYE" target="LEDs.LEFT_EYE" delay="0" />
-    <connection source="Expression.RIGHT_EYE" target="LEDs.RIGHT_EYE" delay="0" />
-    <connection source="Expression.MOUTH_HIGH" target="LEDs.MOUTH_HIGH" delay="0" />
-    <connection source="Expression.MOUTH_LOW" target="LEDs.MOUTH_LOW" delay="0" />
+    <connection source="Target.VALID" target="Boredom.ACTIVITY" delay="0" />
+    <connection source="Arousal.AROUSAL" target="Boredom.AROUSAL" delay="0" />
+    <connection source="Boredom.BORED" target="LightShow.RUN" delay="0" />
+    <connection source="Target.VALID" target="LightShow.INTERRUPT" delay="0" />
+    <connection source="Arousal.AROUSAL" target="LightShow.AROUSAL" delay="0" />
+
+    <connection source="Expression.LEFT_EYE" target="LightShow.EYE_LEFT" delay="0" />
+    <connection source="Expression.RIGHT_EYE" target="LightShow.EYE_RIGHT" delay="0" />
+    <connection source="Expression.MOUTH_HIGH" target="LightShow.MOUTH_TOP" delay="0" />
+    <connection source="Expression.MOUTH_LOW" target="LightShow.MOUTH_BOTTOM" delay="0" />
+    <connection source="LightShow.LEFT_EYE" target="LEDs.LEFT_EYE" delay="0" />
+    <connection source="LightShow.RIGHT_EYE" target="LEDs.RIGHT_EYE" delay="0" />
+    <connection source="LightShow.MOUTH_HIGH" target="LEDs.MOUTH_HIGH" delay="0" />
+    <connection source="LightShow.MOUTH_LOW" target="LEDs.MOUTH_LOW" delay="0" />
 
     <!-- Dashboard: controls and state -->
     <widget class="text" name="Title" text="Epi animatronics" style="font-size:20px;font-weight:bold;"
@@ -207,34 +222,60 @@
     <widget class="button" name="CopycatButton" label="10 Copycat" command="Animator.play" select_x="10" type="push"
             x="1624" y="192" _x="1624" _y="192" width="140" height="40" show_title="no" show_frame="no" />
 
+    <!-- Dashboard: light shows and the LED orientation check -->
+    <widget class="button" name="WaveButton" label="Wave (5 s)" command="LightShow.play" select_x="1" type="push"
+            x="1032" y="240" _x="1032" _y="240" width="140" height="40" show_title="no" show_frame="no" />
+    <widget class="button" name="CircleButton" label="Circle (5 s)" command="LightShow.play" select_x="2" type="push"
+            x="1180" y="240" _x="1180" _y="240" width="140" height="40" show_title="no" show_frame="no" />
+    <widget class="button" name="LedCheckButton" label="LED check" command="LightShow.check" select_x="0" type="push"
+            x="1328" y="240" _x="1328" _y="240" width="140" height="40" show_title="no" show_frame="no" />
+    <widget class="button" name="SwapMouthButton" label="Mouth: swap rows" command="LightShow.swap_mouth_rows" select_x="0" type="push"
+            x="1476" y="240" _x="1476" _y="240" width="140" height="40" show_title="no" show_frame="no" />
+    <widget class="button" name="ReverseMouthButton" label="Mouth: reverse" command="LightShow.reverse_mouth" select_x="0" type="push"
+            x="1624" y="240" _x="1624" _y="240" width="140" height="40" show_title="no" show_frame="no" />
+    <widget class="button" name="SaveLedsButton" label="Save LEDs" command="LightShow.save" select_x="0" type="push"
+            x="1772" y="240" _x="1772" _y="240" width="140" height="40" show_title="no" show_frame="no" />
+    <widget class="button" name="LeftRotateButton" label="Left eye: turn" command="LightShow.rotate" select_x="0" type="push"
+            x="1032" y="288" _x="1032" _y="288" width="140" height="40" show_title="no" show_frame="no" />
+    <widget class="button" name="LeftFlipButton" label="Left eye: flip" command="LightShow.flip" select_x="0" type="push"
+            x="1180" y="288" _x="1180" _y="288" width="140" height="40" show_title="no" show_frame="no" />
+    <widget class="button" name="RightRotateButton" label="Right eye: turn" command="LightShow.rotate" select_x="1" type="push"
+            x="1328" y="288" _x="1328" _y="288" width="140" height="40" show_title="no" show_frame="no" />
+    <widget class="button" name="RightFlipButton" label="Right eye: flip" command="LightShow.flip" select_x="1" type="push"
+            x="1476" y="288" _x="1476" _y="288" width="140" height="40" show_title="no" show_frame="no" />
+    <widget class="table" name="LightTable" title="Lights" source="LightShow.PATTERN" decimals="0" colorize="no"
+            x="1624" y="288" _x="1624" _y="288" width="140" height="48" show_title="yes" show_frame="yes" />
+    <widget class="table" name="LedSavedTable" title="LEDs saved" source="LightShow.CALIBRATED" decimals="0" colorize="no"
+            x="1772" y="288" _x="1772" _y="288" width="140" height="48" show_title="yes" show_frame="yes" />
+
     <!-- Dashboard: camera with all faces (green) and the followed face (magenta) -->
     <widget class="text" name="CameraCaption" text="Eye camera"
-            x="1032" y="248" _x="1032" _y="248" width="480" height="24" show_title="no" show_frame="no" />
+            x="1032" y="352" _x="1032" _y="352" width="480" height="24" show_title="no" show_frame="no" />
     <widget class="image" name="CameraImage" source="Eye.OUTPUT" format="rgb" scale="both"
-            x="1032" y="272" _x="1032" _y="272" width="480" height="360" show_title="no" show_frame="no" />
+            x="1032" y="376" _x="1032" _y="376" width="480" height="360" show_title="no" show_frame="no" />
     <widget class="target-boxes" name="FaceBoxes" source="Faces.BOXES" box_color="#00ff66" line_width="2" show_score="no"
-            x="1032" y="272" _x="1032" _y="272" width="480" height="360" show_title="no" show_frame="no" />
+            x="1032" y="376" _x="1032" _y="376" width="480" height="360" show_title="no" show_frame="no" />
     <widget class="target-boxes" name="TargetBox" source="Target.TARGET_BOX" box_color="#ff00cc" line_width="4" show_score="no"
-            x="1032" y="272" _x="1032" _y="272" width="480" height="360" show_title="no" show_frame="no" />
+            x="1032" y="376" _x="1032" _y="376" width="480" height="360" show_title="no" show_frame="no" />
 
     <!-- Dashboard: robot -->
     <widget class="epi-head" name="Head" title="Expression and gaze" epi_name="EpiGray"
             eye_direction_source="Gaze.EYE_GOAL" pupil_size_source="Expression.PUPIL_SIZE" head_position_source="Gaze.HEAD_GOAL"
-            left_eye_color_source="Expression.LEFT_EYE" right_eye_color_source="Expression.RIGHT_EYE"
-            top_mouth_color_source="Expression.MOUTH_HIGH" lower_mouth_color_source="Expression.MOUTH_LOW"
-            x="1528" y="248" _x="1528" _y="248" width="384" height="384" show_title="yes" show_frame="yes" />
+            left_eye_color_source="LightShow.VIEW_LEFT_EYE" right_eye_color_source="LightShow.VIEW_RIGHT_EYE"
+            top_mouth_color_source="LightShow.VIEW_MOUTH_HIGH" lower_mouth_color_source="LightShow.VIEW_MOUTH_LOW"
+            x="1528" y="352" _x="1528" _y="352" width="384" height="384" show_title="yes" show_frame="yes" />
 
     <!-- Dashboard: motion -->
     <widget class="plot" name="EyePlot" title="Eye goal (left, right)" source="Gaze.EYE_GOAL"
             buffer_size="200" auto_range="no" y_min="-20" y_max="20" include_zero="yes"
-            x="1032" y="648" _x="1032" _y="648" width="480" height="128" show_title="yes" show_frame="yes" />
+            x="1032" y="752" _x="1032" _y="752" width="480" height="128" show_title="yes" show_frame="yes" />
     <widget class="plot" name="HeadPlot" title="Head goal (tilt, pan)" source="Gaze.HEAD_GOAL"
             buffer_size="200" auto_range="no" y_min="-45" y_max="45" include_zero="yes"
-            x="1528" y="648" _x="1528" _y="648" width="384" height="128" show_title="yes" show_frame="yes" />
+            x="1528" y="752" _x="1528" _y="752" width="384" height="128" show_title="yes" show_frame="yes" />
     <widget class="plot" name="PupilPlot" title="Pupil goal in mm (left, right)" source="Expression.PUPIL_SIZE"
             buffer_size="200" auto_range="no" y_min="4" y_max="17" include_zero="no"
-            x="1032" y="792" _x="1032" _y="792" width="480" height="128" show_title="yes" show_frame="yes" />
+            x="1032" y="896" _x="1032" _y="896" width="480" height="128" show_title="yes" show_frame="yes" />
     <widget class="plot" name="ArousalPlot" title="Arousal" source="Arousal.AROUSAL"
             buffer_size="200" auto_range="no" y_min="0" y_max="1" include_zero="yes"
-            x="1528" y="792" _x="1528" _y="792" width="384" height="128" show_title="yes" show_frame="yes" />
+            x="1528" y="896" _x="1528" _y="896" width="384" height="128" show_title="yes" show_frame="yes" />
 </group>

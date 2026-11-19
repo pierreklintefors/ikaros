@@ -98,6 +98,46 @@ by the mood.
 
 Every animation can also be played with the buttons on the dashboard.
 
+## Light shows
+
+When Epi has been alone and calm for 20 to 45 seconds, `Boredom` makes it bored for 6 to 15
+seconds, and `EpiLightShow` plays light patterns over the eyes and mouth, changing pattern every 5
+seconds:
+
+- **Wave.** One row of LEDs lights at a time, from the top of the eyes down to the bottom, then the
+  upper and lower mouth rows, and it starts over at the top. The row it has just left glows dimly.
+- **Circle.** A light with a fading tail runs around each eye from the top, clockwise in one eye and
+  counterclockwise in the other, so the eyes mirror each other. Each half of the mouth, its upper and
+  lower row, forms a small loop that follows the eye on its side.
+
+A face that appears stops a show at once. The **Wave (5 s)** and **Circle (5 s)** buttons play a
+pattern for 5 seconds that a face does not stop. The colors are random, one per pattern; start the
+model with `light_colors=arousal` to make them follow the mood, from calm blue to excited orange.
+Excitement also speeds the patterns up.
+
+### LED orientation check
+
+The LEDs may be wired in a different order on each robot. The first time a robot runs the model,
+its eyes and mouth show a check pattern instead of the expression, and **LEDs saved** shows 0.
+Look at the robot from the front:
+
+| Where | Color |
+| --- | --- |
+| Top of each eye | Red |
+| Right side of each eye, seen from the front | Green |
+| Bottom of each eye | Blue |
+| Left side of each eye, seen from the front | Yellow |
+| Upper mouth row | Cyan, with its leftmost visible LED white |
+| Lower mouth row | Magenta, with its leftmost visible LED white |
+
+If an eye is wrong, press **Left eye: turn** or **Right eye: turn** until red is at the top (the
+left eye is the robot's left, on your right), and **flip** if green and yellow are then on the wrong
+sides. If the mouth rows are exchanged, press **Mouth: swap rows**; if the white LEDs are on the
+right, press **Mouth: reverse**. Then press **Save LEDs**. The orientation is stored in
+`UserData/EpiLEDCalibration.json` under the robot's name, so each robot is checked only once;
+**LED check** shows the pattern again. The robot view on the dashboard always shows the intended
+layout.
+
 ## LEDs
 
 | State | Eyes | Mouth |
@@ -158,6 +198,7 @@ These model-level settings can be changed on the command line:
 | `mirror_sign` | `-1` | `-1` mirrors the person in copycat like a mirror image; `1` copies the movement with the same side |
 | `mirror_gain` | `0.5` | Robot head movement per degree of the person's head movement in copycat |
 | `pupil_travel` | `255, 290` | Range in servo steps of the left and right pupil from the open stop found at start-up, passed to `EpiServos.pupil_ranges`; from the travel measured on EpiBlack, see the pupil check below |
+| `light_colors` | `random` | Color of the light shows: `random`, one hue per pattern, or `arousal`, from calm blue to excited orange |
 | `vergence_sign` | `-1` | Direction of vergence; `-1` makes positive vergence turn the eyes inward on Epi, where a positive eye pan turns the eye to the robot's left |
 | `x_sign` | `-1` | Direction from image x to head and eye pan; `-1` was found on EpiBlack |
 | `y_sign` | `1` | Direction from image y to head tilt; `1` was found on EpiBlack |
@@ -181,6 +222,8 @@ The character is tuned on the modules:
 | `Animator` | `speed_variation`, `intensity_variation`, `mirror_channels` | How much each play varies |
 | `Blinker`, `EyeGlances`, `HeadGlances` | intervals and sizes | The background life |
 | `Mirror` | `max_pan`, `max_tilt`, dead zones, `engage_time` | The copycat game; see `EpiHeadMirroring.md` |
+| `Boredom` | `min_wait`, `max_wait`, `min_duration`, `max_duration` | How long Epi must be alone before a light show, and how long the show lasts |
+| `LightShow` | `show_patterns`, `pattern_time`, `wave_rate`, `circle_rate`, `brightness` | The light patterns |
 | `Near` | `start_distance`, `full_distance`, `gain`, `max_vergence`, `object_width` | When and how strongly the eyes converge on a close face |
 | `NearPupil` | `factor` | How much the pupils narrow when a face is close, in mm (negative) |
 | `HeadPan` | `amplitude`, `swings`, `window` | How large and quick a back-and-forth head pan must be to start copycat |
@@ -195,6 +238,9 @@ The camera settings in `EpiFaceFollowing.md` (640 x 480, 30 frames per second, J
   filters, whether the gaze is locked, the playing animation (-1 for none), the quiet seconds left
   before the next spontaneous animation, and the excitement level.
 - The eleven numbered buttons play each animation at once.
+- **Wave (5 s)** and **Circle (5 s)** play a light pattern, and the other buttons in those rows run the
+  LED orientation check. **Lights** shows the playing pattern (0 none, 1 wave, 2 circle, 3 check),
+  and **LEDs saved** whether the robot's LED orientation is stored.
 - The camera view shows all faces in green and the followed face in magenta.
 - The robot view shows Epi from the front, with its left eye on your right: the eye directions,
   including vergence, the pupils, the head, and every LED, so the eyelid sweep is visible.
@@ -228,23 +274,24 @@ example `[0.5, ["hi_1", "hi_2", "hi_3"], 0.7]`.
 Check these on each robot, first with the room empty, then with one person in front of it. Moving
 the robot needs someone next to it.
 
-1. **Looking directions.** As in `EpiFaceFollowing.md`, check `x_sign` and `y_sign` first.
-2. **Vergence direction.** Press **2 Cross-eyed**. Both eyes must turn inward, toward the nose.
+1. **LED orientation.** On a robot's first run, do the LED orientation check described above.
+2. **Looking directions.** As in `EpiFaceFollowing.md`, check `x_sign` and `y_sign` first.
+3. **Vergence direction.** Press **2 Cross-eyed**. Both eyes must turn inward, toward the nose.
    Then press **5 Mind blown**, where the eyes must turn outward. EpiBlack needed `vergence_sign=-1`;
    if a robot does the opposite, start it with `vergence_sign=1`.
-3. **Eyelid.** Watch a blink closely, or press **4 Giggle**, which half closes the eyes. The upper
-   LEDs of each eye must go dark first. If the wrong LEDs go dark, set `led_first_angle` and
-   `led_direction` on `Expression` as described in the `EpiExpression` documentation.
-4. **Eye darts.** Press **3 Eye dart** and **8 Mischief**. The eyes should swing visibly. If they
+4. **Eyelid.** Watch a blink closely, or press **4 Giggle**, which half closes the eyes. The upper
+   LEDs of each eye must go dark first. The eyelid is drawn in the dashboard's layout and mapped to
+   the robot by the LED orientation, so if the wrong LEDs go dark, repeat the LED check (step 1).
+5. **Eye darts.** Press **3 Eye dart** and **8 Mischief**. The eyes should swing visibly. If they
    barely move, the eye servos are slower than the animation; make the steps in
    `EpiAnimations.json` longer.
-5. **Head gestures.** Press **1 Greet**, **4 Giggle**, and **9 Look around**. The nod, the bobs, and
+6. **Head gestures.** Press **1 Greet**, **4 Giggle**, and **9 Look around**. The nod, the bobs, and
    the turns must be visible but not jerky. If the tilt shakes, lower `tilt_acceleration_scale` on
    `Gaze`, or make the head tracks smaller in `EpiAnimations.json`.
-6. **Nod direction.** In the greeting, the head should first lift a little and then dip down. If it
+7. **Nod direction.** In the greeting, the head should first lift a little and then dip down. If it
    does the opposite, the tilt direction of the robot is the opposite of what the animations
    assume; change the sign of the `head_tilt` values in `EpiAnimations.json`.
-7. **Pupils.** The pupil servos need 6.0 to 8.4 V; EpiBlack had 5.3 V before its regulator was
+8. **Pupils.** The pupil servos need 6.0 to 8.4 V; EpiBlack had 5.3 V before its regulator was
    repaired and now has 7.5 V. The model runs without pupils when they fail to start
    (`require_pupils="false"`), but found you, giggle, and mind blown look much better with working
    pupils. `EpiServos` ignores limits set in Dynamixel Wizard. At start-up it opens each pupil slowly,
@@ -255,18 +302,18 @@ the robot needs someone next to it.
    demo uses 255 and 290, leaving room in case the gentle calibration stops a little before the
    open stop. Measure again if the mechanism was repaired or shows play. Instead of the calibration,
    `EpiServos.pupil_limits` can give fixed open and closed positions.
-8. **Sound.** Play every animation and set the speaker volume so that the calm sounds are still
+9. **Sound.** Play every animation and set the speaker volume so that the calm sounds are still
    heard; arousal plays them at 35 to 100 percent.
-9. **Close up.** Lean slowly toward Epi's face. Beyond about 1 m the eyes should stay parallel,
+10. **Close up.** Lean slowly toward Epi's face. Beyond about 1 m the eyes should stay parallel,
    and from there they should cross more and more, to about 27 degrees at 0.3 m. If convergence starts too early or too late,
    the face box size differs from the assumed 0.15 m; adjust `object_width` or the distances on
    `Near`. The **Eye goal** plot shows the two eyes moving apart in opposite directions.
-10. **Copycat.** Face Epi and pan your head left, right, and left again within about 3 seconds; the
+11. **Copycat.** Face Epi and pan your head left, right, and left again within about 3 seconds; the
    game should start. Then turn and nod your head slowly. Epi should mirror you as described in
    `EpiHeadMirroring.md`, whose checks for `mirror_sign` and the nodding direction apply here too.
    If panning does not start the game, lower `amplitude` on `HeadPan`; if it starts by accident,
    raise it or `swings`. The game cannot restart within 25 seconds of its start.
-11. **Pacing and mood.** Watch for a few minutes alone and with company. Raise `min_interval` and
+12. **Pacing and mood.** Watch for a few minutes alone and with company. Raise `min_interval` and
    `max_interval` on `Behaviors` if Epi is too busy, and lower them if it is too calm. Lower
    `decay_rate` on `Arousal` if the excitement fades too fast.
 
