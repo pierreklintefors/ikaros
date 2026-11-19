@@ -91,6 +91,12 @@ expressive movements on top of the gaze:
   the head turns toward a new target. Keep the offsets small. While the gaze is locked, the eyes compensate the
   offset like any other head movement, so the robot keeps looking at the target while it nods.
 
+`HOLD_HEAD` above `hold_threshold` stops the head from following the target: in follow mode the
+head goal stays where it is, while the eyes keep following the target as far as they can. Connect
+`ProximityVergence.NEAR`, for example, so that only the eyes converge when a face comes close and the
+head does not shift with the camera's changing view of the near face. It has no effect while
+`FOLLOW` is 0, and `HEAD_OFFSET` still adds gestures on top.
+
 All goals are still clipped to the limits. When the camera sits in one eye, set `camera_eye` to that
 eye. Image measurements are then combined with that eye's position, so vergence and eye offsets do
 not shift the stored target direction. The default `both` uses the average of the two eyes.
@@ -151,6 +157,7 @@ per second. The kernel converts them to per-tick values, so behavior does not de
 | eye_smoothing | Rate in 1/s at which the eye goals follow their target while locked; 0 follows immediately | rate | 0 |
 | vergence | Inward eye rotation in degrees, split between the eyes | number | 0 |
 | vergence_sign | 1 adds positive vergence to the left eye goal; -1 reverses this, as needed on Epi | number | 1 |
+| hold_threshold | HOLD_HEAD above this value keeps the followed head goal still | number | 0.5 |
 | camera_eye | Eye whose present position locates image measurements: `both` (average), `left`, or `right` | number | both |
 
 The default field of view matches the Raspberry Pi Camera Module v2.
@@ -168,6 +175,7 @@ The default field of view matches the Raspberry Pi Camera Module v2.
 | EYE_OFFSET | Degrees added to both eye goals | yes |
 | VERGENCE | Inward eye rotation in degrees added to `vergence`; negative diverges | yes |
 | HEAD_OFFSET | Tilt, pan in degrees added to the head goal under the speed and acceleration limits | yes |
+| HOLD_HEAD | Above hold_threshold the head stops following the target while the eyes keep following | yes |
 
 ## Outputs
 
@@ -195,4 +203,4 @@ The default field of view matches the Raspberry Pi Camera Module v2.
 The tests in `tests/` feed `GOAL_POSITION` back as `PRESENT_POSITION` to model ideal servos. They
 check eye compensation during a manual head move, release after `hold_time`, the head dead zone,
 eye clipping, the pupil input, the aim point, the acceleration-limited head motion, the behaviour
-offsets, and `camera_eye`.
+offsets, `camera_eye`, and `HOLD_HEAD`.

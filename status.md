@@ -1987,3 +1987,16 @@ Testing on EpiBlack with the user: the gentle calibration ran without straining 
 - Whether both pupils look the same size at the same setting was not yet checked by eye with these limits; the slow, guarded tool in the scratchpad can move them to 9, 16, and 5 mm for comparison.
 - The left pupil's open end is at the end of the servo's sensor range (position 0); if it opens further than the sensor can read, its open limit is slightly conservative.
 - The closed ends differed between the two hand measurements by 30-45 steps, so the right pupil may close further than its limit of 320 allows.
+
+## Stereo distance and a still head for close faces
+
+Requested: when a face comes close and the eyes converge, the neck tilt and pan should stay put; use
+the newly connected left eye camera to decide when only the eyes should converge. A finger-following
+mode may come later.
+
+| # | Task | Status | Verification | Commit |
+|---:|---|---|---|---|
+| 1 | `GazeLock` takes a `HOLD_HEAD` input: while it is above `hold_threshold`, the followed head goal stays where it is and only the eyes follow the target. | Completed | Release build without warnings; all 7 GazeLock tests pass. The new hold test reuses the follow scenario: while `HOLD_HEAD` is 1 the head goal stays at 0 and the eyes follow the target 20 degrees away to their 13-degree limit; after it drops, the head moves 10 and then 15 degrees toward the target. Markdown checker clean. | `GazeLock can now hold the head still while the eyes keep following` |
+| 2 | Add `StereoDistance`, which triangulates the distance of a target seen by two cameras in panning eyes. | In progress |  |  |
+| 3 | `ProximityVergence` takes an optional measured `DISTANCE` in place of its size-based estimate. | Not started |  |  |
+| 4 | Use the left camera in the animatronics demo: a second face pipeline, stereo distance for the convergence, and a still head while a face is close; update the guide. | Not started |  |  |

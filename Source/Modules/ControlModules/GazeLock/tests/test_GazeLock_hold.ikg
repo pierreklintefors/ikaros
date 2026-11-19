@@ -1,0 +1,21 @@
+<group name="GazeLockHoldTest"
+       description="While HOLD_HEAD is high in follow mode the head stays where it is and the eyes follow the target; after it drops the head follows again"
+       start="true" stop="11" tick_duration="0.1" threads="1"
+       cli_args="-u${TEST_DIR}"
+       expected_output_contains="tick = {5}&#10;head = {0, 0}&#10;eye = {13, 13}||tick = {8}&#10;head = {0, 0}&#10;eye = {13, 13}||tick = {9}&#10;head = {0, 10}||tick = {10}&#10;head = {0, 15}">
+    <module class="InputFile" name="Script" filename="fixture_GazeLock_hold.jsonl" send_end_of_file="false" />
+    <module class="GazeLock" name="Gaze" update_rate="0" latency="0" hold_time="10" head_gain="5" head_dead_zone="6" head_max_speed="100" head_max_acceleration="0" />
+    <module class="Print" name="Tick" />
+    <module class="Print" name="Head" />
+    <module class="Print" name="Eye" />
+
+    <connection source="Script.TARGET" target="Gaze.TARGET" delay="0" />
+    <connection source="Script.VALID" target="Gaze.VALID" delay="0" />
+    <connection source="Script.FOLLOW" target="Gaze.FOLLOW" delay="0" />
+    <connection source="Script.MANUAL" target="Gaze.MANUAL_HEAD" delay="0" />
+    <connection source="Script.HOLD" target="Gaze.HOLD_HEAD" delay="0" />
+    <connection source="Gaze.GOAL_POSITION" target="Gaze.PRESENT_POSITION" delay="1" />
+    <connection source="Script.TICK" target="Tick.INPUT" delay="0" label="tick" />
+    <connection source="Gaze.HEAD_GOAL" target="Head.INPUT" delay="0" label="head" />
+    <connection source="Gaze.EYE_GOAL" target="Eye.INPUT" delay="0" label="eye" />
+</group>

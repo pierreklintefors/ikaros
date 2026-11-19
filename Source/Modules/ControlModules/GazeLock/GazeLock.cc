@@ -43,6 +43,7 @@ class GazeLock : public Module
     parameter vergence;
     parameter vergenceSign;
     parameter cameraEye;
+    parameter holdThreshold;
 
     matrix presentPosition;
     matrix target;
@@ -53,6 +54,7 @@ class GazeLock : public Module
     matrix eyeOffset;
     matrix vergenceInput;
     matrix headOffset;
+    matrix holdHead;
 
     matrix goalPosition;
     matrix headGoal;
@@ -239,6 +241,7 @@ public:
         Bind(vergence, "vergence");
         Bind(vergenceSign, "vergence_sign");
         Bind(cameraEye, "camera_eye");
+        Bind(holdThreshold, "hold_threshold");
 
         Bind(presentPosition, "PRESENT_POSITION");
         Bind(target, "TARGET");
@@ -249,6 +252,7 @@ public:
         Bind(eyeOffset, "EYE_OFFSET");
         Bind(vergenceInput, "VERGENCE");
         Bind(headOffset, "HEAD_OFFSET");
+        Bind(holdHead, "HOLD_HEAD");
 
         Bind(goalPosition, "GOAL_POSITION");
         Bind(headGoal, "HEAD_GOAL");
@@ -330,7 +334,9 @@ public:
 
         float desiredTilt = baseHead[0];
         float desiredPan = baseHead[1];
-        if(following)
+        // While HOLD_HEAD is high the followed head goal stays where it is; the eyes keep following.
+        const bool holding = following && holdHead.connected() && holdHead(0) > holdThreshold.as_float();
+        if(following && !holding)
         {
             desiredTilt = targetElevation;
             desiredPan = targetAzimuth;
