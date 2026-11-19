@@ -1,0 +1,4 @@
+{
+    "Plain": {"left_eye_first_angle": 0, "left_eye_direction": 1, "right_eye_first_angle": 0, "right_eye_direction": 1, "mouth_swap_rows": 0, "mouth_reverse": 0},
+    "TestBot": {"left_eye_first_angle": 90, "left_eye_direction": -1, "right_eye_first_angle": 0, "right_eye_direction": 1, "mouth_swap_rows": 1, "mouth_reverse": 1}
+}

@@ -1,0 +1,32 @@
+<group name="EpiLightShowOrientationTest"
+       description="A robot that is not in the calibration file starts with the LED check; a stored orientation maps the check to the robot's eye wiring and swapped, reversed mouth rows"
+       start="true" stop="2" tick_duration="0.1" threads="1"
+       cli_args="-u${TEST_DIR}"
+       expected_output_contains="new_pattern = {3}||new_calibrated = {0}||test_calibrated = {1}||orientation = {90, -1, 0, 1, 1, 1}||test_left = &#10;{&#10;   {0, 0, 0, 0, 0, 0, 0.8, 0, 0, 0.8, 0, 0}, &#10;   {0, 0, 0, 0.8, 0, 0, 0, 0, 0, 0.8, 0, 0}, &#10;   {0.8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}||test_right = &#10;{&#10;   {0, 0, 0, 0, 0, 0, 0.8, 0, 0, 0.8, 0, 0}, &#10;   {0.8, 0, 0, 0, 0, 0, 0.8, 0, 0, 0, 0, 0}, &#10;   {0, 0, 0, 0.8, 0, 0, 0, 0, 0, 0, 0, 0}||test_high = &#10;{&#10;   {0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.8, 0.4}, &#10;   {0, 0, 0, 0, 0, 0, 0.8, 0}, &#10;   {0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.8, 0.4}">
+    <module class="Constant" name="Eye" data="0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0; 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0; 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0" />
+    <module class="Constant" name="Mouth" data="0, 0, 0, 0, 0, 0, 0, 0; 0, 0, 0, 0, 0, 0, 0, 0; 0, 0, 0, 0, 0, 0, 0, 0" />
+    <module class="EpiLightShow" name="NewBot" robot="NewBot" calibration_file="EpiLEDCalibration_test.json" />
+    <module class="EpiLightShow" name="TestBot" robot="TestBot" calibration_file="EpiLEDCalibration_test.json" check="true" />
+    <module class="Print" name="P1" />
+    <module class="Print" name="P2" />
+    <module class="Print" name="P3" />
+    <module class="Print" name="P4" />
+    <module class="Print" name="P5" />
+    <module class="Print" name="P6" />
+    <module class="Print" name="P7" />
+    <connection source="Eye.OUTPUT" target="NewBot.EYE_LEFT" delay="0" />
+    <connection source="Eye.OUTPUT" target="NewBot.EYE_RIGHT" delay="0" />
+    <connection source="Mouth.OUTPUT" target="NewBot.MOUTH_TOP" delay="0" />
+    <connection source="Mouth.OUTPUT" target="NewBot.MOUTH_BOTTOM" delay="0" />
+    <connection source="Eye.OUTPUT" target="TestBot.EYE_LEFT" delay="0" />
+    <connection source="Eye.OUTPUT" target="TestBot.EYE_RIGHT" delay="0" />
+    <connection source="Mouth.OUTPUT" target="TestBot.MOUTH_TOP" delay="0" />
+    <connection source="Mouth.OUTPUT" target="TestBot.MOUTH_BOTTOM" delay="0" />
+    <connection source="NewBot.PATTERN" target="P1.INPUT" delay="0" label="new_pattern" />
+    <connection source="NewBot.CALIBRATED" target="P2.INPUT" delay="0" label="new_calibrated" />
+    <connection source="TestBot.CALIBRATED" target="P3.INPUT" delay="0" label="test_calibrated" />
+    <connection source="TestBot.ORIENTATION" target="P4.INPUT" delay="0" label="orientation" />
+    <connection source="TestBot.LEFT_EYE" target="P5.INPUT" delay="0" label="test_left" />
+    <connection source="TestBot.RIGHT_EYE" target="P6.INPUT" delay="0" label="test_right" />
+    <connection source="TestBot.MOUTH_HIGH" target="P7.INPUT" delay="0" label="test_high" />
+</group>

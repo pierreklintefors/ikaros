@@ -1,0 +1,30 @@
+<group name="EpiLightShowCircleTest"
+       description="The circle runs clockwise in the left eye and counterclockwise in the right eye from the top, and each mouth half follows the eye on its side"
+       start="true" stop="4" tick_duration="0.1" threads="1"
+       cli_args="-u${TEST_DIR}"
+       expected_output_contains="low = &#10;{&#10;   {0, 0, 0, 0, 0, 0, 0, 0}, &#10;   {0, 0, 0, 0, 0, 0, 0, 0}, &#10;   {0, 0, 0, 0, 0, 0, 0, 0}&#10;}&#10;high = &#10;{&#10;   {0, 0, 0, 1, 1, 0, 0, 0}||high = &#10;{&#10;   {0, 1, 0, 0, 0, 0, 1, 0}||right = &#10;{&#10;   {0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0}||left = &#10;{&#10;   {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}||low = &#10;{&#10;   {1, 0, 0, 0, 0, 0, 0, 1}||low = &#10;{&#10;   {0, 0, 1, 0, 0, 1, 0, 0}">
+    <module class="Constant" name="Eye" data="0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0; 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0; 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0" />
+    <module class="Constant" name="Mouth" data="0, 0, 0, 0, 0, 0, 0, 0; 0, 0, 0, 0, 0, 0, 0, 0; 0, 0, 0, 0, 0, 0, 0, 0" />
+    <module class="Constant" name="On" data="1" />
+    <module class="Constant" name="Calm" data="0.375" />
+    <module class="Constant" name="Red" data="1, 0, 0" />
+    <module class="EpiLightShow" name="Show" robot="Plain" calibration_file="EpiLEDCalibration_test.json" show_patterns="2" fade_rate="0" brightness="1" circle_rate="2.5" tail="0.05" seed="1" />
+    <module class="Print" name="Tick" />
+    <module class="Print" name="P0" />
+    <module class="Print" name="P1" />
+    <module class="Print" name="P2" />
+    <module class="Print" name="P3" />
+
+    <connection source="Eye.OUTPUT" target="Show.EYE_LEFT" delay="0" />
+    <connection source="Eye.OUTPUT" target="Show.EYE_RIGHT" delay="0" />
+    <connection source="Mouth.OUTPUT" target="Show.MOUTH_TOP" delay="0" />
+    <connection source="Mouth.OUTPUT" target="Show.MOUTH_BOTTOM" delay="0" />
+    <connection source="On.OUTPUT" target="Show.RUN" delay="0" />
+    <connection source="Calm.OUTPUT" target="Show.AROUSAL" delay="0" />
+    <connection source="Red.OUTPUT" target="Show.COLOR" delay="0" />
+    <connection source="Show.PATTERN" target="Tick.INPUT" delay="0" label="pattern" />
+    <connection source="Show.VIEW_LEFT_EYE" target="P0.INPUT" delay="0" label="left" />
+    <connection source="Show.VIEW_RIGHT_EYE" target="P1.INPUT" delay="0" label="right" />
+    <connection source="Show.VIEW_MOUTH_HIGH" target="P2.INPUT" delay="0" label="high" />
+    <connection source="Show.VIEW_MOUTH_LOW" target="P3.INPUT" delay="0" label="low" />
+</group>

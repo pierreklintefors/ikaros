@@ -1,0 +1,47 @@
+<class name="EpiLightShow" description="Plays light patterns on the Epi eye and mouth LEDs and maps the LEDs to each robot's wiring with a saved orientation check">
+    <description type="text">
+        EpiLightShow plays light patterns over the LED colors from EpiExpression: a wave that runs row by row
+        from the top of the eyes down through the mouth, and a circle that runs around the eyes in mirrored
+        directions with each half of the mouth following one eye. Patterns run while RUN is 1, for example when
+        the robot is bored, stop when INTERRUPT is 1, and play for button_duration seconds without interruption
+        from the play command. The color is random or follows AROUSAL. All patterns are made in the layout of
+        the epi-head widget; the LEFT_EYE, RIGHT_EYE, MOUTH_HIGH, and MOUTH_LOW outputs map them to the wiring of
+        the robot named by robot, using an orientation stored in calibration_file. A robot that is not in the
+        file shows an orientation check until it is saved.
+    </description>
+
+    <parameter name="robot" type="string" default="" description="Robot name under which the LED orientation is stored" />
+    <parameter name="calibration_file" type="string" default="EpiLEDCalibration.json" description="JSON file in UserData with the LED orientation of each robot" />
+    <parameter name="check" type="bool" default="false" description="Show the orientation check at start-up even when the robot is in the file" />
+    <parameter name="show_patterns" type="matrix" default="1, 2" description="Patterns that a show cycles through: 1 wave, 2 circle" />
+    <parameter name="pattern_time" type="number" default="5" min="0.5" description="Seconds each pattern plays during a show before the next one starts" />
+    <parameter name="button_duration" type="number" default="5" min="0" description="Seconds a pattern from the play command plays without interruption" />
+    <parameter name="color_mode" type="number" default="random" options="random,arousal" description="Pattern color: a random hue for each pattern, or a hue from calm blue to excited orange following AROUSAL" />
+    <parameter name="brightness" type="number" default="0.8" min="0" max="1" description="Brightness of the patterns" />
+    <parameter name="wave_rate" type="number" default="8" min="0" description="Rows per second of the wave at speed 1" />
+    <parameter name="circle_rate" type="number" default="0.8" min="0" description="Laps per second of the circle at speed 1" />
+    <parameter name="tail" type="number" default="0.3" min="0" max="1" description="Length of the circle's fading tail as a fraction of a lap" />
+    <parameter name="fade_rate" type="rate" default="6" min="0" description="Rate in 1/s at which patterns fade in and out over the expression; 0 switches at once" />
+    <parameter name="seed" type="number" default="-1" min="-1" description="Random seed for the colors; negative selects nondeterministic seeding" />
+
+    <input name="EYE_LEFT" description="Left eye colors from EpiExpression, 3 x 12" />
+    <input name="EYE_RIGHT" description="Right eye colors from EpiExpression, 3 x 12" />
+    <input name="MOUTH_TOP" description="Upper mouth colors from EpiExpression, 3 x 8" />
+    <input name="MOUTH_BOTTOM" description="Lower mouth colors from EpiExpression, 3 x 8" />
+    <input name="RUN" optional="yes" size="1" description="While above 0.5 a show plays, for example Boredom.BORED" />
+    <input name="INTERRUPT" optional="yes" size="1" description="Above 0.5 stops a show at once, for example when a face is seen; a show from the play command continues" />
+    <input name="AROUSAL" optional="yes" size="1" description="Present excitement from 0 to 1; sets the speed and, with color_mode arousal, the color" />
+    <input name="COLOR" optional="yes" size="3" description="Red, green, blue of the patterns, overriding color_mode" />
+
+    <output name="LEFT_EYE" size="3,12" description="Left eye colors in the robot's own LED order, for FadeCandy" />
+    <output name="RIGHT_EYE" size="3,12" description="Right eye colors in the robot's own LED order, for FadeCandy" />
+    <output name="MOUTH_HIGH" size="3,8" description="Upper mouth colors in the robot's own LED order, for FadeCandy" />
+    <output name="MOUTH_LOW" size="3,8" description="Lower mouth colors in the robot's own LED order, for FadeCandy" />
+    <output name="VIEW_LEFT_EYE" size="3,12" description="Left eye colors in the layout of the epi-head widget" />
+    <output name="VIEW_RIGHT_EYE" size="3,12" description="Right eye colors in the layout of the epi-head widget" />
+    <output name="VIEW_MOUTH_HIGH" size="3,8" description="Upper mouth colors in the layout of the epi-head widget" />
+    <output name="VIEW_MOUTH_LOW" size="3,8" description="Lower mouth colors in the layout of the epi-head widget" />
+    <output name="PATTERN" size="1" description="Playing pattern: 0 none, 1 wave, 2 circle, 3 orientation check" />
+    <output name="CALIBRATED" size="1" description="1 when the robot's LED orientation is stored in calibration_file" />
+    <output name="ORIENTATION" size="6" description="Left eye first angle and direction, right eye first angle and direction, mouth rows swapped, mouth reversed" />
+</class>
