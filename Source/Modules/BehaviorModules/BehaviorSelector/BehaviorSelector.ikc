@@ -29,6 +29,7 @@
     <input name="NEW_TARGET" optional="yes" size="1" description="1 when a different person has been selected, for example FaceTargetSelector.NEW_TARGET" />
     <input name="BUSY" optional="yes" size="1" description="1 while a behaviour plays, for example KeyframeAnimator.PLAYING; spontaneous behaviours wait and their interval does not run" />
     <input name="ENABLE" optional="yes" size="1" description="1 allows behaviours, 0 stops all triggers; enabled when not connected" />
+    <input name="PAUSE" optional="yes" size="1" description="1 pauses spontaneous behaviours, greetings, and farewells while REQUEST still starts behaviours, for example during a game; the idle interval does not run" />
     <input name="REQUEST" optional="yes" description="A change from 0 to 1 in element i starts behaviour i at once, interrupting like a reaction, unless it is cooling down; for example from OscillationDetector.DETECTED" />
     <input name="AROUSAL" optional="yes" size="1" description="Present excitement from 0 to 1, for example Arousal.AROUSAL; selects behaviours by arousal_levels and scales the interval" />
 

@@ -31,6 +31,7 @@ class BehaviorSelector : public Module
     matrix newTarget;
     matrix busy;
     matrix enable;
+    matrix pause;
     matrix arousal;
     matrix request;
 
@@ -168,6 +169,7 @@ public:
         Bind(newTarget, "NEW_TARGET");
         Bind(busy, "BUSY");
         Bind(enable, "ENABLE");
+        Bind(pause, "PAUSE");
         Bind(arousal, "AROUSAL");
         Bind(request, "REQUEST");
 
@@ -220,14 +222,19 @@ public:
             return;
         }
 
+        // While paused, only requests start behaviours; nothing is saved up for later.
+        const bool paused = pause.connected() && pause(0) > 0.5f;
+        if(paused)
+            greetingPending = false;
+
         const bool reactionAllowed = sinceReaction >= reactionCooldown.as_float() - epsilon;
-        if(arrived && greeting.as_int() >= 0 && reactionAllowed)
+        if(!paused && arrived && greeting.as_int() >= 0 && reactionAllowed)
         {
             greetingPending = true;
             untilGreeting = greetingDelay.as_float();
             sinceReaction = 0;
         }
-        if(left)
+        if(!paused && left)
         {
             greetingPending = false;
             if(farewell.as_int() >= 0 && reactionAllowed)
@@ -266,7 +273,7 @@ public:
         // The idle interval runs only while nothing plays, is pending, or has just started.
         const bool isBusy = busy.connected() && busy(0) > 0.5f;
         const bool fired = trigger.max() > 0.0f;
-        if(!isBusy && !fired && !greetingPending)
+        if(!paused && !isBusy && !fired && !greetingPending)
         {
             untilNext -= dt;
             if(untilNext <= epsilon)

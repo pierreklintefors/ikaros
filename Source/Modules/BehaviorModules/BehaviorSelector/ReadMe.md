@@ -53,6 +53,11 @@ mirroring game.
 
 `ENABLE` at 0 stops all triggers, for example from a switch on a dashboard.
 
+`PAUSE` at 1 is gentler: spontaneous behaviours, greetings, and farewells stop, but `REQUEST` still starts
+behaviours. A game or mode can use it to keep the robot from wandering off into other behaviours
+while still playing its own start and end animations. Arrivals during the pause are not greeted
+later, and the idle interval does not run.
+
 `TRIGGER` has `count` elements. The element of a starting behaviour is 1 for one tick. `SELECTED`
 holds the index of the last started behaviour, and `WAIT` the idle seconds left before the next
 spontaneous one.
@@ -85,6 +90,7 @@ spontaneous one.
 | NEW_TARGET | 1 when a different person has been selected | yes |
 | BUSY | 1 while a behaviour plays; spontaneous behaviours wait | yes |
 | ENABLE | 1 allows behaviours, 0 stops all triggers; enabled when not connected | yes |
+| PAUSE | 1 pauses spontaneous behaviours, greetings, and farewells; REQUEST still starts behaviours | yes |
 | AROUSAL | Present excitement from 0 to 1; selects by arousal_levels and scales the interval | yes |
 | REQUEST | A change from 0 to 1 in element i starts behaviour i at once, unless it is cooling down | yes |
 

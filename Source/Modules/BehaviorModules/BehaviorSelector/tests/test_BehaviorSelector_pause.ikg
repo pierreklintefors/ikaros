@@ -1,0 +1,20 @@
+<group name="BehaviorSelectorPauseTest"
+       description="While PAUSE is 1, a REQUEST still starts its behaviour, but the greeting for someone arriving is dropped and no spontaneous behaviour starts; after the pause the idle interval runs again"
+       start="true" stop="30" tick_duration="0.1" threads="1"
+       cli_args="-u${TEST_DIR}"
+       expected_output_contains="tick = {10}&#10;trigger = {0, 0, 1}||tick = {24}&#10;trigger = {0, 1, 0}"
+       expected_output_once="trigger = {0, 0, 1}"
+       expected_output_not_contains="trigger = {1, 0, 0}">
+    <module class="InputFile" name="Script" filename="fixture_BehaviorSelector_pause.jsonl" send_end_of_file="false" />
+    <module class="BehaviorSelector" name="Behaviors" count="3" idle_weights="0, 1, 0" engaged_weights="0, 1, 0" greeting="0" greeting_delay="0"
+            cooldown="0" min_interval="0.5" max_interval="0.5" seed="1" />
+    <module class="Print" name="Tick" />
+    <module class="Print" name="Trigger" />
+
+    <connection source="Script.ENGAGED" target="Behaviors.ENGAGED" delay="0" />
+    <connection source="Script.PAUSE" target="Behaviors.PAUSE" delay="0" />
+    <connection source="Script.REQ" target="Behaviors.REQUEST" delay="0" />
+
+    <connection source="Script.TICK" target="Tick.INPUT" delay="0" label="tick" />
+    <connection source="Behaviors.TRIGGER" target="Trigger.INPUT" delay="0" label="trigger" />
+</group>
