@@ -19,6 +19,8 @@ class StereoDistance : public Module
     parameter maxHeightDifference;
     parameter smoothing;
     parameter holdTime;
+    parameter stillTime;
+    parameter maxEyeSpeed;
 
     matrix leftTarget;
     matrix leftValid;
@@ -31,6 +33,9 @@ class StereoDistance : public Module
 
     float current = 0;
     float sinceMeasured = 1e9f;
+    float stillFor = 0;
+    float lastLeftEye = 0;
+    float lastRightEye = 0;
 
     // Direction to a target at image x seen by an eye panned by eyeDegrees, in radians.
     float
@@ -54,6 +59,8 @@ public:
         Bind(maxHeightDifference, "max_height_difference");
         Bind(smoothing, "smoothing");
         Bind(holdTime, "hold_time");
+        Bind(stillTime, "still_time");
+        Bind(maxEyeSpeed, "max_eye_speed");
 
         Bind(leftTarget, "LEFT_TARGET");
         Bind(leftValid, "LEFT_VALID");
@@ -76,7 +83,17 @@ public:
 
         const float leftEye = eyePan(0) - positionOffset.as_float();
         const float rightEye = eyePan(1) - positionOffset.as_float();
-        const bool seen = leftValid(0) > 0.5f && rightValid(0) > 0.5f &&
+        // Camera frames lag the servo positions, so measure only while the eyes have been still.
+        const float tick = static_cast<float>(GetTickDuration());
+        const float maxStep = maxEyeSpeed.as_float() * tick;
+        if(std::fabs(leftEye - lastLeftEye) > maxStep || std::fabs(rightEye - lastRightEye) > maxStep)
+            stillFor = 0;
+        else
+            stillFor += tick;
+        lastLeftEye = leftEye;
+        lastRightEye = rightEye;
+
+        const bool seen = stillFor >= stillTime.as_float() && leftValid(0) > 0.5f && rightValid(0) > 0.5f &&
                           std::fabs(leftTarget(1) - rightTarget(1)) <= maxHeightDifference.as_float() &&
                           std::isfinite(leftEye) && std::isfinite(rightEye) &&
                           std::fabs(leftEye) < 80.0f && std::fabs(rightEye) < 80.0f;

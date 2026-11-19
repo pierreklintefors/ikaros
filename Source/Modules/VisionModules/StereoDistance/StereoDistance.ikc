@@ -19,6 +19,8 @@
     <parameter name="max_height_difference" type="number" default="0.3" min="0" description="Largest difference of the target heights in the two images, in centered image coordinates, for the detections to count as the same target" />
     <parameter name="smoothing" type="rate" default="6" min="0" description="Rate in 1/s at which DISTANCE follows new measurements; 0 follows immediately" />
     <parameter name="hold_time" type="number" default="0.3" min="0" description="Seconds DISTANCE stays valid after the last measurement" />
+    <parameter name="still_time" type="number" default="0" min="0" description="Seconds both eyes must have been still before a measurement is taken; camera frames lag the servo positions, so measurements while the eyes move are wrong. 0 measures always" />
+    <parameter name="max_eye_speed" type="number" default="5" min="0" description="Eye speed in degrees per second below which an eye counts as still" />
 
     <input name="LEFT_TARGET" description="Target x, y, and optionally width in centered image coordinates of the left camera, such as FaceTargetSelector.TARGET" />
     <input name="LEFT_VALID" size="1" description="1 when LEFT_TARGET is a current detection" />
