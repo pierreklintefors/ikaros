@@ -1,0 +1,19 @@
+<group name="AppleVisionHandDetectorNoHandTest"
+       description="An image without a hand gives VALID 0, OPEN 0, POINTING 0, COUNT 0, and a zero TARGET"
+       start="true" stop="2" threads="1"
+       cli_args="-u${TEST_DIR}"
+       expected_output_twice="target = {0, 0, 0}||valid = {0}||open = {0}||pointing = {0}||count = {0}">
+    <module class="InputImage" name="Image" filename="nohand.jpg" />
+    <module class="AppleVisionHandDetector" name="Hands" />
+    <module class="Print" name="Out1" />
+    <module class="Print" name="Out2" />
+    <module class="Print" name="Out3" />
+    <module class="Print" name="Out4" />
+    <module class="Print" name="Out5" />
+    <connection source="Image.OUTPUT" target="Hands.INPUT" delay="0" />
+    <connection source="Hands.TARGET" target="Out1.INPUT" delay="0" label="target" />
+    <connection source="Hands.VALID" target="Out2.INPUT" delay="0" label="valid" />
+    <connection source="Hands.OPEN" target="Out3.INPUT" delay="0" label="open" />
+    <connection source="Hands.POINTING" target="Out4.INPUT" delay="0" label="pointing" />
+    <connection source="Hands.COUNT" target="Out5.INPUT" delay="0" label="count" />
+</group>
