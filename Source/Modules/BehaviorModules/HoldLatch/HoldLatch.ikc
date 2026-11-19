@@ -1,0 +1,21 @@
+<class name="HoldLatch" description="Becomes active when an input has been held for a while, such as a gesture held for two seconds, and stays active until the person or thing has been gone for a while">
+    <description type="text">
+        HoldLatch turns a held signal into a mode. ACTIVE becomes 1 when INPUT has been above threshold for
+        hold_time seconds without a break, and stays 1 until PRESENT has been at or below threshold for
+        release_time seconds. Without PRESENT, INPUT itself must be gone for release_time. START and END are 1 for
+        one tick when the mode begins and ends, and PROGRESS shows how far the hold has come, for example on a
+        dashboard or as a light cue.
+    </description>
+
+    <parameter name="hold_time" type="number" default="2" min="0" description="Seconds INPUT must stay above threshold to start the mode" />
+    <parameter name="release_time" type="number" default="3" min="0" description="Seconds PRESENT must stay at or below threshold to end the mode" />
+    <parameter name="threshold" type="number" default="0.5" description="Level above which INPUT and PRESENT count as on" />
+
+    <input name="INPUT" size="1" description="Signal that must be held, for example AppleVisionHandDetector.OPEN" />
+    <input name="PRESENT" size="1" optional="yes" description="Signal that keeps the mode going, for example AppleVisionHandDetector.VALID; INPUT is used when this is not connected" />
+
+    <output name="ACTIVE" size="1" description="1 while the mode is on" />
+    <output name="START" size="1" description="1 for one tick when the mode begins" />
+    <output name="END" size="1" description="1 for one tick when the mode ends" />
+    <output name="PROGRESS" size="1" description="Fraction of hold_time that INPUT has been held, from 0 to 1; 1 while active" />
+</class>

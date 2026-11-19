@@ -1,0 +1,27 @@
+<group name="HoldLatchTest"
+       description="A short hold does not start the mode, a 0.5 s hold does, a short absence does not end it, and a 0.3 s absence does; without PRESENT, INPUT ends it"
+       start="true" stop="24" tick_duration="0.1" threads="1"
+       cli_args="-u${TEST_DIR}"
+       expected_output_once="with_start = {1}||with_end = {1}||without_start = {1}||without_end = {1}"
+       expected_output_contains="progress = {0.6}&#10;tick = {2}||progress = {0}&#10;tick = {3}||with_start = {1}&#10;progress = {1}&#10;tick = {9}||without_end = {1}&#10;without_start = {0}&#10;with_end = {0}&#10;with_start = {0}&#10;progress = {1}&#10;tick = {13}||with_end = {1}&#10;with_start = {0}&#10;progress = {0}&#10;tick = {21}">
+    <module class="InputFile" name="Script" filename="fixture_HoldLatch.jsonl" send_end_of_file="false" />
+    <module class="HoldLatch" name="With" hold_time="0.5" release_time="0.3" />
+    <module class="HoldLatch" name="Without" hold_time="0.5" release_time="0.3" />
+    <module class="Print" name="Out1" />
+    <module class="Print" name="Out2" />
+    <module class="Print" name="Out3" />
+    <module class="Print" name="Out4" />
+    <module class="Print" name="Out5" />
+    <module class="Print" name="Out6" />
+
+    <connection source="Script.INPUT" target="With.INPUT" delay="0" />
+    <connection source="Script.PRESENT" target="With.PRESENT" delay="0" />
+    <connection source="Script.INPUT" target="Without.INPUT" delay="0" />
+
+    <connection source="Script.TICK" target="Out1.INPUT" delay="0" label="tick" />
+    <connection source="With.PROGRESS" target="Out2.INPUT" delay="0" label="progress" />
+    <connection source="With.START" target="Out3.INPUT" delay="0" label="with_start" />
+    <connection source="With.END" target="Out4.INPUT" delay="0" label="with_end" />
+    <connection source="Without.START" target="Out5.INPUT" delay="0" label="without_start" />
+    <connection source="Without.END" target="Out6.INPUT" delay="0" label="without_end" />
+</group>
