@@ -336,7 +336,11 @@ public:
         float desiredPan = baseHead[1];
         // While HOLD_HEAD is high the followed head goal stays where it is; the eyes keep following.
         const bool holding = following && holdHead.connected() && holdHead(0) > holdThreshold.as_float();
-        if(following && !holding)
+        if(holding)
+        {
+            // Keep the present head goal; MANUAL_HEAD only applies when FOLLOW is 0.
+        }
+        else if(following)
         {
             desiredTilt = targetElevation;
             desiredPan = targetAzimuth;
