@@ -1943,3 +1943,21 @@ After the failed auto calibration, the user asked for Ikaros to set the pupil li
   reader (addresses 6 and 8 of IDs 2 and 3).
 - The values come from a hand measurement made before the pupils were strained; they should be
   measured again if the mechanism changed.
+
+## Gentle pupil calibration and LED light shows
+
+Requested: restore the pupil calibration so that it drives the pupils in the opening (dilation)
+direction to the stop without pushing hard; and add LED animations to the animatronics demo: a
+top-to-bottom row wave through the eyes and mouth, a circular animation mirrored between the eyes
+with the mouth split into left and right halves, colors random or from arousal, started when the
+robot is bored and interrupted by a face, and played for 5 s without interruption from a button. A
+per-robot LED orientation check (top, left, right, bottom of the eyes; top and bottom row of the
+mouth) is saved in a JSON file so each robot needs it once. The robot is not available; everything is
+verified in simulation.
+
+| # | Task | Status | Verification | Commit |
+|---:|---|---|---|---|
+| 1 | Restore the pupil calibration gently: open direction, slow speed, low torque, stop as soon as the pupil stops moving, and a range per pupil. | Completed | Direction confirmed from the code: `PupilMMToDynamixel` maps larger pupils to lower positions, so the calibration's move toward position 0 opens the pupils; the user saw them close when the abandoned calibration drove toward higher positions, which agrees. The calibration now sets moving speed 150 and the new `pupil_calibration_torque` (default 300; was a fixed 500), polls the positions every 50 ms, switches the torque off as soon as both pupils have moved no more than 2 steps for 0.25 s (at most 3 s, with a warning if still moving), and uses the new per-pupil `pupil_ranges` from the open stop (zeros keep `pupil_range`). `pupil_limits` still bypasses the motion. The demo uses `pupil_travel` 255, 290: the hand-measured travel of about 286 and 317 steps minus a margin in case the gentle calibration stops early. Release build without warnings; the demo starts in simulation; Markdown checker clean. Not run on the robot (busy with another experiment); to be tested slowly with the user. | `EpiServos now opens the pupils gently to calibrate them` |
+| 2 | Add `Boredom`, which signals bored episodes after quiet, calm time and ends them when something happens. | Not started |  |  |
+| 3 | Add `EpiLightShow`: wave and mirrored circle patterns over the expression LEDs, colors random or from arousal, and a saved per-robot LED orientation check. | Not started |  |  |
+| 4 | Use them in the animatronics demo with dashboard buttons and the check, and update the guide. | Not started |  |  |

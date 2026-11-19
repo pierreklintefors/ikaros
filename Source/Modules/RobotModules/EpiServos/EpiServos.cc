@@ -107,6 +107,7 @@
 #include <nlohmann/json.hpp>
 #include <string>
 #include <algorithm>
+#include <cstdlib>
 #include <set>
 
 
@@ -130,6 +131,8 @@ class EpiServos : public Module
     parameter simulate;
     parameter pupilRange;
     matrix pupilLimits;
+    matrix pupilRanges;
+    parameter pupilCalibrationTorque;
     parameter requirePupils;
     matrix minLimitPosition;
     matrix maxLimitPosition;
@@ -950,6 +953,8 @@ class EpiServos : public Module
         Bind(requirePupils, "require_pupils");
         Bind(pupilRange, "pupil_range");
         Bind(pupilLimits, "pupil_limits");
+        Bind(pupilRanges, "pupil_ranges");
+        Bind(pupilCalibrationTorque, "pupil_calibration_torque");
         if (PupilLimitsSet())
         {
             // Left open, left closed, right open, right closed; the open end has the lower position.
@@ -3223,11 +3228,15 @@ class EpiServos : public Module
             return false;
         Sleep(xlTimer);
 
-        // Turn down torque limit. To make sure we do not make a fire when hitting the limit.
-        if (!PupilWrite(2, 35, 2, 500, "torque limit"))
-            return false;
-        if (!PupilWrite(3, 35, 2, 500, "torque limit"))
-            return false;
+        // Low torque and a slow speed, so the pupils move gently and press only lightly on the stop.
+        const int calibrationTorque = std::clamp(pupilCalibrationTorque.as_int(), 50, 1023);
+        for (int id : {2, 3})
+        {
+            if (!PupilWrite(id, 35, 2, calibrationTorque, "torque limit"))
+                return false;
+            if (!PupilWrite(id, 32, 2, 150, "moving speed"))
+                return false;
+        }
         Sleep(xlTimer);
 
         // Torque on. No fancy rampiong
@@ -3237,27 +3246,47 @@ class EpiServos : public Module
             return false;
         Sleep(xlTimer);
 
-        // Go to min pos
+        // Open the pupils. Lower positions give larger pupils (see PupilMMToDynamixel), so moving toward
+        // position 0 is the dilation direction and ends at the stop of the fully open pupil.
         if (!PupilWrite(2, 30, 2, 0, "goal position"))
             return false;
         if (!PupilWrite(3, 30, 2, 0, "goal position"))
             return false;
-        Sleep(1.5); // Sleep for 1.500 ms to get to min position.
 
-        // Read present position
+        // Stop as soon as both pupils have stopped moving for a quarter of a second, instead of pushing
+        // against the stop for a fixed time; give up after three seconds.
         uint16_t present_postition_value[2] = {0, 0};
-        if (COMM_SUCCESS != packetHandlerPupil->read2ByteTxRx(portHandlerPupil, 2, 37, &present_postition_value[0], &dxl_error))
+        uint16_t last[2] = {0xffff, 0xffff};
+        int still[2] = {0, 0};
+        for (int poll = 0; poll < 60 && (still[0] < 5 || still[1] < 5); ++poll)
+        {
+            Sleep(0.05);
+            for (int k = 0; k < 2; ++k)
+            {
+                if (COMM_SUCCESS != packetHandlerPupil->read2ByteTxRx(portHandlerPupil, 2 + k, 37, &present_postition_value[k], &dxl_error))
+                    return false;
+                still[k] = (last[k] != 0xffff && std::abs(int(present_postition_value[k]) - int(last[k])) <= 2) ? still[k] + 1 : 0;
+                last[k] = present_postition_value[k];
+            }
+        }
+        if (!PupilWrite(2, 24, 1, 0, "torque enable"))
             return false;
-        if (COMM_SUCCESS != packetHandlerPupil->read2ByteTxRx(portHandlerPupil, 3, 37, &present_postition_value[1], &dxl_error))
+        if (!PupilWrite(3, 24, 1, 0, "torque enable"))
             return false;
+        if (still[0] < 5 || still[1] < 5)
+            Notify(msg_warning, "EpiServos: a pupil was still moving after three seconds of calibration; check the pupil mechanism.");
 
         AngleMinLimitPupil[0] = present_postition_value[0] + 5;
         AngleMinLimitPupil[1] = present_postition_value[1] + 5;
 
-        // The usable range starts at the calibrated stop; pupil_range is its length in servo steps.
-        const int range = std::clamp(pupilRange.as_int(), 10, 1023);
-        AngleMaxLimitPupil[0] = std::min(AngleMinLimitPupil[0] + range, 1023);
-        AngleMaxLimitPupil[1] = std::min(AngleMinLimitPupil[1] + range, 1023);
+        // The usable range starts at the calibrated open stop: pupil_ranges gives one length per pupil,
+        // otherwise pupil_range gives one length for both, in servo steps.
+        for (int k = 0; k < 2; ++k)
+        {
+            const bool own = pupilRanges.size() >= 2 && pupilRanges(k) > 0.0f;
+            const int range = std::clamp(own ? int(pupilRanges(k)) : pupilRange.as_int(), 10, 1023);
+            AngleMaxLimitPupil[k] = std::min(AngleMinLimitPupil[k] + range, 1023);
+        }
 
         // Not implemented.
         Notify(msg_debug, "Position limits pupil servos (auto calibrate): min " +
