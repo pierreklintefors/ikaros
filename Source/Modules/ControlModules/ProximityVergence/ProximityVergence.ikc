@@ -21,8 +21,11 @@
 
     <input name="TARGET" description="Target center x, y, and width in centered image coordinates, where the image is 2 wide, such as FaceTargetSelector.TARGET" />
     <input name="VALID" optional="yes" size="1" description="1 when TARGET is a current detection; when not connected, a width above 0 counts as valid" />
+    <input name="DISTANCE" optional="yes" size="1" description="Measured distance of the target in meters, for example StereoDistance.DISTANCE; used instead of the estimate from the target's size while it is valid" />
+    <input name="DISTANCE_VALID" optional="yes" size="1" description="1 while DISTANCE is a current measurement; when not connected, a distance above 0 counts as valid" />
 
     <output name="VERGENCE" size="1" description="Inward eye rotation in degrees, for example for GazeLock.VERGENCE" />
     <output name="DISTANCE" size="1" description="Estimated target distance in meters; 0 when no target is seen" />
     <output name="NEAR" size="1" description="How close the target is, from 0 at start_distance to 1 at full_distance" />
+    <output name="MEASURED" size="1" description="1 when the distance comes from DISTANCE, 0 when it is estimated from the target's size" />
 </class>

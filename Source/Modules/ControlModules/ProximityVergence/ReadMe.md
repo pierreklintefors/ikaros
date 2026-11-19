@@ -22,6 +22,12 @@ inward by
 geometric vergence = 2 * atan(eye_baseline / 2 / distance)
 ```
 
+When `DISTANCE` is connected, for example to `StereoDistance.DISTANCE`, a valid measured distance is
+used instead of the estimate from the target's size, which depends on the assumed `object_width`
+and is wrong for unusually small or large faces. The measurement also keeps working when the target
+box of this camera is lost for a moment. Without a valid measurement the size estimate is used, and
+`MEASURED` shows which one is in use.
+
 For people further away this angle is small, and real eyes would hardly move. To keep the eyes
 parallel for people at a normal distance and make the convergence clearly visible for someone who
 comes really close, the vergence fades in smoothly between `start_distance` and `full_distance`.
@@ -54,6 +60,8 @@ must match the camera that produced `TARGET`.
 | --- | --- | --- |
 | TARGET | Target center x, y, and width in centered image coordinates, such as FaceTargetSelector.TARGET | |
 | VALID | 1 when TARGET is a current detection; when not connected, a width above 0 counts as valid | yes |
+| DISTANCE | Measured distance of the target in meters, used instead of the size estimate while it is valid | yes |
+| DISTANCE_VALID | 1 while DISTANCE is a current measurement; when not connected, a distance above 0 counts as valid | yes |
 
 ## Outputs
 
@@ -62,6 +70,7 @@ must match the camera that produced `TARGET`.
 | VERGENCE | Inward eye rotation in degrees, for example for GazeLock.VERGENCE |
 | DISTANCE | Estimated target distance in meters; 0 when no target is seen |
 | NEAR | How close the target is, from 0 at start_distance to 1 at full_distance |
+| MEASURED | 1 when the distance comes from DISTANCE, 0 when it is estimated from the target's size |
 
 ## Example
 
@@ -73,4 +82,5 @@ must match the camera that produced `TARGET`.
 <connection source="Near.VERGENCE" target="Gaze.VERGENCE" />
 ```
 
-The test in `tests/` checks the distance, the fade-in, the limit, and the hold and release.
+The tests in `tests/` check the distance, the fade-in, the limit, and the hold and release, and that a
+measured distance replaces the size estimate while it is valid.

@@ -21,10 +21,13 @@ class ProximityVergence : public Module
 
     matrix target;
     matrix valid;
+    matrix measuredDistance;
+    matrix measuredValid;
 
     matrix vergence;
     matrix distance;
     matrix near;
+    matrix measured;
 
     float goal = 0;
     float nearGoal = 0;
@@ -55,10 +58,13 @@ public:
 
         Bind(target, "TARGET");
         Bind(valid, "VALID");
+        Bind(measuredDistance, "DISTANCE");
+        Bind(measuredValid, "DISTANCE_VALID");
 
         Bind(vergence, "VERGENCE");
         Bind(distance, "DISTANCE");
         Bind(near, "NEAR");
+        Bind(measured, "MEASURED");
 
         if(target.size() < 3)
             throw exception("ProximityVergence: TARGET must contain x, y, and width.", path_);
@@ -70,15 +76,23 @@ public:
     {
         const float width = target(2);
         const bool seen = valid.connected() ? valid(0) > 0.5f && width > 0.0f : width > 0.0f;
+        // A measured distance, for example from StereoDistance, replaces the estimate from the size.
+        const bool hasMeasurement = measuredDistance.connected() && measuredDistance(0) > 0.0f &&
+                                    (!measuredValid.connected() || measuredValid(0) > 0.5f);
+        measured(0) = hasMeasurement ? 1.0f : 0.0f;
 
-        if(seen)
+        if(seen || hasMeasurement)
         {
             sinceSeen = 0;
-            // Half the target's angular width follows from its half width in the image, where the
-            // image half width corresponds to half the field of view.
-            const float halfField = 0.5f * horizontalFov.as_float() / degreesPerRadian;
-            const float halfAngle = std::atan(0.5f * width * std::tan(halfField));
-            const float d = 0.5f * objectWidth.as_float() / std::max(std::tan(halfAngle), 1e-6f);
+            float d = measuredDistance.connected() ? measuredDistance(0) : 0.0f;
+            if(!hasMeasurement)
+            {
+                // Half the target's angular width follows from its half width in the image, where the
+                // image half width corresponds to half the field of view.
+                const float halfField = 0.5f * horizontalFov.as_float() / degreesPerRadian;
+                const float halfAngle = std::atan(0.5f * width * std::tan(halfField));
+                d = 0.5f * objectWidth.as_float() / std::max(std::tan(halfAngle), 1e-6f);
+            }
             distance(0) = d;
 
             // The eyes meet at distance d; the effect fades in between start_distance and full_distance.
