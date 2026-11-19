@@ -104,14 +104,15 @@
 // This must be after ikaros.h
 #include "dynamixel_sdk.h" // Uses Dynamixel SDK library
 
-#include <nlohmann/json.hpp>
 #include <string>
 #include <algorithm>
+#include <cmath>
 #include <cstdlib>
+#include <fstream>
 #include <set>
+#include <sstream>
 
 
-using json = nlohmann::json;
 
 using namespace ikaros;
 typedef struct
@@ -579,34 +580,41 @@ class EpiServos : public Module
         if(!kernel().SanitizeReadPath(path + "/" + filename, resolved_path))
             throw exception("Parameter file " + filename + " is outside the allowed read roots.", path_);
 
-        nlohmann::json jsonData;
         std::ifstream infile(resolved_path);
         if (!infile.is_open() || infile.peek() == std::ifstream::traits_type::eof())
             throw exception("Parameter file " + resolved_path.string() + " is missing or empty.", path_);
+        std::stringstream contents;
+        contents << infile.rdbuf();
+
+        value jsonData;
         try
         {
-            infile >> jsonData;
+            jsonData = parse_json(contents.str());
         }
-        catch (const nlohmann::json::exception & error)
+        catch (const std::exception & error)
         {
             throw exception("Could not parse " + filename + ": " + error.what(), path_);
         }
 
-        if (!jsonData.contains(robotType) || !jsonData[robotType].is_object() ||
-            !jsonData[robotType].contains(servoChain) ||
-            !jsonData[robotType][servoChain].is_array())
+        if (!jsonData.is_dictionary() || !jsonData.as_dictionary().contains(robotType) ||
+            !jsonData[robotType].is_dictionary() || !jsonData[robotType].as_dictionary().contains(servoChain) ||
+            !jsonData[robotType][servoChain].is_list())
             throw exception(filename + " does not contain the expected " + robotType + "/" +
                             servoChain + " servo array.", path_);
 
-        const nlohmann::json & servoChainData = jsonData[robotType][servoChain];
+        const list & servoChainData = jsonData[robotType][servoChain].as_list();
         const int servoCount = maxID - minID + 1;
         if (servoChainData.size() != static_cast<std::size_t>(servoCount))
             throw exception(filename + " has the wrong number of " + servoChain + " servos.", path_);
+        if (!servoChainData[0].is_dictionary())
+            throw exception(filename + " contains a servo that is not an object.", path_);
 
+        // Dictionaries are unordered, so the parameter order is made alphabetical as before.
         std::vector<std::string> parameterNames;
-        for (const auto & item : servoChainData.front().items())
-            if (item.key() != "servoID")
-                parameterNames.push_back(item.key());
+        for (const auto & item : servoChainData[0].as_dictionary())
+            if (item.first != "servoID")
+                parameterNames.push_back(item.first);
+        std::sort(parameterNames.begin(), parameterNames.end());
         if (parameterNames.empty())
             throw exception(filename + " has no servo parameters.", path_);
 
@@ -624,21 +632,25 @@ class EpiServos : public Module
 
         matrix result(servoCount, parameterNames.size());
         std::set<int> seenIDs;
-        for (const nlohmann::json & servo : servoChainData)
+        for (const value & servo : servoChainData)
         {
-            if (!servo.is_object() || !servo.contains("servoID") || !servo["servoID"].is_number_integer())
+            if (!servo.is_dictionary())
+                throw exception(filename + " contains a servo that is not an object.", path_);
+            const dictionary & servoData = servo.as_dictionary();
+            if (!servoData.contains("servoID") || !servoData.at("servoID").is_number() ||
+                std::floor(servoData.at("servoID").as_double()) != servoData.at("servoID").as_double())
                 throw exception(filename + " contains a servo without an integer servoID.", path_);
-            const int id = servo["servoID"].get<int>();
+            const int id = servoData.at("servoID").as_int();
             if (id < minID || id > maxID || !seenIDs.insert(id).second)
                 throw exception(filename + " contains an invalid or duplicate servoID.", path_);
 
             for (std::size_t parameterIndex = 0; parameterIndex < parameterNames.size(); ++parameterIndex)
             {
                 const std::string & parameterName = parameterNames[parameterIndex];
-                if (!servo.contains(parameterName) || !servo[parameterName].is_number() ||
+                if (!servoData.contains(parameterName) || !servoData.at(parameterName).is_number() ||
                     !servoControlTable.contains(parameterName))
                     throw exception(filename + " contains an invalid parameter " + parameterName + ".", path_);
-                result(id - minID, parameterIndex) = servo[parameterName].get<double>();
+                result(id - minID, parameterIndex) = servoData.at(parameterName).as_double();
             }
         }
 
