@@ -58,8 +58,8 @@ public:
 
         Bind(target, "TARGET");
         Bind(valid, "VALID");
-        Bind(measuredDistance, "DISTANCE");
-        Bind(measuredValid, "DISTANCE_VALID");
+        Bind(measuredDistance, "MEASURED_DISTANCE");
+        Bind(measuredValid, "MEASURED_VALID");
 
         Bind(vergence, "VERGENCE");
         Bind(distance, "DISTANCE");

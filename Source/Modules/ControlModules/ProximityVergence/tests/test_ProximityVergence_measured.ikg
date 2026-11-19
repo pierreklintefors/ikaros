@@ -1,5 +1,5 @@
 <group name="ProximityVergenceMeasuredTest"
-       description="A valid measured DISTANCE replaces the size estimate, also while the target box is lost; without it the size estimate is used again"
+       description="A valid MEASURED_DISTANCE replaces the size estimate, also while the target box is lost; without it the size estimate is used again"
        start="true" stop="4" tick_duration="0.1" threads="1"
        cli_args="-u${TEST_DIR}"
        expected_output_contains="tick = {0}&#10;vergence = {11.4212}&#10;measured = {1}&#10;distance = {0.4}||tick = {1}&#10;vergence = {0}&#10;measured = {0}&#10;distance = {1}||tick = {2}&#10;vergence = {3.81407}&#10;measured = {1}&#10;distance = {0.6}||tick = {3}&#10;vergence = {0}&#10;measured = {0}&#10;distance = {0}">
@@ -13,8 +13,8 @@
 
     <connection source="Script.TARGET" target="Vergence.TARGET" delay="0" />
     <connection source="Script.VALID" target="Vergence.VALID" delay="0" />
-    <connection source="Script.DIST" target="Vergence.DISTANCE" delay="0" />
-    <connection source="Script.DV" target="Vergence.DISTANCE_VALID" delay="0" />
+    <connection source="Script.DIST" target="Vergence.MEASURED_DISTANCE" delay="0" />
+    <connection source="Script.DV" target="Vergence.MEASURED_VALID" delay="0" />
     <connection source="Script.TICK" target="Tick.INPUT" delay="0" label="tick" />
     <connection source="Vergence.DISTANCE" target="Distance.INPUT" delay="0" label="distance" />
     <connection source="Vergence.MEASURED" target="Measured.INPUT" delay="0" label="measured" />
