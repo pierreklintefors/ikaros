@@ -15,9 +15,9 @@
        mirror_gain="0.5"
        x_sign="-1"
        y_sign="1"
-       aim_y="0.3"
+       aim_y="0"
        horizontal_fov="109"
-       vertical_fov="93"
+       vertical_fov="70"
        synchronized_framegrabber="false"
        synchronized_tick="false"
        tick_duration="0.04"
@@ -88,7 +88,7 @@
     <module class="Add" name="Pupil" _x="600" _y="1104" />
 
     <!-- Panning the head left, right, and left again within 3 s starts the copycat game -->
-    <module class="OscillationDetector" name="HeadPan" amplitude="12" swings="3" window="3" refractory="3" smoothing="8" _x="216" _y="1104" />
+    <module class="OscillationDetector" name="HeadPan" amplitude="12" swings="3" window="3" refractory="3" smoothing="20" _x="216" _y="1104" />
 
     <!-- Gaze and expression -->
     <module class="GazeLock" name="Gaze" hold_threshold="0.3" head_gain="3" head_max_speed="90" head_max_acceleration="300" head_dead_zone="5" eye_smoothing="20"

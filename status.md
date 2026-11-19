@@ -2035,3 +2035,15 @@ Both eye cameras streamed 1280 x 720 at up to 45 frames/s and JPEG quality 85 (a
 
 - Without the robot, each eye adds about 2.5 s to start-up while the `.local` host name fails to resolve, followed by a warning.
 - Frame rate and quality use the raspicam driver's control ids; another UV4L driver may need different ids.
+
+## Finger following
+
+Requested: a finger-following mode for the animatronics demo. An open palm held up for 2 s starts it; Epi then follows the index fingertip with eyes and head and converges on it as it comes close, using both cameras, with a sound and light cue on entry and exit; the mode ends when no hand has been seen for 3 s. The tuning saved from the WebUI in `UserData/EpiAnimatronics.ikg` also goes into the committed demo. A different Epi is connected and in use for experiments, so all verification runs without the robot or its cameras.
+
+| # | Task | Status | Verification | Commit |
+|---:|---|---|---|---|
+| 1 | Copy the WebUI tuning into `Projects/Epi/EpiAnimatronics.ikg`: `aim_y` 0, `vertical_fov` 70, `HeadPan.smoothing` 20. | Done | Compared both files module by module; only these three settings differed apart from WebUI defaults (the WebUI copy also replaced `@camera` with a fixed class, which is not copied). The demo runs 25 ticks with simulated servos and still images without errors. | This commit |
+| 2 | Add `AppleVisionHandDetector`: the most prominent hand's index fingertip (or palm) as a target row, VALID, an open-palm score, and the hand count. | In progress |  |  |
+| 3 | Add `HoldLatch`: becomes active after an input has been held for `hold_time` and ends after a presence input has been absent for `release_time`, with start and end pulses. | Not started |  |  |
+| 4 | `BehaviorSelector`: optional `PAUSE` input that stops spontaneous behaviours, greetings, and farewells while still letting `REQUEST` start behaviours. | Not started |  |  |
+| 5 | Finger mode in the demo: hand detection on both cameras, `HoldLatch` on the open palm, gaze, stereo, and convergence switched to the fingertip, behaviours paused, entry and exit animations, guide and dashboard. | Not started |  |  |

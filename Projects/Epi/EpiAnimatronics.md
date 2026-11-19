@@ -218,9 +218,9 @@ These model-level settings can be changed on the command line:
 | `vergence_sign` | `-1` | Direction of vergence; `-1` makes positive vergence turn the eyes inward on Epi, where a positive eye pan turns the eye to the robot's left |
 | `x_sign` | `-1` | Direction from image x to head and eye pan; `-1` was found on EpiBlack |
 | `y_sign` | `1` | Direction from image y to head tilt; `1` was found on EpiBlack |
-| `aim_y` | `0.3` | Where the face is kept vertically; positive values look at the eyes rather than the middle of the face |
+| `aim_y` | `0` | Where the face is kept vertically; 0 keeps the middle of the face in view, positive values look higher, at the eyes |
 | `horizontal_fov` | `109` | Horizontal camera field of view in degrees; the Epi eye cameras have wide-angle lenses, and 109 was measured on EpiBlack with both eyes at a known distance |
-| `vertical_fov` | `93` | Vertical camera field of view in degrees, derived from the horizontal one for a 4:3 image |
+| `vertical_fov` | `70` | Vertical camera field of view in degrees; set by eye on EpiBlack, where larger values made the head tilt too much |
 | `synchronized_framegrabber` | `false` | Grab frames in step with the ticks; set to `true` when testing with a video file |
 | `synchronized_tick` | `false` | Wait for each camera frame; `false` keeps the motion steady |
 | `tick_duration` | `0.04` | Seconds per tick |
@@ -242,7 +242,7 @@ The character is tuned on the modules:
 | `LightShow` | `show_patterns`, `pattern_time`, `wave_rate`, `circle_rate`, `brightness` | The light patterns |
 | `Near` | `start_distance`, `full_distance`, `gain`, `max_vergence`, `object_width` | When and how strongly the eyes converge on a close face |
 | `NearPupil` | `factor` | How much the pupils narrow when a face is close, in mm (negative) |
-| `HeadPan` | `amplitude`, `swings`, `window` | How large and quick a back-and-forth head pan must be to start copycat |
+| `HeadPan` | `amplitude`, `swings`, `window`, `smoothing` | How large and quick a back-and-forth head pan must be to start copycat; `smoothing` 20 keeps quick head shakes large enough to count |
 
 ### Camera settings
 
