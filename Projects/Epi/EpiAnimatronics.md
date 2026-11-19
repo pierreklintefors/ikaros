@@ -219,8 +219,8 @@ These model-level settings can be changed on the command line:
 | `x_sign` | `-1` | Direction from image x to head and eye pan; `-1` was found on EpiBlack |
 | `y_sign` | `1` | Direction from image y to head tilt; `1` was found on EpiBlack |
 | `aim_y` | `0.3` | Where the face is kept vertically; positive values look at the eyes rather than the middle of the face |
-| `horizontal_fov` | `62.2` | Horizontal camera field of view in degrees |
-| `vertical_fov` | `48.8` | Vertical camera field of view in degrees |
+| `horizontal_fov` | `109` | Horizontal camera field of view in degrees; the Epi eye cameras have wide-angle lenses, and 109 was measured on EpiBlack with both eyes at a known distance |
+| `vertical_fov` | `93` | Vertical camera field of view in degrees, derived from the horizontal one for a 4:3 image |
 | `synchronized_framegrabber` | `false` | Grab frames in step with the ticks; set to `true` when testing with a video file |
 | `synchronized_tick` | `false` | Wait for each camera frame; `false` keeps the motion steady |
 | `tick_duration` | `0.04` | Seconds per tick |
