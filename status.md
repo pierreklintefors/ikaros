@@ -1973,3 +1973,17 @@ verified in simulation.
 - A face stops a show at once, while the expression returns without a fade; a short fade might look
   softer.
 - The dashboard has not been inspected in a browser, in particular the new button rows.
+
+## Hand-measured pupil limits for EpiBlack
+
+Testing on EpiBlack with the user: the gentle calibration ran without straining (open stops found at 23 and 29, limits 28-283 and 34-324), and a slow, guarded move to 9 mm showed both pupils closing smoothly, the left slightly more than the right. Hand measurements with torque off gave the left pupil 0 (open, the end of the servo's sensor range) to 256-261 (closed; 286 in an earlier measurement) and the right 33 to 373-379 (332 earlier). The calibrated left limit of 283 is beyond the left's closed end, and the demo can command 5 mm, which is position 270 on the left, at least on the first tick.
+
+| # | Task | Status | Verification | Commit |
+|---:|---|---|---|---|
+| 1 | The demo uses fixed, hand-measured pupil limits (left 12-244, right 45-320: the smaller closed readings, 12 steps inside each end) instead of the calibration. | Completed | The demo starts in simulation without warnings; Markdown checker clean. With these limits 5 mm is position 232 on the left and 306 on the right, and 16 mm 67 and 111, all inside the measured ends. Not yet run in the demo on the robot. | `Epi animatronics now uses hand-measured pupil limits on EpiBlack` |
+
+### Outstanding issues and questions
+
+- Whether both pupils look the same size at the same setting was not yet checked by eye with these limits; the slow, guarded tool in the scratchpad can move them to 9, 16, and 5 mm for comparison.
+- The left pupil's open end is at the end of the servo's sensor range (position 0); if it opens further than the sensor can read, its open limit is slightly conservative.
+- The closed ends differed between the two hand measurements by 30-45 steps, so the right pupil may close further than its limit of 320 allows.

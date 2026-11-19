@@ -7,7 +7,7 @@
        eye_url="http://RightEye.local:8080/stream/video.mjpeg"
        camera_eye="right"
        vergence_sign="-1"
-       pupil_travel="255, 290"
+       pupil_limit_steps="12, 244, 45, 320"
        light_colors="random"
        mirror_sign="-1"
        mirror_gain="0.5"
@@ -88,7 +88,7 @@
     <module class="EpiLightShow" name="LightShow" color_mode="@light_colors" _x="792" _y="696" />
 
     <!-- Hardware -->
-    <module class="EpiServos" name="Servos" pupil_ranges="@pupil_travel" require_pupils="false" _x="600" _y="24" />
+    <module class="EpiServos" name="Servos" pupil_limits="@pupil_limit_steps" require_pupils="false" _x="600" _y="24" />
     <module class="FadeCandy" name="LEDs" _x="792" _y="1152" />
 
     <connection source="Eye.OUTPUT" target="Faces.INPUT" delay="0" />

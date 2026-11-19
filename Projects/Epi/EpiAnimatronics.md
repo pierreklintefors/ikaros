@@ -197,7 +197,7 @@ These model-level settings can be changed on the command line:
 | `camera_eye` | `right` | Eye that carries the camera; must match `eye_url` |
 | `mirror_sign` | `-1` | `-1` mirrors the person in copycat like a mirror image; `1` copies the movement with the same side |
 | `mirror_gain` | `0.5` | Robot head movement per degree of the person's head movement in copycat |
-| `pupil_travel` | `255, 290` | Range in servo steps of the left and right pupil from the open stop found at start-up, passed to `EpiServos.pupil_ranges`; from the travel measured on EpiBlack, see the pupil check below |
+| `pupil_limit_steps` | `12, 244, 45, 320` | Open and closed servo positions of the left and then the right pupil, passed to `EpiServos.pupil_limits`; measured by hand on EpiBlack, see the pupil check below |
 | `light_colors` | `random` | Color of the light shows: `random`, one hue per pattern, or `arousal`, from calm blue to excited orange |
 | `vergence_sign` | `-1` | Direction of vergence; `-1` makes positive vergence turn the eyes inward on Epi, where a positive eye pan turns the eye to the robot's left |
 | `x_sign` | `-1` | Direction from image x to head and eye pan; `-1` was found on EpiBlack |
@@ -294,14 +294,14 @@ the robot needs someone next to it.
 8. **Pupils.** The pupil servos need 6.0 to 8.4 V; EpiBlack had 5.3 V before its regulator was
    repaired and now has 7.5 V. The model runs without pupils when they fail to start
    (`require_pupils="false"`), but found you, giggle, and mind blown look much better with working
-   pupils. `EpiServos` ignores limits set in Dynamixel Wizard. At start-up it opens each pupil slowly,
-   with a low torque limit (`pupil_calibration_torque`), until it stops moving, switches the torque
-   off at once, and uses `pupil_travel` steps from that open stop for each pupil. To measure the
-   travel, move each pupil by hand, with torque off, between its two stops and note the servo
-   positions (1 step is 0.29 degrees). On EpiBlack the pupils travelled about 286 and 317 steps; the
-   demo uses 255 and 290, leaving room in case the gentle calibration stops a little before the
-   open stop. Measure again if the mechanism was repaired or shows play. Instead of the calibration,
-   `EpiServos.pupil_limits` can give fixed open and closed positions.
+   pupils. `EpiServos` ignores limits set in Dynamixel Wizard. The demo gives each pupil fixed open
+   and closed positions in `pupil_limit_steps`, so no pupil is driven to a stop at start-up and the
+   servos refuse to go beyond those ends. To measure them, move each pupil by hand, with torque off,
+   between its two stops and note the servo positions (1 step is 0.29 degrees); use about 12 steps
+   inside each stop, and the smaller closed reading if measurements differ. On EpiBlack the left
+   pupil opened at 0 and closed at 256 to 286, and the right opened at 33 and closed at 332 to 379.
+   The gentle automatic calibration (`EpiServos.pupil_ranges` with `pupil_calibration_torque`)
+   stopped 23 steps short of the left pupil's open end, so the fixed limits are more accurate here.
 9. **Sound.** Play every animation and set the speaker volume so that the calm sounds are still
    heard; arousal plays them at 35 to 100 percent.
 10. **Close up.** Lean slowly toward Epi's face. Beyond about 1 m the eyes should stay parallel,
