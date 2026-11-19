@@ -5,6 +5,8 @@
        camera="InputVideoStream"
        camera_id="0"
        eye_url="http://RightEye.local:8080/stream/video.mjpeg"
+       left_camera="InputVideoStream"
+       left_eye_url="http://LeftEye.local:8080/stream/video.mjpeg"
        camera_eye="right"
        vergence_sign="-1"
        pupil_limit_steps="12, 244, 45, 320"
@@ -26,6 +28,13 @@
     <module class="AppleVisionFaceDetector" name="Faces" max_faces="8" downsample="1" _x="216" _y="24" />
     <module class="FaceTargetSelector" name="Target" selection="largest" min_width="0.08" min_confidence="0.6"
             switch_ratio="1.5" switch_delay="0.7" hold_time="0.5" _x="408" _y="24" />
+
+    <!-- Second eye: the left camera finds the same face, and the two views give its distance -->
+    <module class="@left_camera" name="LeftEye" url="@left_eye_url" filename="../Projects/Epi/NoCamera.jpg" size_x="640" size_y="480" _x="24" _y="1296" />
+    <module class="AppleVisionFaceDetector" name="LeftFaces" max_faces="8" downsample="1" _x="216" _y="1296" />
+    <module class="FaceTargetSelector" name="LeftTarget" selection="largest" min_width="0.08" min_confidence="0.6"
+            switch_ratio="1.5" switch_delay="0.7" hold_time="0.5" _x="408" _y="1296" />
+    <module class="StereoDistance" name="Stereo" position_offset="180" left_sign="1" max_distance="2" smoothing="6" hold_time="0.3" _x="600" _y="1296" />
 
     <!-- Behaviour: when to do what, and how it looks -->
     <module class="Constant" name="BehaviorsEnable" data="1" _x="24" _y="264" />
@@ -78,7 +87,7 @@
     <module class="OscillationDetector" name="HeadPan" amplitude="12" swings="3" window="3" refractory="3" smoothing="8" _x="216" _y="1104" />
 
     <!-- Gaze and expression -->
-    <module class="GazeLock" name="Gaze" head_gain="3" head_max_speed="90" head_max_acceleration="300" head_dead_zone="5" eye_smoothing="20"
+    <module class="GazeLock" name="Gaze" hold_threshold="0.3" head_gain="3" head_max_speed="90" head_max_acceleration="300" head_dead_zone="5" eye_smoothing="20"
             tilt_speed_scale="1" tilt_acceleration_scale="0.6" _x="792" _y="24" />
     <module class="EpiExpression" name="Expression" idle_color="0.5, 0.35, 0.05" engaged_color="1, 0.8, 0.35" mouth_color="0.25, 0.2, 0.05" mouth_idle_color="0.25, 0.2, 0.05"
             idle_pupil="9" engaged_pupil="12" attack_rate="4" release_rate="1" _x="792" _y="360" />
@@ -143,6 +152,16 @@
     <connection source="Target.VALID" target="Gaze.VALID" delay="0" />
     <connection source="Expression.PUPIL_SIZE" target="Gaze.PUPIL_SIZE" delay="1" />
     <connection source="EyeOffset.OUTPUT" target="Gaze.EYE_OFFSET" delay="0" />
+    <connection source="LeftEye.OUTPUT" target="LeftFaces.INPUT" delay="0" />
+    <connection source="LeftFaces.BOXES" target="LeftTarget.BOXES" delay="0" />
+    <connection source="LeftTarget.TARGET" target="Stereo.LEFT_TARGET" delay="0" />
+    <connection source="LeftTarget.VALID" target="Stereo.LEFT_VALID" delay="0" />
+    <connection source="Target.TARGET" target="Stereo.RIGHT_TARGET" delay="0" />
+    <connection source="Target.VALID" target="Stereo.RIGHT_VALID" delay="0" />
+    <connection source="Servos.PRESENT_POSITION[2:4]" target="Stereo.EYE_PAN" delay="1" />
+    <connection source="Stereo.DISTANCE" target="Near.MEASURED_DISTANCE" delay="0" />
+    <connection source="Stereo.VALID" target="Near.MEASURED_VALID" delay="0" />
+    <connection source="Near.NEAR" target="Gaze.HOLD_HEAD" delay="1" />
     <connection source="Target.TARGET" target="Near.TARGET" delay="0" />
     <connection source="Target.VALID" target="Near.VALID" delay="0" />
     <connection source="Animator.OUTPUT[1:2]" target="Vergence.INPUT1" delay="0" />
@@ -278,4 +297,19 @@
     <widget class="plot" name="ArousalPlot" title="Arousal" source="Arousal.AROUSAL"
             buffer_size="200" auto_range="no" y_min="0" y_max="1" include_zero="yes"
             x="1528" y="896" _x="1528" _y="896" width="384" height="128" show_title="yes" show_frame="yes" />
+
+    <!-- Dashboard: distance of the face and the left eye camera -->
+    <widget class="plot" name="DistancePlot" title="Face distance in m (0 when not seen)" source="Near.DISTANCE"
+            buffer_size="200" auto_range="no" y_min="0" y_max="2" include_zero="yes"
+            x="1032" y="1040" _x="1032" _y="1040" width="480" height="128" show_title="yes" show_frame="yes" />
+    <widget class="table" name="MeasuredTable" title="Distance measured by both eyes" source="Near.MEASURED" decimals="0" colorize="no"
+            x="1032" y="1184" _x="1032" _y="1184" width="236" height="56" show_title="yes" show_frame="yes" />
+    <widget class="table" name="HoldTable" title="Near (head holds above 0.3)" source="Near.NEAR" decimals="2" colorize="no"
+            x="1276" y="1184" _x="1276" _y="1184" width="236" height="56" show_title="yes" show_frame="yes" />
+    <widget class="text" name="LeftCameraCaption" text="Left eye camera"
+            x="1528" y="1040" _x="1528" _y="1040" width="384" height="24" show_title="no" show_frame="no" />
+    <widget class="image" name="LeftCameraImage" source="LeftEye.OUTPUT" format="rgb" scale="both"
+            x="1528" y="1064" _x="1528" _y="1064" width="384" height="288" show_title="no" show_frame="no" />
+    <widget class="target-boxes" name="LeftTargetBox" source="LeftTarget.TARGET_BOX" box_color="#ff00cc" line_width="4" show_score="no"
+            x="1528" y="1064" _x="1528" _y="1064" width="384" height="288" show_title="no" show_frame="no" />
 </group>

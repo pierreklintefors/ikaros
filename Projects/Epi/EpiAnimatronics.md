@@ -19,15 +19,21 @@ motion, triggered animations on top, and "show functions" such as eyes, lights, 
 synchronized with the motion:
 
 1. **Seeing.** `InputVideoStream`, `AppleVisionFaceDetector`, and `FaceTargetSelector` find the
-   closest face in the right eye camera, as in `EpiHeadMirroring.ikg`.
+   closest face in the right eye camera, as in `EpiHeadMirroring.ikg`, and a second chain finds it
+   in the left eye camera. `StereoDistance` combines the two views with the eyes' angles to measure
+   how far away the face is, without assuming its size.
 2. **Looking.** `GazeLock` keeps the eyes on the face and turns the head after it. `camera_eye`
    tells it that the camera is in the right eye, so the face direction stays correct while the eyes
-   cross or dart. When someone comes really close, `ProximityVergence` estimates their distance from
-   the size of the face box and makes the eyes converge on them, as people's eyes do, but three
-   times as strongly: not at all beyond 1 m, about 15 degrees at 0.55 m, and about 27 degrees at
-   0.3 m and nearer. From about 0.45 m the right eye is at its limit and the left eye does the rest
-   of the turn. The pupils narrow
-   a little at the same time, as in the human near response.
+   cross or dart. When someone comes really close, `ProximityVergence` makes the eyes converge on
+   them, as people's eyes do, but three times as strongly: not at all beyond 1 m, about 15 degrees at
+   0.55 m, and about 27 degrees at 0.3 m and nearer. From about 0.45 m the right eye is at its limit
+   and the left eye does the rest of the turn. It uses the distance measured by both eyes, and the
+   size of the face box only when the left camera does not see the face. The pupils narrow a little
+   at the same time, as in the human near response. While a face is closer than about 0.8 m,
+   the head holds still (`HOLD_HEAD` on `Gaze`) and only the eyes follow the face. Without this, the
+   head would turn as the face comes near, because the camera sits in the right eye and sees a close
+   face at a different angle than the middle of the head does. When the person steps back, the head
+   follows again.
 3. **Background life.** `Blinker` blinks every 1.5 to 4.5 seconds, sometimes twice, as an eyelid
    that closes from the top of the LED ring down. `EyeGlances` makes quick glances away and back, and
    `HeadGlances` slowly looks around while nobody is followed, which also lets the camera find new
@@ -153,8 +159,12 @@ Without the robot, simulate the motors and LEDs and use the Mac's own camera. Ep
 your face on the dashboard and plays its animations and sounds:
 
 ```sh
-./Bin/ikaros simulate=true camera=InputVideo Projects/Epi/EpiAnimatronics.ikg
+./Bin/ikaros simulate=true camera=InputVideo left_camera=InputImage Projects/Epi/EpiAnimatronics.ikg
 ```
+
+`left_camera=InputImage` replaces the left eye camera with a still picture, `NoCamera.jpg`, in which
+no face is found, so the distance comes from the size of the face box. Use it also on a robot whose
+left eye camera does not work.
 
 `camera_id` selects the camera when there are several, numbered as macOS lists them; the numbers
 change when cameras are plugged in. To list them:
@@ -194,6 +204,8 @@ These model-level settings can be changed on the command line:
 | `camera` | `InputVideoStream` | Camera module: `InputVideoStream` reads `eye_url`; `InputVideo` uses a camera on the Mac |
 | `camera_id` | `0` | Mac camera used with `camera=InputVideo`, numbered as macOS lists them |
 | `eye_url` | `http://RightEye.local:8080/stream/video.mjpeg` | Eye camera stream, or a video file, used with `camera=InputVideoStream` |
+| `left_camera` | `InputVideoStream` | Left camera module: `InputVideoStream` reads `left_eye_url`; `InputImage` uses a still picture without faces when there is no left camera |
+| `left_eye_url` | `http://LeftEye.local:8080/stream/video.mjpeg` | Left eye camera stream, or a video file |
 | `camera_eye` | `right` | Eye that carries the camera; must match `eye_url` |
 | `mirror_sign` | `-1` | `-1` mirrors the person in copycat like a mirror image; `1` copies the movement with the same side |
 | `mirror_gain` | `0.5` | Robot head movement per degree of the person's head movement in copycat |
@@ -245,6 +257,9 @@ The camera settings in `EpiFaceFollowing.md` (640 x 480, 30 frames per second, J
 - The robot view shows Epi from the front, with its left eye on your right: the eye directions,
   including vergence, the pupils, the head, and every LED, so the eyelid sweep is visible.
 - The plots show the eye and head goals, the pupil goals, and the arousal.
+- At the bottom, **Face distance** shows how far away the followed face is, **Distance measured by
+  both eyes** whether it comes from the two cameras (1) or from the face size (0), and **Near** how
+  close the face is; above 0.3 the head holds still. The left eye camera is shown beside them.
 
 ## Changing the animations
 
@@ -305,9 +320,13 @@ the robot needs someone next to it.
 9. **Sound.** Play every animation and set the speaker volume so that the calm sounds are still
    heard; arousal plays them at 35 to 100 percent.
 10. **Close up.** Lean slowly toward Epi's face. Beyond about 1 m the eyes should stay parallel,
-   and from there they should cross more and more, to about 27 degrees at 0.3 m. If convergence starts too early or too late,
-   the face box size differs from the assumed 0.15 m; adjust `object_width` or the distances on
-   `Near`. The **Eye goal** plot shows the two eyes moving apart in opposite directions.
+   and from there they should cross more and more, to about 27 degrees at 0.3 m, while the head
+   stays still. **Distance measured by both eyes** should show 1 once both cameras see you; compare
+   **Face distance** with a tape measure. If the measured distance is off, check `baseline` and the
+   field of view on `Stereo`; if it is 0 although both cameras see you, the two cameras chose
+   different faces or one camera's view is mirrored. Without the left camera, the distance comes from
+   the face size; adjust `object_width` or the distances on `Near` if convergence then starts too
+   early or too late. The **Eye goal** plot shows the two eyes moving apart in opposite directions.
 11. **Copycat.** Face Epi and pan your head left, right, and left again within about 3 seconds; the
    game should start. Then turn and nod your head slowly. Epi should mirror you as described in
    `EpiHeadMirroring.md`, whose checks for `mirror_sign` and the nodding direction apply here too.
@@ -334,8 +353,15 @@ the robot needs someone next to it.
   the image only when you move, not when the simulated head turns. Unless your face is near the
   middle of the image, the simulated head and eyes keep turning toward it until they reach their
   limits. This is fine for watching the behaviours, but not for tuning the gaze.
-- **Camera.** Only the right eye camera is used. During cross-eyed, eye darts, mischief, and
-  glances, the camera points away from the face for a moment, so the face can be lost briefly.
+- **Camera.** The right eye camera steers the gaze; the left one only measures distance. During
+  cross-eyed, eye darts, mischief, and glances, the right camera points away from the face for a
+  moment, so the face can be lost briefly.
+- **Close faces.** While a face is close the head holds still, so a close person who moves far to
+  the side can leave the eyes' range; the head follows again once they step back. The eyes cannot
+  look up or down, so a close face that moves up or down can also leave the view.
+- **Two faces.** Each camera follows the largest face it sees. With several people close by, the two
+  cameras can pick different faces; detections at clearly different heights are ignored, but two
+  people at the same height could give a wrong distance.
 - **Simulation.** Simulated servos start at 0 degrees and move at 45 degrees per second, so the
   first seconds and fast eye movements look different from the robot.
 
