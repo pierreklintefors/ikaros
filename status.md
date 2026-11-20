@@ -2145,3 +2145,11 @@ The user found the pupils' response to light and to a covered camera too weak: l
 - Not yet checked with the real camera; the light level in a normal room depends on the camera's exposure (0.38 in the user's last run), and the pupils now react strongly between light levels 0.3 and 0.6.
 - The 5 s task timeout happened once more here in a single-threaded batch run of a demo copy, so it is not tied to the WebUI, real-time mode, or threads. A watcher samples the user's next run when it happens.
 
+## WebUI disconnects on the robot
+
+The WebUI disconnected while the demo ran on EpiBlack. A sample of the running process showed the HTTP thread waiting 95 percent of the time for the kernel lock, which a tick holds from start to end, and the main loop ticking back to back without idle time. The biggest share of each tick was `EpiServos` head communication, mostly separate torque-enable and PWM writes, each waiting for a status reply, to the two eye servos on every tick.
+
+| # | Task | Status | Verification | Commit |
+|---:|---|---|---|---|
+| 1 | `EpiServos`: write torque enable and goal PWM to servos without goal-current support only when they change, after a failed write, and once a second; the goal position is still written every tick. | Done | Build without warnings; the simulated demo runs. In the sample of the user's run, `write1ByteTxRx` (torque) and `write2ByteTxRx` (PWM) took 560 of the 695 samples spent in separate writes, so this removes four of the six waiting writes per tick on the head bus. Not verified on the robot yet: the eyes must still move and hold, the WebUI must stay connected, and no "Direct position write failed" warnings may appear. | This commit |
+

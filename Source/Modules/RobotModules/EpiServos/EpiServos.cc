@@ -106,6 +106,7 @@
 
 #include <string>
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdlib>
 #include <fstream>
@@ -190,6 +191,14 @@ class EpiServos : public Module
     dynamixel::GroupSyncWrite *groupSyncWriteBody = nullptr;
 
     bool hardwarePowered = false;
+
+    // Torque enable and goal PWM last written to servos without goal current, by IO index; -1 is unknown.
+    // They rarely change, so they are written only when they do, after a failed write, and once a second
+    // in case a servo has restarted; each write waits for the servo's reply.
+    std::array<int, ikaros::episervos::fullServoCount> writtenTorque{};
+    std::array<int, ikaros::episervos::fullServoCount> writtenPWM{};
+    bool refreshSettings = true;
+    int ticksSinceRefresh = 0;
 
     // Vectors for iteration
     std::vector<dynamixel::PortHandler*> portHandlers;
@@ -517,17 +526,32 @@ class EpiServos : public Module
             else
             {
                 uint8_t dxl_error = 0;
-                dxl_comm_result = packetHandler->write1ByteTxRx(portHandler, i, ADDR_TORQUE_ENABLE,
-                                                                 enableTorque ? 1 : 0, &dxl_error);
+                const int torqueValue = enableTorque ? 1 : 0;
+                const int pwmValue = static_cast<int>(command.goalPWM);
+                dxl_comm_result = COMM_SUCCESS;
+                if (refreshSettings || writtenTorque[index] != torqueValue)
+                {
+                    dxl_comm_result = packetHandler->write1ByteTxRx(portHandler, i, ADDR_TORQUE_ENABLE,
+                                                                     torqueValue, &dxl_error);
+                    if (dxl_comm_result == COMM_SUCCESS && dxl_error == 0)
+                        writtenTorque[index] = torqueValue;
+                }
                 if (dxl_comm_result == COMM_SUCCESS && dxl_error == 0)
                     dxl_comm_result = packetHandler->write4ByteTxRx(portHandler, i, ADDR_GOAL_POSITION,
                                                                     command.goalPosition, &dxl_error);
-                if (dxl_comm_result == COMM_SUCCESS && dxl_error == 0)
+                if (dxl_comm_result == COMM_SUCCESS && dxl_error == 0 &&
+                    (refreshSettings || writtenPWM[index] != pwmValue))
+                {
                     dxl_comm_result = packetHandler->write2ByteTxRx(portHandler, i, ADDR_GOAL_PWM,
-                                                                    static_cast<std::uint16_t>(command.goalPWM),
+                                                                    static_cast<std::uint16_t>(pwmValue),
                                                                     &dxl_error);
+                    if (dxl_comm_result == COMM_SUCCESS && dxl_error == 0)
+                        writtenPWM[index] = pwmValue;
+                }
                 if (dxl_comm_result != COMM_SUCCESS || dxl_error != 0)
                 {
+                    writtenTorque[index] = -1;
+                    writtenPWM[index] = -1;
                     Warning("Direct position write failed for non-current servo " + std::to_string(i) +
                             " on " + portHandler->getPortName() + ".");
                     groupSyncWrite->clearParam();
@@ -1249,6 +1273,8 @@ class EpiServos : public Module
         if (pupilsActive && !SetPupilParameters())
             PupilSetupFailed("EpiServos could not apply calibrated pupil settings");
         hardwarePowered = true;
+        writtenTorque.fill(-1);
+        writtenPWM.fill(-1);
         if (!PowerOnRobot())
             throw exception("EpiServos could not power on safely.", path_);
     }
@@ -1319,6 +1345,11 @@ class EpiServos : public Module
         goalPosition(PUPIL_INDEX_IO + 1) = PupilMMToDynamixel(goalPosition(PUPIL_INDEX_IO + 1), AngleMinLimitPupil[1], AngleMaxLimitPupil[1]);
 
         
+        // Rewrite rarely changing servo settings about once a second; the bus threads only read this flag.
+        refreshSettings = ++ticksSinceRefresh >= std::max(1, static_cast<int>(std::lround(1.0 / GetTickDuration())));
+        if (refreshSettings)
+            ticksSinceRefresh = 0;
+
             // Fire up some threads to work in parallell
         auto headThread = std::async(std::launch::async, &EpiServos::Communication, this, HEAD_ID_MIN, HEAD_ID_MAX, HEAD_INDEX_IO, std::ref(portHandlerHead), std::ref(packetHandlerHead), std::ref(groupSyncReadHead), std::ref(groupSyncWriteHead));
         auto pupilThread = pupilsActive
