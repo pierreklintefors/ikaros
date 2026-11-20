@@ -72,9 +72,11 @@ synchronized with the motion:
 9. **Pupils.** A small brain model from Ikaros 2's pupil demo sets the pupil size, and the
    animations and the near response add their pupil movements on top. It lives in the group
    `Brain`, which has its own page in the WebUI. Two pathways pull against each other, as in people:
-   - **Light narrows the pupils.** The mean brightness of the right camera drives the pretectal area
+   - **Light narrows the pupils.** The light level of the right camera drives the pretectal area
      (`PTA`), the Edinger-Westphal nucleus (`EW`), and the ciliary ganglion (`CG`), which contracts
-     the pupil's sphincter muscle.
+     the pupil's sphincter muscle. The light level is the mean brightness of the image plus 2.5 times
+     the fraction of nearly white pixels (glare). The camera's automatic exposure darkens the rest
+     of the image when a light shines into it, so the mean alone hardly changes; the glare does.
    - **Arousal and fear widen them.** The locus coeruleus (`LC`) drives the spinal cord's
      intermediolateral column (`IML`) and the superior cervical ganglion (`SCG`), which contracts the
      dilator muscle, and it also damps the Edinger-Westphal nucleus. The arousal level and fear
@@ -270,6 +272,7 @@ The character is tuned on the modules:
 | `NearPupil` | `factor` | How much the pupils narrow when a face is close, in mm (negative) |
 | `FingerNear` | `start_distance`, `full_distance`, `object_width`, `gain`, `max_vergence` | When and how strongly the eyes cross on a close finger. The distance is estimated from the width of the hand, taken as 0.1 m, a hand pointing with one finger; an open hand looks closer than it is, so it starts crossing the eyes at about 0.5 m |
 | `Hands` | `downsample`, `interval`, `hold_time` | How much work hand detection takes, at half resolution on every second tick, and how long a hand that is briefly missed is kept |
+| `Brain.GlarePixels`, `Brain.GlareGain` | `threshold`, `factor` | How bright a pixel must be to count as glare (0.9), and how much glare adds to the light level (2.5); raise `factor` if a light shone into the camera hardly narrows the pupils |
 | `Brain.PTA` | `beta` | How strongly light narrows the pupils |
 | `Brain.LC` | `alpha`, `beta` | The resting drive of the locus coeruleus, and how strongly arousal and fear widen the pupils |
 | `Brain.Eyes` | `pupil_min`, `pupil_max`, `m3`, `alpha1a`, `amplifier`, `time_constant` | The pupil range, the strength of the sphincter and dilator muscles, the overall gain, and how fast the pupils move |
@@ -312,6 +315,9 @@ the other program and start again.
   pupils, orange for widening them, magenta for fear, and red dashes for inhibition), and the eye
   with its present pupil. Below it, plots show the light level, the fear, the locus coeruleus, and
   the pupil diameter.
+  If the page shows a message such as "webui-widget-brain-activity not found" instead of the brain,
+  reload the browser page: a tab that was opened before the widget existed keeps the old WebUI code
+  when Ikaros restarts.
 
 ## Changing the animations
 
@@ -392,7 +398,8 @@ the robot needs someone next to it.
    detector may need more of the hand in view.
 13. **Pupil brain.** Open the `Brain` page. Cover the right eye camera with your hand: the light level
    should fall and the pupils open to 12 mm or more within a couple of seconds. Shine a phone light
-   into it: they should close toward 5 mm. Then, standing in front of Epi, show your hand at arm's
+   into it from about 20 cm: the light level should rise above 0.7 and the pupils narrow by 2 mm or
+   more (about 3 mm when Epi is excited), within about a second. Then, standing in front of Epi, show your hand at arm's
    length once (nothing should happen), and poke a finger toward Epi's eyes three times, about a
    second each, with a few seconds between. Afterwards your hand at arm's length alone should widen
    the pupils, and the Amygdala should glow on the brain page. If learning takes too many pokes,
@@ -411,7 +418,8 @@ the robot needs someone next to it.
 - **Pupil brain untested on the robot.** The pupil model has been checked in simulation with still
   images and an image sequence, not with a live camera. The eye cameras adjust their exposure
   automatically, which partly cancels slow changes in room light, so the light reflex is clearest for
-  sudden changes such as covering the camera or shining a light into it.
+  sudden changes such as covering the camera or shining a light into it. A bright window or lamp in
+  view also counts as glare.
 - **Fear is forgotten at exit.** The learned fear is kept while the model runs and starts from zero
   the next time, unless the state is saved with `-W` and loaded with `-L`.
 - **Brain page unchecked in the WebUI.** The animated brain has been checked in a test page, not in

@@ -2118,3 +2118,17 @@ The pupil model of `PupilLedDemo.ikg` (Ikaros 2) comes to the animatronics demo:
 - The learned fear starts from zero on every run unless the state is saved with `-W` and loaded with `-L`.
 - `Source/WebUI/UnitTesting/brain_activity_test.js` passes with node but is not in the list of WebUI tests in `kernel_test.py`; adding it there is a one-line change to the test runner.
 - The "Task execution exceeded 5 seconds" stop that the user reported happened twice here in simulation (once with the committed demo plus the new Brain group, once with a test copy), but not in 100 further runs of the demo, and not more often with the Brain group than without. Its cause is still unknown. Naming the module whose task is still running in the timeout message would identify it; that is a kernel change and needs the user's approval.
+
+## Pupil light reflex and brain page fixes
+
+The user reported that the brain widget did not show and that the pupils did not respond to light shone into the cameras.
+
+| # | Task | Status | Verification | Commit |
+|---:|---|---|---|---|
+| 1 | Make the light reflex respond to a light shone into the camera: the light level is now the mean brightness plus 2.5 times the fraction of pixels above 0.9 (glare), and the Edinger-Westphal nucleus is damped less by the locus coeruleus (`psi` 0.6), so light wins more clearly when Epi is excited. Spread out the Brain group's components, which overlapped. Explain in the guide that a browser tab opened before the widget existed must be reloaded. | Done | In the live run the light level stayed at 0.38 and the pupils near 12 mm with the locus coeruleus at about 0.5, so the mean brightness barely changed and arousal dominated. Demo copy with synthetic images, without the robot: mid-grey gives light 0.43 and 7.5 mm, a darkened scene with a white disc over 15 percent of the view gives glare 0.15, light 0.75, and 5.7 mm within about a second, and a dark image gives 12.3 mm. Calculated for higher arousal: bright light narrows the pupils from about 12 to 9 mm. The glare costs about 0.15 ms per tick (2000 ticks with a 640 x 480 image). The brain widget renders and animates on the Brain page of the live WebUI (screenshot in headless Firefox through a delayed wrapper page), so the widget itself works; the user's tab most likely predates it. | This commit |
+
+### Outstanding issues and questions
+
+- Not checked with the real eye camera: reading a snapshot from the camera was not permitted, so the glare threshold and gain are chosen for synthetic images and may need tuning (step 13 in the guide).
+- The 5 s task timeout appeared once more here, with the WebUI open, in the first demo run after several minutes without runs; 40 back-to-back real-time runs and 4 runs with a browser attached did not show it. All three occurrences were first runs after a pause, which points to something loaded lazily after idle time, but this is not confirmed.
+

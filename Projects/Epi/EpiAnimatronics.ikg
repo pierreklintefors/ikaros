@@ -53,18 +53,26 @@
          view comes before a finger poke, so after a few pokes the pupils widen as soon as a hand appears.
          Open the group for its page -->
     <group name="Brain" title="Epi's pupil brain" _x="24" _y="1704">
-        <module class="Average" name="Light" _x="1100" _y="24" />
-        <module class="Nucleus" name="PTA" title="Pretectal area" beta="1" time_constant="0.2" _x="1292" _y="24" />
-        <module class="Nucleus" name="EW" title="Edinger-Westphal nucleus" beta="1" psi="1" time_constant="0.1" _x="1484" _y="24" />
-        <module class="Nucleus" name="CG" title="Ciliary ganglion" beta="1" time_constant="0.1" _x="1676" _y="24" />
-        <module class="Nucleus" name="LC" title="Locus coeruleus" alpha="0.2" beta="0.3" time_constant="0.5" _x="1292" _y="168" />
-        <module class="Nucleus" name="IML" title="Intermediolateral column" beta="1" time_constant="0.2" _x="1484" _y="168" />
-        <module class="Nucleus" name="SCG" title="Superior cervical ganglion" beta="1" time_constant="0.3" _x="1676" _y="168" />
-        <module class="Delta" name="Amygdala" title="Amygdala: learns that a hand comes before a poke" alpha="0.02" extinction="0.002" _x="1100" _y="312" />
-        <module class="Maximum" name="Fear" _x="1292" _y="312" />
-        <module class="Add" name="LCDrive" _x="1100" _y="168" />
-        <module class="EyeModel" name="Eyes" pupil_min="5" pupil_max="16" m3="1" alpha1a="2" amplifier="0.8" time_constant="0.3" _x="1868" _y="96" />
+        <module class="Average" name="Brightness" title="Mean brightness of the camera image" _x="1100" _y="24" />
+        <module class="Threshold" name="GlarePixels" title="Nearly white pixels" threshold="0.9" type="binary" _x="1100" _y="168" />
+        <module class="Average" name="Glare" title="Fraction of nearly white pixels" _x="1100" _y="312" />
+        <module class="Scale" name="GlareGain" factor="2.5" _x="1100" _y="456" />
+        <module class="Add" name="Light" title="Light level: brightness plus glare" _x="1340" _y="24" />
+        <module class="Nucleus" name="PTA" title="Pretectal area" beta="1" time_constant="0.2" _x="1580" _y="24" />
+        <module class="Nucleus" name="EW" title="Edinger-Westphal nucleus" beta="1" psi="0.6" time_constant="0.1" _x="1820" _y="24" />
+        <module class="Nucleus" name="CG" title="Ciliary ganglion" beta="1" time_constant="0.1" _x="2060" _y="24" />
+        <module class="Nucleus" name="LC" title="Locus coeruleus" alpha="0.2" beta="0.3" time_constant="0.5" _x="1820" _y="624" />
+        <module class="Nucleus" name="IML" title="Intermediolateral column" beta="1" time_constant="0.2" _x="2060" _y="624" />
+        <module class="Nucleus" name="SCG" title="Superior cervical ganglion" beta="1" time_constant="0.3" _x="2300" _y="624" />
+        <module class="Delta" name="Amygdala" title="Amygdala: learns that a hand comes before a poke" alpha="0.02" extinction="0.002" _x="1100" _y="624" />
+        <module class="Maximum" name="Fear" _x="1340" _y="624" />
+        <module class="Add" name="LCDrive" _x="1580" _y="624" />
+        <module class="EyeModel" name="Eyes" pupil_min="5" pupil_max="16" m3="1" alpha1a="2" amplifier="0.8" time_constant="0.3" _x="2540" _y="320" />
 
+        <connection source="Brightness.OUTPUT" target="Light.INPUT1" delay="0" />
+        <connection source="GlarePixels.OUTPUT" target="Glare.INPUT" delay="0" />
+        <connection source="Glare.OUTPUT" target="GlareGain.INPUT" delay="0" />
+        <connection source="GlareGain.OUTPUT" target="Light.INPUT2" delay="0" />
         <connection source="Light.OUTPUT" target="PTA.EXCITATION" delay="0" />
         <connection source="Amygdala.CR" target="Fear.INPUT1" delay="0" />
         <connection source="Fear.OUTPUT" target="LCDrive.INPUT2" delay="0" />
@@ -258,7 +266,8 @@
     <!-- Dashboard: controls and state -->
 
     <!-- Brain inputs -->
-    <connection source="Eye.INTENSITY" target="Brain.Light.INPUT" delay="0" />
+    <connection source="Eye.INTENSITY" target="Brain.Brightness.INPUT" delay="0" />
+    <connection source="Eye.INTENSITY" target="Brain.GlarePixels.INPUT" delay="0" />
     <connection source="Arousal.AROUSAL" target="Brain.LCDrive.INPUT1" delay="0" />
     <connection source="Hands.VALID" target="Brain.Amygdala.CS" delay="0" />
     <connection source="FingerNear.NEAR" target="Brain.Amygdala.US" delay="0" />
