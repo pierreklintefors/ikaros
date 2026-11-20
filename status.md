@@ -2083,3 +2083,18 @@ Finger following started too easily: Epi was distracted by hands and followed th
 - `min_width` on the detector is not used in the demo, because the same detector tracks the pointing finger, whose hand is narrower than an open palm; the width condition is applied in `HoldLatch` instead.
 - If a raised palm covers the face for more than 1.5 s, the gaze lock ends and the hold starts again; hold the palm beside the face.
 - The WebUI rendering problem reported on the other computer could not be reproduced here: the WebUI server answers the page, network, and update requests in milliseconds with the demo running.
+
+## Eyes cross on a close finger instead of finger following
+
+The head should stay with faces: finger following is removed, and a finger brought close to the cameras only makes the eyes cross.
+
+| # | Task | Status | Verification | Commit |
+|---:|---|---|---|---|
+| 1 | Remove finger following from the demo (palm latch, left-camera hand detection, target switches, behaviour pause, finger on and finger off animations) and restore the face-only connections; add `FingerNear`, a second `ProximityVergence` on the right camera's hand, whose vergence is combined with the face's by `Maximum`. Update the guide and dashboard. | Done | Demo runs without the robot (simulated servos and LEDs, still images) without warnings. Hand photos in the right camera: a hand 0.28 wide gives an estimated 0.26 m and 0.8 degrees of vergence, hands 0.5 and wider give the full 31 degrees, and the eye goals move apart (164.5 and 193); the head goal comes only from the idle look-around, since no face is in view. `HoldLatch`, `AppleVisionHandDetector`, and the `BehaviorSelector` `PAUSE` input stay in the library. | This commit |
+
+### Outstanding issues and questions
+
+- Untested with a live camera and the robot; see step 12 in `EpiAnimatronics.md`.
+- The distance comes from the width of the hand, taken as 0.1 m, so an open hand looks closer than it is and crosses the eyes from about 0.5 m. Requiring `Hands.POINTING` would limit it to a pointing finger, but POINTING has not been verified.
+- A finger very close to the camera may show too little of the hand for Vision to detect it.
+- The 5 s task timeout at start-up reported by the user is not explained yet; a hardware module's first tick is the likely cause.
