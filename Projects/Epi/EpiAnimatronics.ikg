@@ -47,6 +47,38 @@
             max_vergence="31" rate="4" hold_time="0.3" _x="408" _y="1584" />
     <module class="Maximum" name="NearVergence" _x="600" _y="1584" />
 
+    <!-- Brain: a pupil model. The light reflex narrows the pupils through the pretectal area, the
+         Edinger-Westphal nucleus, and the ciliary ganglion; arousal widens them through the locus
+         coeruleus, the spinal IML, and the superior cervical ganglion. Open the group for its page -->
+    <group name="Brain" title="Epi's pupil brain" _x="24" _y="1704">
+        <module class="Average" name="Light" _x="24" _y="24" />
+        <module class="Nucleus" name="PTA" title="Pretectal area" beta="1" time_constant="0.2" _x="216" _y="24" />
+        <module class="Nucleus" name="EW" title="Edinger-Westphal nucleus" beta="1" psi="1" time_constant="0.1" _x="408" _y="24" />
+        <module class="Nucleus" name="CG" title="Ciliary ganglion" beta="1" time_constant="0.1" _x="600" _y="24" />
+        <module class="Nucleus" name="LC" title="Locus coeruleus" alpha="0.2" beta="0.3" time_constant="0.5" _x="216" _y="168" />
+        <module class="Nucleus" name="IML" title="Intermediolateral column" beta="1" time_constant="0.2" _x="408" _y="168" />
+        <module class="Nucleus" name="SCG" title="Superior cervical ganglion" beta="1" time_constant="0.3" _x="600" _y="168" />
+        <module class="EyeModel" name="Eyes" pupil_min="5" pupil_max="16" m3="1" alpha1a="2" amplifier="0.8" time_constant="0.3" _x="792" _y="96" />
+
+        <connection source="Light.OUTPUT" target="PTA.EXCITATION" delay="0" />
+        <connection source="PTA.OUTPUT" target="EW.EXCITATION" delay="0" />
+        <connection source="LC.OUTPUT" target="EW.SHUNTING_INHIBITION" delay="0" />
+        <connection source="EW.OUTPUT" target="CG.EXCITATION" delay="0" />
+        <connection source="LC.OUTPUT" target="IML.EXCITATION" delay="0" />
+        <connection source="IML.OUTPUT" target="SCG.EXCITATION" delay="0" />
+        <connection source="CG.OUTPUT" target="Eyes.PUPIL_SPHINCTER" delay="0" />
+        <connection source="SCG.OUTPUT" target="Eyes.PUPIL_DILATOR" delay="0" />
+
+        <widget class="plot" name="LightPlot" title="Light level" source="Light.OUTPUT" buffer_size="200" auto_range="no" y_min="0" y_max="1" include_zero="yes"
+                x="24" y="320" _x="24" _y="320" width="384" height="128" show_title="yes" show_frame="yes" />
+        <widget class="plot" name="PupilPlot" title="Pupil diameter in mm" source="Eyes.PUPIL_DIAMETER" buffer_size="200" auto_range="no" y_min="0" y_max="16" include_zero="yes"
+                x="416" y="320" _x="416" _y="320" width="384" height="128" show_title="yes" show_frame="yes" />
+        <widget class="plot" name="ConstrictPlot" title="Constriction: ciliary ganglion" source="CG.OUTPUT" buffer_size="200" auto_range="no" y_min="0" y_max="1.5" include_zero="yes"
+                x="24" y="464" _x="24" _y="464" width="384" height="128" show_title="yes" show_frame="yes" />
+        <widget class="plot" name="DilatePlot" title="Dilation: superior cervical ganglion" source="SCG.OUTPUT" buffer_size="200" auto_range="no" y_min="0" y_max="1.5" include_zero="yes"
+                x="416" y="464" _x="416" _y="464" width="384" height="128" show_title="yes" show_frame="yes" />
+    </group>
+
     <!-- Behaviour: when to do what, and how it looks -->
     <module class="Constant" name="BehaviorsEnable" data="1" _x="24" _y="264" />
     <module class="BehaviorSelector" name="Behaviors" count="11" greeting="0" greeting_delay="0.3" farewell="6"
@@ -66,7 +98,7 @@
     <!-- Mood: excitement rises when someone new is found, with a close face, and with each reaction,
          and sets the animation tempo and size, the sound volume, and the pupil dilation -->
     <module class="Arousal" name="Arousal" idle_level="0.15" engaged_level="0.4" boosts="0.45, 0.06" drive_gain="0.6"
-            decay_rate="0.12" response_rate="1.5" low="0.8, 0.6, 0.35, -1" high="1.15, 1.2, 1, 3" _x="216" _y="600" />
+            decay_rate="0.12" response_rate="1.5" low="0.8, 0.6, 0.35" high="1.15, 1.2, 1" _x="216" _y="600" />
     <module class="Add" name="PupilOffset" _x="600" _y="408" />
 
     <!-- Liveliness: blinks and glances that run all the time -->
@@ -101,7 +133,7 @@
     <module class="GazeLock" name="Gaze" hold_threshold="0.3" head_gain="3" head_max_speed="90" head_max_acceleration="300" head_dead_zone="5" eye_smoothing="20"
             tilt_speed_scale="1" tilt_acceleration_scale="0.6" _x="792" _y="24" />
     <module class="EpiExpression" name="Expression" idle_color="0.5, 0.35, 0.05" engaged_color="1, 0.8, 0.35" mouth_color="0.25, 0.2, 0.05" mouth_idle_color="0.25, 0.2, 0.05"
-            idle_pupil="9" engaged_pupil="12" attack_rate="4" release_rate="1" _x="792" _y="360" />
+            idle_pupil="0" engaged_pupil="0" attack_rate="4" release_rate="1" _x="792" _y="360" />
 
     <!-- Light shows: when Epi has been alone and calm for a while it plays LED patterns; a face stops them -->
     <module class="Boredom" name="Boredom" min_wait="20" max_wait="45" min_duration="6" max_duration="15" arousal_threshold="0.3" _x="216" _y="1200" />
@@ -187,7 +219,7 @@
     <connection source="Animator.OUTPUT[9:13]" target="Expression.MOUTH_OVERLAY" delay="0" />
     <connection source="Animator.OUTPUT[13:14]" target="Expression.BRIGHTNESS" delay="0" />
     <connection source="Animator.OUTPUT[4:5]" target="PupilOffset.INPUT1" delay="0" />
-    <connection source="Arousal.MAPPED[3:4]" target="PupilOffset.INPUT2" delay="0" />
+    <connection source="Brain.Eyes.PUPIL_DIAMETER" target="PupilOffset.INPUT2" delay="0" />
     <connection source="Near.NEAR" target="NearPupil.INPUT" delay="0" />
     <connection source="PupilOffset.OUTPUT" target="Pupil.INPUT1" delay="0" />
     <connection source="NearPupil.OUTPUT" target="Pupil.INPUT2" delay="0" />
@@ -210,6 +242,10 @@
     <connection source="LightShow.MOUTH_LOW" target="LEDs.MOUTH_LOW" delay="0" />
 
     <!-- Dashboard: controls and state -->
+
+    <!-- Brain inputs -->
+    <connection source="Eye.INTENSITY" target="Brain.Light.INPUT" delay="0" />
+    <connection source="Arousal.AROUSAL" target="Brain.LC.EXCITATION" delay="0" />
 
     <!-- Finger close up -->
     <connection source="Eye.OUTPUT" target="Hands.INPUT" delay="0" />
