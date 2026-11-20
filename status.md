@@ -2132,3 +2132,16 @@ The user reported that the brain widget did not show and that the pupils did not
 - Not checked with the real eye camera: reading a snapshot from the camera was not permitted, so the glare threshold and gain are chosen for synthetic images and may need tuning (step 13 in the guide).
 - The 5 s task timeout appeared once more here, with the WebUI open, in the first demo run after several minutes without runs; 40 back-to-back real-time runs and 4 runs with a browser attached did not show it. All three occurrences were first runs after a pause, which points to something loaded lazily after idle time, but this is not confirmed.
 
+## Stronger pupil light reflex
+
+The user found the pupils' response to light and to a covered camera too weak: light should close them more, and covering the eyes should open them fully.
+
+| # | Task | Status | Verification | Commit |
+|---:|---|---|---|---|
+| 1 | Refit the pupil brain: stronger sphincter (`m3` 1.5), higher gain (`amplifier` 1.3), less damping of the Edinger-Westphal nucleus by the locus coeruleus (`psi` 0.2), and a slightly higher resting locus coeruleus drive (`alpha` 0.3), so that normal room light gives about the same sizes as before. | Done | Calculated steady states: covered camera 16 mm at every arousal level; normal room (light 0.45) 7.7, 10.3, and 13.5 mm at arousal 0.15, 0.4, and 0.8; light level 1.0 gives 5 mm at rest and with company and 7.3 mm when very excited; a learned fear of a hand still widens the pupils to 13.7 mm at rest. Demo copy with synthetic images, without the robot: mid-grey 7.8 mm, a light shone in 5.0 mm after 1 s, a dark image 16.0 mm (15.3 mm after 1 s). | This commit |
+
+### Outstanding issues and questions
+
+- Not yet checked with the real camera; the light level in a normal room depends on the camera's exposure (0.38 in the user's last run), and the pupils now react strongly between light levels 0.3 and 0.6.
+- The 5 s task timeout happened once more here in a single-threaded batch run of a demo copy, so it is not tied to the WebUI, real-time mode, or threads. A watcher samples the user's next run when it happens.
+

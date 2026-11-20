@@ -59,15 +59,15 @@
         <module class="Scale" name="GlareGain" factor="2.5" _x="1100" _y="456" />
         <module class="Add" name="Light" title="Light level: brightness plus glare" _x="1340" _y="24" />
         <module class="Nucleus" name="PTA" title="Pretectal area" beta="1" time_constant="0.2" _x="1580" _y="24" />
-        <module class="Nucleus" name="EW" title="Edinger-Westphal nucleus" beta="1" psi="0.6" time_constant="0.1" _x="1820" _y="24" />
+        <module class="Nucleus" name="EW" title="Edinger-Westphal nucleus" beta="1" psi="0.2" time_constant="0.1" _x="1820" _y="24" />
         <module class="Nucleus" name="CG" title="Ciliary ganglion" beta="1" time_constant="0.1" _x="2060" _y="24" />
-        <module class="Nucleus" name="LC" title="Locus coeruleus" alpha="0.2" beta="0.3" time_constant="0.5" _x="1820" _y="624" />
+        <module class="Nucleus" name="LC" title="Locus coeruleus" alpha="0.3" beta="0.3" time_constant="0.5" _x="1820" _y="624" />
         <module class="Nucleus" name="IML" title="Intermediolateral column" beta="1" time_constant="0.2" _x="2060" _y="624" />
         <module class="Nucleus" name="SCG" title="Superior cervical ganglion" beta="1" time_constant="0.3" _x="2300" _y="624" />
         <module class="Delta" name="Amygdala" title="Amygdala: learns that a hand comes before a poke" alpha="0.02" extinction="0.002" _x="1100" _y="624" />
         <module class="Maximum" name="Fear" _x="1340" _y="624" />
         <module class="Add" name="LCDrive" _x="1580" _y="624" />
-        <module class="EyeModel" name="Eyes" pupil_min="5" pupil_max="16" m3="1" alpha1a="2" amplifier="0.8" time_constant="0.3" _x="2540" _y="320" />
+        <module class="EyeModel" name="Eyes" pupil_min="5" pupil_max="16" m3="1.5" alpha1a="2" amplifier="1.3" time_constant="0.3" _x="2540" _y="320" />
 
         <connection source="Brightness.OUTPUT" target="Light.INPUT1" delay="0" />
         <connection source="GlarePixels.OUTPUT" target="Glare.INPUT" delay="0" />

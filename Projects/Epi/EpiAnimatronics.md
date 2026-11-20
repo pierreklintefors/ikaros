@@ -87,8 +87,9 @@ synchronized with the motion:
      your hand often without poking and the fear slowly fades again.
 
    `EyeModel` turns the two muscles' drive into a diameter between 5 and 16 mm. In a normal room the
-   pupils are about 8 mm when Epi is alone, 10 mm with company, and up to 14 mm when it is excited;
-   darkness opens them to 12 to 14 mm and bright light closes them to 5 to 6 mm. The Brain page
+   pupils are about 8 mm when Epi is alone, 10 mm with company, and up to 13.5 mm when it is excited;
+   darkness, such as a hand over the camera, opens them fully to 16 mm within about a second, and a
+   light shone into the camera closes them to 5 mm (about 7 mm when Epi is very excited). The Brain page
    shows the model as an animated side view of the brain, in which each nucleus glows with its
    activity and spikes travel along the pathways.
 10. **Voice.** Most sounds play only in some of the plays, and each time one of three variants is
@@ -397,9 +398,8 @@ the robot needs someone next to it.
    `full_distance` on `FingerNear`; if a finger very close to the camera is not noticed, the hand
    detector may need more of the hand in view.
 13. **Pupil brain.** Open the `Brain` page. Cover the right eye camera with your hand: the light level
-   should fall and the pupils open to 12 mm or more within a couple of seconds. Shine a phone light
-   into it from about 20 cm: the light level should rise above 0.7 and the pupils narrow by 2 mm or
-   more (about 3 mm when Epi is excited), within about a second. Then, standing in front of Epi, show your hand at arm's
+   should fall and the pupils open fully to 16 mm within about a second. Shine a phone light into it
+   from about 20 cm: the light level should rise above 0.7 and the pupils close to about 5 mm. Then, standing in front of Epi, show your hand at arm's
    length once (nothing should happen), and poke a finger toward Epi's eyes three times, about a
    second each, with a few seconds between. Afterwards your hand at arm's length alone should widen
    the pupils, and the Amygdala should glow on the brain page. If learning takes too many pokes,
