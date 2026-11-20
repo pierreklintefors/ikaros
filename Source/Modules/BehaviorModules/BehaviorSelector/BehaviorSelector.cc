@@ -16,7 +16,7 @@ class BehaviorSelector : public Module
     matrix engagedWeights;
     parameter minInterval;
     parameter maxInterval;
-    parameter cooldown;
+    matrix cooldown;
     parameter greeting;
     parameter greetingDelay;
     parameter farewell;
@@ -97,6 +97,16 @@ class BehaviorSelector : public Module
 
     // Weight of behaviour i: its state weight, times how well its arousal level matches the present
     // arousal; 0 during its cooldown, and 0 when it is among the most recent ones and avoidRecent is set.
+    // Cooldown of behaviour i; a shorter cooldown list repeats its last value.
+    float
+    Cooldown(int i) const
+    {
+        if(cooldown.size() == 0)
+            return 0.0f;
+        return cooldown.data()[std::min(i, cooldown.size() - 1)];
+    }
+
+
     float
     Weight(const matrix & stateWeights, int i, bool avoidRecent) const
     {
@@ -107,7 +117,7 @@ class BehaviorSelector : public Module
             const float difference = arousalLevels.data()[i] - ArousalLevel();
             w *= std::exp(-0.5f * difference * difference / (width * width));
         }
-        if(sinceChosen(i) < cooldown.as_float() - epsilon || (avoidRecent && Recent(i)))
+        if(sinceChosen(i) < Cooldown(i) - epsilon || (avoidRecent && Recent(i)))
             return 0.0f;
         return w;
     }
@@ -191,7 +201,8 @@ public:
             lastRequest.set(0.0f);
         }
         sinceChosen.realloc(trigger.size());
-        sinceChosen.set(cooldown.as_float());
+        for(int i = 0; i < sinceChosen.size(); ++i)
+            sinceChosen(i) = Cooldown(i);
         weights.realloc(trigger.size());
         selected(0) = -1;
         sinceReaction = reactionCooldown.as_float();
@@ -249,7 +260,7 @@ public:
             for(int i = 0; i < request.size(); ++i)
             {
                 const float value = request.data()[i];
-                if(value > 0.5f && lastRequest(i) <= 0.5f && i < trigger.size() && sinceChosen(i) >= cooldown.as_float() - epsilon)
+                if(value > 0.5f && lastRequest(i) <= 0.5f && i < trigger.size() && sinceChosen(i) >= Cooldown(i) - epsilon)
                 {
                     greetingPending = false;
                     Fire(i);

@@ -14,7 +14,7 @@
     <parameter name="engaged_weights" type="matrix" default="1" description="Relative probability of each behaviour while ENGAGED is 1; missing values count as 0" />
     <parameter name="min_interval" type="number" default="4" min="0" description="Shortest idle time in seconds before a spontaneous behaviour" />
     <parameter name="max_interval" type="number" default="10" min="0" description="Longest idle time in seconds before a spontaneous behaviour" />
-    <parameter name="cooldown" type="number" default="15" min="0" description="Seconds before a spontaneous behaviour can be chosen again" />
+    <parameter name="cooldown" type="matrix" default="15" description="Seconds before a behaviour can start again, spontaneously or by request; one value per behaviour, and a shorter list repeats its last value" />
     <parameter name="greeting" type="number" default="-1" min="-1" description="Behaviour started when someone arrives; -1 for none" />
     <parameter name="greeting_delay" type="number" default="0.5" min="0" description="Seconds from the arrival to the greeting" />
     <parameter name="farewell" type="number" default="-1" min="-1" description="Behaviour started when ENGAGED becomes 0; -1 for none" />

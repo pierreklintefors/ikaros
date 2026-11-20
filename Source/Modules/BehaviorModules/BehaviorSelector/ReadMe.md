@@ -16,7 +16,9 @@ It is chosen at random by weight:
 - While `ENGAGED` is 1 they come from `engaged_weights`.
 
 A missing weight counts as 0, so a behaviour can be kept for reactions only. A behaviour that started
-less than `cooldown` seconds ago is not chosen again, which keeps the robot from repeating itself.
+less than its `cooldown` seconds ago is not chosen again, which keeps the robot from repeating itself.
+`cooldown` can hold one value per behaviour, and a shorter list repeats its last value, so a reaction
+that must repeat quickly, such as a startle, can have a short cooldown while the others keep a long one.
 When every weighted behaviour is cooling down, the selector tries again after `min_interval`.
 
 While `BUSY` is 1, for example from `KeyframeAnimator.PLAYING`, the interval does not run, so it
@@ -71,7 +73,7 @@ spontaneous one.
 | engaged_weights | Relative probability of each behaviour while ENGAGED is 1 | matrix | 1 |
 | min_interval | Shortest idle time in seconds before a spontaneous behaviour | number | 4 |
 | max_interval | Longest idle time in seconds before a spontaneous behaviour | number | 10 |
-| cooldown | Seconds before a spontaneous behaviour can be chosen again | number | 15 |
+| cooldown | Seconds before a behaviour can start again, spontaneously or by request; one value per behaviour, and a shorter list repeats its last value | matrix | 15 |
 | greeting | Behaviour started when someone arrives; -1 for none | number | -1 |
 | greeting_delay | Seconds from the arrival to the greeting | number | 0.5 |
 | farewell | Behaviour started when ENGAGED becomes 0; -1 for none | number | -1 |
@@ -117,4 +119,5 @@ spontaneous one.
 The tests in `tests/` check the weighted choice in each state, the greeting delay, the cooldown,
 the wait while `BUSY` is 1, the farewell, and the reaction cooldown, and the mood test checks
 the choice by arousal, `memory`, and the shorter interval when excited. The request test checks
-that a request starts its behaviour while `BUSY` is 1 and is ignored during the cooldown.
+that a request starts its behaviour while `BUSY` is 1 and is ignored during the cooldown, and the
+cooldowns test that each behaviour keeps its own cooldown.
