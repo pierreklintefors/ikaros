@@ -3,8 +3,8 @@
 `EpiAnimatronics.ikg` makes an Epi robot look alive, playful, and curious. Most of the time it is
 subtle: it blinks, glances, and slowly looks around the room. When it finds someone new it perks up
 with a happy chirp, when someone comes really close its eyes cross, when someone pans their head
-back and forth it starts a game of copycat, its pupils react to light and learn to fear a finger
-that pokes at its eyes, and now and then it plays a little reaction: a sly look to the side with a "he-he-heh", a
+back and forth it starts a game of copycat, its pupils react to light, it is scared by a finger
+that pokes at its eyes and learns to fear a red card shown before the pokes, and now and then it plays a little reaction: a sly look to the side with a "he-he-heh", a
 cross-eyed moment with blue eyes, a giggle, being "mind blown" with eyes that move apart, a rising
 whistle of surprise, and a "pooof", or a game of copycat in which it mirrors the person's head
 movements. It speaks only in robot chirps and whistles, not every time and never quite the same,
@@ -81,17 +81,21 @@ synchronized with the motion:
      intermediolateral column (`IML`) and the superior cervical ganglion (`SCG`), which contracts the
      dilator muscle, and it also damps the Edinger-Westphal nucleus. The arousal level and fear
      excite it.
-   - **Fear is learned.** A finger poke (a finger brought close to the eyes, which also makes them
-     cross) is frightening in itself. The amygdala (`Delta`) learns that a hand in view comes before
-     a poke, so after a few pokes the pupils widen as soon as a hand appears, before any poke. Show
-     your hand often without poking and the fear slowly fades again.
+   - **Fear is learned.** A finger poke, a finger within about 0.15 m of the eyes (`Poke`), is
+     frightening in itself; a finger further away only makes the eyes cross. The cue Epi can learn
+     to fear is a red card: `CardImage`, `CardColor` (`ColorMatch`), `CardPixels`, and
+     `CardFraction` measure how much of the right camera's view is strongly red, and `CardSeen` is
+     1 when that is more than 2 percent. The amygdala (`Delta`) learns that the card comes before a
+     poke, so after a few pokes with the card in view, the card alone widens the pupils. Show the
+     card often without poking and the fear fades again. A hand is not a good cue, because hands are
+     in view most of the time and Epi would be scared constantly.
    - **Fear shows.** Whenever the fear rises above 0.4 (`Brain.FearCue`), Epi plays *scared*: its
      eyes and mouth flash red and white, it gives a frightened "eek", flinches back and away, and
-     trembles with pale blue eyes. A poke always scares it. The learned fear reaches 0.4 after
-     about two pokes, so from then on the hand alone, coming into view, makes Epi scared before any
-     poke: the conditioned response. Each time the hand comes without a poke the fear is a little
-     smaller, and after about four such appearances of 3 s the hand no longer scares it:
-     extinction.
+     trembles with pale blue eyes. A poke always scares it. The learned fear passes 0.4 after
+     two to three pokes with the card in view, so from then on the card alone, coming into view,
+     makes Epi scared before any poke: the conditioned response. Each time the card comes without a
+     poke the fear is a little smaller, and after about three such appearances of 3 s the card no
+     longer scares it: extinction.
 
    `EyeModel` turns the two muscles' drive into a diameter between 5 and 16 mm. In a normal room the
    pupils are about 8 mm when Epi is alone, 10 mm with company, and up to 13.5 mm when it is excited;
@@ -285,7 +289,9 @@ The character is tuned on the modules:
 | `Brain.PTA` | `beta` | How strongly light narrows the pupils |
 | `Brain.LC` | `alpha`, `beta` | The resting drive of the locus coeruleus, and how strongly arousal and fear widen the pupils |
 | `Brain.Eyes` | `pupil_min`, `pupil_max`, `m3`, `alpha1a`, `amplifier`, `time_constant` | The pupil range, the strength of the sphincter and dilator muscles, the overall gain, and how fast the pupils move |
-| `Brain.FearCue` | `threshold` | Fear above which Epi plays scared (0.4: every poke, and the hand alone after about two pokes) |
+| `Brain.FearCue` | `threshold` | Fear above which Epi plays scared (0.4: every poke, and the card alone after two to three pokes) |
+| `Poke` | `threshold` | How close a finger must come to count as a poke, as a value of `FingerNear.NEAR` (0.85: about 0.15 m); raise it toward 1 if pokes count from too far away |
+| `CardColor`, `CardPixels`, `CardSeen` | `target0` to `target2`, `sigma`; `threshold`; `threshold` | The card's colour as red, green, and blue fractions (0.68, 0.16, 0.16), how closely a pixel must match it (`sigma` 10 with the pixel `threshold` 0.4), and how much of the view must be red to count as the card (0.02). Watch **Red in view** on the dashboard: if the card stays below 0.02, lower `sigma` or move `target0` to `target2` toward the card's colour as the camera sees it; if skin or clothes count, raise `sigma` |
 | `Brain.Amygdala` | `alpha`, `extinction` | How fast the fear of a poke is learned (0.02: about three pokes of 1 s), and how fast it fades when a hand comes without a poke (0.002: halved after about 14 s of hand in view) |
 | `HeadPan` | `amplitude`, `swings`, `window`, `smoothing` | How large and quick a back-and-forth head pan must be to start copycat; `smoothing` 20 keeps quick head shakes large enough to count |
 
@@ -319,7 +325,8 @@ the other program and start again.
   both eyes** whether it comes from the two cameras (1) or from the face size (0), and **Near** how
   close the face is; above 0.3 the head holds still. The left eye camera is shown beside them.
 - **Finger close** rises from 0 to 1 as a hand comes toward the cameras; the eyes are fully crossed
-  at 1.
+  at 1, and above 0.85 it counts as a poke. **Red in view** shows how much of the view is strongly
+  red; above 0.02 Epi sees the red card.
 - Open the group `Brain` for the pupil model's page. The animated brain shows each nucleus glowing
   with its activity, spikes travelling along the pathways (yellow for light, cyan for narrowing the
   pupils, orange for widening them, magenta for fear, and red dashes for inhibition), and the eye
@@ -408,15 +415,21 @@ the robot needs someone next to it.
    detector may need more of the hand in view.
 13. **Pupil brain.** Open the `Brain` page. Cover the right eye camera with your hand: the light level
    should fall and the pupils open fully to 16 mm within about a second. Shine a phone light into it
-   from about 20 cm: the light level should rise above 0.7 and the pupils close to about 5 mm. Then, standing in front of Epi, show your hand at arm's
-   length once (nothing should happen), and poke a finger toward Epi's eyes three times, about a
-   second each, with a few seconds between, each time moving the hand into view first. Each poke
-   should make Epi scared, with red flashes and an "eek". From about the third time, the hand
-   coming into view should scare Epi before the poke, the Amygdala should glow on the brain page,
-   and the pupils should widen. Then show your hand at arm's length without poking, for about 3 s at
-   a time with short breaks: Epi should be scared the first few times and then no longer. If
-   learning takes too many pokes, raise `alpha` on `Brain.Amygdala`; if the fear fades too fast or
-   too slowly, change `extinction` there; if the hand scares Epi too easily or never, change
+   from about 20 cm: the light level should rise above 0.7 and the pupils close to about 5 mm.
+   Then the fear conditioning, with a red card about A5 size or larger:
+   - Hold the card up about 0.5 m in front of Epi. **Red in view** should rise above 0.02, and
+     nothing else should happen yet. Move your hands and step around without the card: it should
+     stay well below 0.02.
+   - Bring a finger slowly toward Epi's eyes without the card. The eyes cross from about 0.3 m;
+     only at about 0.15 m should Epi be scared, with red flashes and an "eek".
+   - Three times, a few seconds apart: show the card, then poke while it is still in view. Each poke
+     scares Epi. From about the third time, the card coming into view should scare Epi before the
+     poke, the Amygdala should glow on the brain page, and the pupils should widen.
+   - Then show the card without poking, for about 3 s at a time with short breaks. Epi should be
+     scared the first two or three times, and then no longer.
+
+   If learning takes too many pokes, raise `alpha` on `Brain.Amygdala`; if the fear fades too fast
+   or too slowly, change `extinction` there; if the card scares Epi too easily or never, change
    `threshold` on `Brain.FearCue`; if the pupils hardly change, raise `beta` on `Brain.LC` or
    `amplifier` on `Brain.Eyes`.
 14. **Pacing and mood.** Watch for a few minutes alone and with company. Raise `min_interval` and
@@ -434,6 +447,9 @@ the robot needs someone next to it.
   separate tasks with one-tick delays, and so the stereo distance is one tick old and finger and fear
   reactions come two ticks late. Without these delays the camera, face detection, gaze, servo bus, and
   LEDs ran one after another and a tick took 50 to 60 ms, which starved the WebUI.
+- **The card's colour.** The red card was only tested with synthetic cards painted into photos; its
+  colour as the eye camera sees it, under the room's light, decides whether it is detected. A
+  reddish wall, poster, or shirt in view counts as the card too.
 - **Pupil brain untested on the robot.** The pupil model has been checked in simulation with still
   images and an image sequence, not with a live camera. The eye cameras adjust their exposure
   automatically, which partly cancels slow changes in room light, so the light reflex is clearest for

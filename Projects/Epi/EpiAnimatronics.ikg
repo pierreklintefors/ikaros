@@ -46,11 +46,19 @@
     <module class="ProximityVergence" name="FingerNear" object_width="0.1" start_distance="0.3" full_distance="0.12" gain="3"
             max_vergence="31" rate="4" hold_time="0.3" _x="408" _y="1584" />
     <module class="Maximum" name="NearVergence" _x="600" _y="1584" />
+    <module class="Threshold" name="Poke" title="A finger very close to the cameras, about 0.15 m" threshold="0.85" type="binary" _x="792" _y="1584" />
+
+    <!-- The feared cue: a red card in the right camera. Its own task, one tick behind the camera -->
+    <module class="Downsample" name="CardImage" _x="24" _y="1872" />
+    <module class="ColorMatch" name="CardColor" title="How red each pixel is" target0="0.68" target1="0.16" target2="0.16" sigma="10" threshold="0.3" alpha="0" _x="216" _y="1872" />
+    <module class="Threshold" name="CardPixels" threshold="0.4" type="binary" _x="408" _y="1872" />
+    <module class="Average" name="CardFraction" title="Fraction of the view that is red" _x="600" _y="1872" />
+    <module class="Threshold" name="CardSeen" title="Red card in view: more than 2 percent of the view is red" threshold="0.02" type="binary" _x="792" _y="1872" />
 
     <!-- Brain: a pupil model. The light reflex narrows the pupils through the pretectal area, the
          Edinger-Westphal nucleus, and the ciliary ganglion; arousal widens them through the locus
-         coeruleus, the spinal IML, and the superior cervical ganglion. The amygdala learns that a hand in
-         view comes before a finger poke, so after a few pokes the pupils widen as soon as a hand appears.
+         coeruleus, the spinal IML, and the superior cervical ganglion. The amygdala learns that a red card
+         in view comes before a finger poke, so after a few pokes the card alone scares Epi.
          Open the group for its page -->
     <group name="Brain" title="Epi's pupil brain" _x="24" _y="1704">
         <module class="Average" name="Brightness" title="Mean brightness of the camera image" _x="1100" _y="24" />
@@ -64,7 +72,7 @@
         <module class="Nucleus" name="LC" title="Locus coeruleus" alpha="0.3" beta="0.3" time_constant="0.5" _x="1820" _y="624" />
         <module class="Nucleus" name="IML" title="Intermediolateral column" beta="1" time_constant="0.2" _x="2060" _y="624" />
         <module class="Nucleus" name="SCG" title="Superior cervical ganglion" beta="1" time_constant="0.3" _x="2300" _y="624" />
-        <module class="Delta" name="Amygdala" title="Amygdala: learns that a hand comes before a poke" alpha="0.02" extinction="0.002" _x="1100" _y="624" />
+        <module class="Delta" name="Amygdala" title="Amygdala: learns that the red card comes before a poke" alpha="0.02" extinction="0.002" _x="1100" _y="624" />
         <module class="Maximum" name="Fear" _x="1340" _y="624" />
         <module class="Add" name="LCDrive" _x="1580" _y="624" />
         <module class="Threshold" name="FearCue" title="Fear above which Epi shows that it is scared" threshold="0.4" type="binary" _x="1340" _y="768" />
@@ -272,9 +280,15 @@
     <connection source="Eye.INTENSITY" target="Brain.Brightness.INPUT" delay="0" />
     <connection source="Eye.INTENSITY" target="Brain.GlarePixels.INPUT" delay="0" />
     <connection source="Arousal.AROUSAL" target="Brain.LCDrive.INPUT1" delay="0" />
-    <connection source="Hands.VALID" target="Brain.Amygdala.CS" delay="1" />
-    <connection source="FingerNear.NEAR" target="Brain.Amygdala.US" delay="0" />
-    <connection source="FingerNear.NEAR" target="Brain.Fear.INPUT2" delay="0" />
+    <connection source="FingerNear.NEAR" target="Poke.INPUT" delay="0" />
+    <connection source="Poke.OUTPUT" target="Brain.Amygdala.US" delay="0" />
+    <connection source="Poke.OUTPUT" target="Brain.Fear.INPUT2" delay="0" />
+    <connection source="Eye.OUTPUT" target="CardImage.INPUT" delay="1" />
+    <connection source="CardImage.OUTPUT" target="CardColor.INPUT" delay="0" />
+    <connection source="CardColor.OUTPUT" target="CardPixels.INPUT" delay="0" />
+    <connection source="CardPixels.OUTPUT" target="CardFraction.INPUT" delay="0" />
+    <connection source="CardFraction.OUTPUT" target="CardSeen.INPUT" delay="0" />
+    <connection source="CardSeen.OUTPUT" target="Brain.Amygdala.CS" delay="1" />
 
     <!-- Finger close up -->
     <connection source="Eye.OUTPUT" target="Hands.INPUT" delay="1" />
@@ -394,6 +408,8 @@
             x="1276" y="1184" _x="1276" _y="1184" width="236" height="56" show_title="yes" show_frame="yes" />
     <widget class="table" name="FingerTable" title="Finger close (eyes cross at 1)" source="FingerNear.NEAR" decimals="2" colorize="no"
             x="1032" y="1248" _x="1032" _y="1248" width="236" height="56" show_title="yes" show_frame="yes" />
+    <widget class="table" name="CardTable" title="Red in view (card above 0.02)" source="CardFraction.OUTPUT" decimals="3" colorize="no"
+            x="1276" y="1248" _x="1276" _y="1248" width="236" height="56" show_title="yes" show_frame="yes" />
     <widget class="text" name="LeftCameraCaption" text="Left eye camera"
             x="1528" y="1040" _x="1528" _y="1040" width="384" height="24" show_title="no" show_frame="no" />
     <widget class="image" name="LeftCameraImage" source="LeftEye.OUTPUT" format="rgb" scale="both"

@@ -2169,3 +2169,16 @@ A poke makes Epi visibly scared with LEDs and sound; after a few pokes the hand 
 - The fear response, the `eek` sound, and the conditioning have not been tried on the robot; the hand detection of a real pointing hand and the timing of the extinction need the user's check (step 13 in the guide).
 - A poke that follows the hand within the scared animation does not start a second scare, because the fear stays above the threshold; this keeps the response from stuttering.
 
+## A red card as the feared cue, and a closer poke
+
+On the robot Epi was scared all the time: hands are always in view, so a learned fear of the hand fired constantly. The user chose a coloured card as the cue and asked for the poke to count only closer to the cameras.
+
+| # | Task | Status | Verification | Commit |
+|---:|---|---|---|---|
+| 1 | Detect a red card in the right camera (half-resolution image, `ColorMatch` on red, fraction of strongly red pixels, seen above 2 percent of the view) as the amygdala's conditioned stimulus instead of a hand; a poke counts only when the finger is very close (`FingerNear.NEAR` above 0.85, about 0.15 m) while the eyes still start to cross at 0.3 m. Guide, brain view label, and a test of acquisition, response to the card alone, extinction, and that a hand or skin does not count as the card. | Done | Card detection with photos and synthetic red cards (160 x 110 pixels, 5.7 percent of the view): a card on grey 5.7 percent, a card next to an open palm 5.4, a card with a far hand 5.7; without a card an open palm 0.02 percent, the reddest palm photo 1.2, two faces and the placeholder image 0, all below the 2 percent mark. (A stricter setting cut the reddest palm to 0.6 percent but would likely miss a real, less saturated card.) Full demo copy, 1565 frames, without the robot: no scare for the card before learning or for a hand at about 0.26 m (closeness 0.14, no poke); pokes with the card scare Epi and raise the learned response to 0.18, 0.37, and 0.51; the card coming into view before the third poke scares Epi; a hand without the card does not; a poke without the card scares Epi without learning; the card alone scares Epi three times (0.48, 0.41, 0.35) and then no longer (0.30 to 0.21). Brain widget test passes. Not checked with the real camera, a real card, or by ear. | This commit |
+
+### Outstanding issues and questions
+
+- The card's colour through the real eye camera decides the detection; the settings and the dashboard value **Red in view** are described in the guide for tuning on the robot. Red objects in the room count as the card.
+- Learning is a little slower than with the hand cue, because the poke now lasts only while the finger is very close; three pokes bring the learned response to about 0.5.
+

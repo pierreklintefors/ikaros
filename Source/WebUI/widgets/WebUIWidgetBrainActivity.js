@@ -17,7 +17,7 @@ class BrainActivityRenderer
             pta:      { x: 520, y: 214, label: "PTA", note: "pretectal area", kind: "para" },
             ew:       { x: 590, y: 286, label: "EW", note: "Edinger-Westphal", kind: "para" },
             cg:       { x: 236, y: 352, label: "CG", note: "ciliary ganglion", kind: "para" },
-            visual:   { x: 838, y: 214, label: "V1", note: "sees a hand", kind: "emo" },
+            visual:   { x: 838, y: 214, label: "V1", note: "sees the cue", kind: "emo" },
             touch:    { x: 58,  y: 166, label: "Poke", note: "finger close", kind: "sense" },
             amygdala: { x: 452, y: 378, label: "Amygdala", note: "fear learning", kind: "emo" },
             arousal:  { x: 372, y: 256, label: "Arousal", note: "hypothalamus", kind: "symp" },
