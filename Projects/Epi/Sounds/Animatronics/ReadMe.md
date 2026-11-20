@@ -20,6 +20,7 @@ syllables, their contours, the pitch, the vibrato, the brightness, and the loudn
 | `hmm` | cross-eyed and curious | a thoughtful hum, then a chirp that rises like a question |
 | `aww` | shy | a soft, slow whistle that lifts a little and sinks away |
 | `sparkle` | found you | bright blips that climb into a happy trill |
+| `eek` | scared | a sudden shriek that leaps up, then a whimper that sinks with a fast, shaky tremble |
 
 ## Design
 
@@ -46,6 +47,7 @@ The rules used:
 | Mischief | low, each syllable sliding down, a sneaky rise at the end | clipped, nasal chirps |
 | Shyness | lifts slightly, then sinks | slow, soft attack and long fade |
 | Mind blown | falls from high to low with a stuttering warble | sudden start, long power-down |
+| Fear | leaps up at once, then sinks while trembling fast | instant attack, a shaky, fading whimper |
 
 Each syllable is a whistle with a few overtones, like a resonant filter, with a smooth pitch
 contour, vibrato, and optional sample-and-hold warble. Its phase is continuous, so pitch glides

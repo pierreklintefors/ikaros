@@ -313,11 +313,28 @@ def chirp(rng):
     ]), gain_db=level(rng, 1.5))
 
 
-SOUNDS = {"chirp": chirp, "hi": hi, "hehe": hehe, "wow": wow, "poof": poof, "giggle": giggle, "hmm": hmm, "aww": aww, "sparkle": sparkle}
+def eek(rng):
+    """Fear: a sudden shriek that leaps up, then a whimper that sinks with a fast, shaky tremble."""
+    k = transpose(rng, 2.0)
+    start = rng.uniform(1300, 1600) * k
+    peak = start * rng.uniform(1.7, 2.0)
+    shriek = rng.uniform(0.16, 0.22)
+    parts = [(0.00, syllable(shriek, [(0, start), (0.25, peak), (1, peak * rng.uniform(0.85, 0.95))],
+                             attack=0.002, release=0.04, warble_rate=rng.uniform(25, 35), warble_depth=0.3,
+                             brightness=rng.uniform(0.5, 0.7), rng=rng))]
+    whimper = start * rng.uniform(0.9, 1.05)
+    parts.append((shriek + rng.uniform(0.03, 0.06),
+                  syllable(rng.uniform(0.45, 0.6), [(0, whimper), (0.3, whimper * 1.05), (1, whimper * rng.uniform(0.5, 0.6))],
+                           attack=0.02, release=0.2, vibrato=(rng.uniform(11, 14), rng.uniform(0.5, 0.8)),
+                           brightness=rng.uniform(0.15, 0.3), gain=0.7, rng=rng)))
+    return finish(phrase(parts), gain_db=level(rng, 1.0))
+
+
+SOUNDS = {"chirp": chirp, "hi": hi, "hehe": hehe, "wow": wow, "poof": poof, "giggle": giggle, "hmm": hmm, "aww": aww, "sparkle": sparkle, "eek": eek}
 
 
 # Fixed seed number of each sound, so adding a sound never changes the takes of the others.
-SEED_IDS = {"aww": 0, "giggle": 1, "hehe": 2, "hi": 3, "hmm": 4, "poof": 5, "sparkle": 6, "wow": 7, "chirp": 8}
+SEED_IDS = {"aww": 0, "giggle": 1, "hehe": 2, "hi": 3, "hmm": 4, "poof": 5, "sparkle": 6, "wow": 7, "chirp": 8, "eek": 9}
 
 
 def write(path, samples):
