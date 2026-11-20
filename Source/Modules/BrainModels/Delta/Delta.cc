@@ -5,6 +5,7 @@ using namespace ikaros;
 class Delta: public Module
 {
     parameter alpha;
+    parameter extinction;
     parameter inverse;
 
     matrix cs;
@@ -15,6 +16,7 @@ class Delta: public Module
     void Init()
     {
         Bind(alpha, "alpha");
+        Bind(extinction, "extinction");
         Bind(inverse, "inverse");
 
         Bind(cs, "CS");
@@ -31,8 +33,10 @@ class Delta: public Module
         float us_sum = us.sum();
         float response = dot(cs, weights);
         float delta = alpha.as_float() * (us_sum - response);
+        if (delta < 0)
+            delta = extinction.as_float() * (us_sum - response);
 
-        if (delta > 0)
+        if (delta != 0)
             weights.apply(cs, [delta](float w, float stimulus) { return w + stimulus * delta; });
 
         if (inverse.as_bool())

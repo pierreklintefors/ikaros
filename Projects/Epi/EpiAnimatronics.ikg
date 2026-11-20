@@ -49,18 +49,26 @@
 
     <!-- Brain: a pupil model. The light reflex narrows the pupils through the pretectal area, the
          Edinger-Westphal nucleus, and the ciliary ganglion; arousal widens them through the locus
-         coeruleus, the spinal IML, and the superior cervical ganglion. Open the group for its page -->
+         coeruleus, the spinal IML, and the superior cervical ganglion. The amygdala learns that a hand in
+         view comes before a finger poke, so after a few pokes the pupils widen as soon as a hand appears.
+         Open the group for its page -->
     <group name="Brain" title="Epi's pupil brain" _x="24" _y="1704">
-        <module class="Average" name="Light" _x="24" _y="24" />
-        <module class="Nucleus" name="PTA" title="Pretectal area" beta="1" time_constant="0.2" _x="216" _y="24" />
-        <module class="Nucleus" name="EW" title="Edinger-Westphal nucleus" beta="1" psi="1" time_constant="0.1" _x="408" _y="24" />
-        <module class="Nucleus" name="CG" title="Ciliary ganglion" beta="1" time_constant="0.1" _x="600" _y="24" />
-        <module class="Nucleus" name="LC" title="Locus coeruleus" alpha="0.2" beta="0.3" time_constant="0.5" _x="216" _y="168" />
-        <module class="Nucleus" name="IML" title="Intermediolateral column" beta="1" time_constant="0.2" _x="408" _y="168" />
-        <module class="Nucleus" name="SCG" title="Superior cervical ganglion" beta="1" time_constant="0.3" _x="600" _y="168" />
-        <module class="EyeModel" name="Eyes" pupil_min="5" pupil_max="16" m3="1" alpha1a="2" amplifier="0.8" time_constant="0.3" _x="792" _y="96" />
+        <module class="Average" name="Light" _x="1100" _y="24" />
+        <module class="Nucleus" name="PTA" title="Pretectal area" beta="1" time_constant="0.2" _x="1292" _y="24" />
+        <module class="Nucleus" name="EW" title="Edinger-Westphal nucleus" beta="1" psi="1" time_constant="0.1" _x="1484" _y="24" />
+        <module class="Nucleus" name="CG" title="Ciliary ganglion" beta="1" time_constant="0.1" _x="1676" _y="24" />
+        <module class="Nucleus" name="LC" title="Locus coeruleus" alpha="0.2" beta="0.3" time_constant="0.5" _x="1292" _y="168" />
+        <module class="Nucleus" name="IML" title="Intermediolateral column" beta="1" time_constant="0.2" _x="1484" _y="168" />
+        <module class="Nucleus" name="SCG" title="Superior cervical ganglion" beta="1" time_constant="0.3" _x="1676" _y="168" />
+        <module class="Delta" name="Amygdala" title="Amygdala: learns that a hand comes before a poke" alpha="0.02" extinction="0.002" _x="1100" _y="312" />
+        <module class="Maximum" name="Fear" _x="1292" _y="312" />
+        <module class="Add" name="LCDrive" _x="1100" _y="168" />
+        <module class="EyeModel" name="Eyes" pupil_min="5" pupil_max="16" m3="1" alpha1a="2" amplifier="0.8" time_constant="0.3" _x="1868" _y="96" />
 
         <connection source="Light.OUTPUT" target="PTA.EXCITATION" delay="0" />
+        <connection source="Amygdala.CR" target="Fear.INPUT1" delay="0" />
+        <connection source="Fear.OUTPUT" target="LCDrive.INPUT2" delay="0" />
+        <connection source="LCDrive.OUTPUT" target="LC.EXCITATION" delay="0" />
         <connection source="PTA.OUTPUT" target="EW.EXCITATION" delay="0" />
         <connection source="LC.OUTPUT" target="EW.SHUNTING_INHIBITION" delay="0" />
         <connection source="EW.OUTPUT" target="CG.EXCITATION" delay="0" />
@@ -70,13 +78,13 @@
         <connection source="SCG.OUTPUT" target="Eyes.PUPIL_DILATOR" delay="0" />
 
         <widget class="plot" name="LightPlot" title="Light level" source="Light.OUTPUT" buffer_size="200" auto_range="no" y_min="0" y_max="1" include_zero="yes"
-                x="24" y="320" _x="24" _y="320" width="384" height="128" show_title="yes" show_frame="yes" />
+                x="24" y="24" _x="24" _y="24" width="384" height="128" show_title="yes" show_frame="yes" />
         <widget class="plot" name="PupilPlot" title="Pupil diameter in mm" source="Eyes.PUPIL_DIAMETER" buffer_size="200" auto_range="no" y_min="0" y_max="16" include_zero="yes"
-                x="416" y="320" _x="416" _y="320" width="384" height="128" show_title="yes" show_frame="yes" />
+                x="416" y="24" _x="416" _y="24" width="384" height="128" show_title="yes" show_frame="yes" />
         <widget class="plot" name="ConstrictPlot" title="Constriction: ciliary ganglion" source="CG.OUTPUT" buffer_size="200" auto_range="no" y_min="0" y_max="1.5" include_zero="yes"
-                x="24" y="464" _x="24" _y="464" width="384" height="128" show_title="yes" show_frame="yes" />
+                x="24" y="168" _x="24" _y="168" width="384" height="128" show_title="yes" show_frame="yes" />
         <widget class="plot" name="DilatePlot" title="Dilation: superior cervical ganglion" source="SCG.OUTPUT" buffer_size="200" auto_range="no" y_min="0" y_max="1.5" include_zero="yes"
-                x="416" y="464" _x="416" _y="464" width="384" height="128" show_title="yes" show_frame="yes" />
+                x="416" y="168" _x="416" _y="168" width="384" height="128" show_title="yes" show_frame="yes" />
     </group>
 
     <!-- Behaviour: when to do what, and how it looks -->
@@ -245,7 +253,10 @@
 
     <!-- Brain inputs -->
     <connection source="Eye.INTENSITY" target="Brain.Light.INPUT" delay="0" />
-    <connection source="Arousal.AROUSAL" target="Brain.LC.EXCITATION" delay="0" />
+    <connection source="Arousal.AROUSAL" target="Brain.LCDrive.INPUT1" delay="0" />
+    <connection source="Hands.VALID" target="Brain.Amygdala.CS" delay="0" />
+    <connection source="FingerNear.NEAR" target="Brain.Amygdala.US" delay="0" />
+    <connection source="FingerNear.NEAR" target="Brain.Fear.INPUT2" delay="0" />
 
     <!-- Finger close up -->
     <connection source="Eye.OUTPUT" target="Hands.INPUT" delay="0" />

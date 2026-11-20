@@ -1,0 +1,21 @@
+<group name="DeltaExtinctionTest"
+       description="Both learners acquire the same response; when the US stops, only the one with an extinction rate loses it"
+       start="true" stop="6" tick_duration="0.1" threads="1"
+       cli_args="-u${TEST_DIR}"
+       expected_output_contains="tick = {2}&#10;keeps = {0.75}&#10;forgets = {0.75}||tick = {4}&#10;keeps = {0.875}&#10;forgets = {0.4375}||tick = {5}&#10;keeps = {0.875}&#10;forgets = {0.21875}">
+    <module class="InputFile" name="Script" filename="fixture_Delta_extinction.jsonl" send_end_of_file="false" />
+    <module class="Delta" name="Keeps" alpha="0.5" />
+    <module class="Delta" name="Forgets" alpha="0.5" extinction="0.5" />
+    <module class="Print" name="Out1" />
+    <module class="Print" name="Out2" />
+    <module class="Print" name="Out3" />
+
+    <connection source="Script.CS" target="Keeps.CS" delay="0" />
+    <connection source="Script.US" target="Keeps.US" delay="0" />
+    <connection source="Script.CS" target="Forgets.CS" delay="0" />
+    <connection source="Script.US" target="Forgets.US" delay="0" />
+
+    <connection source="Script.TICK" target="Out1.INPUT" delay="0" label="tick" />
+    <connection source="Keeps.CR" target="Out2.INPUT" delay="0" label="keeps" />
+    <connection source="Forgets.CR" target="Out3.INPUT" delay="0" label="forgets" />
+</group>

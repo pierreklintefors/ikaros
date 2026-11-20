@@ -14,6 +14,7 @@ and updates the internal weights using the prediction error:
 `delta = alpha * (sum(US) - CR)`
 
 When `delta > 0`, the weights are increased in proportion to the active elements in `CS`.
+When the response exceeds the US, the weights are left unchanged by default, so the model only acquires. With `extinction` above 0 they are instead decreased by `extinction * (sum(US) - CR)` in proportion to the active elements in `CS`, so a CS that is no longer followed by the US gradually loses its response.
 The learned weights are stored in the persistent private state matrix `WEIGHTS`, so they can be saved and restored with Ikaros state files.
 
 If `inverse="yes"`, the output is reported as `max(0, CR - sum(US))`, which can be used to model a simple inhibitory cerebellar-style response.
@@ -25,6 +26,7 @@ If `inverse="yes"`, the output is reported as `max(0, CR - sum(US))`, which can 
 | Name | Description | Type | Default |
 | --- | --- | --- | --- |
 | alpha | Learning rate | float | 0.1 |
+| extinction | Learning rate when CR exceeds US; 0 keeps acquisition only | float | 0 |
 | inverse | Report inhibitory output `max(0, CR-US)` instead of `CR` | bool | no |
 
 ## Inputs

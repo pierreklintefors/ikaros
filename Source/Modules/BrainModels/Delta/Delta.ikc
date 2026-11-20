@@ -1,10 +1,11 @@
 <class name="Delta" description="Learning using the delta rule">
 
 	<description type="text">
-		Simple conditioning model. Acquisition only. Learning using the delta rule with a linear output function.
+		Simple conditioning model. Acquisition only, unless extinction is above 0. Learning using the delta rule with a linear output function.
 	</description>
 
 	<parameter name="alpha" type="number" default="0.1" description="learning rate" />
+	<parameter name="extinction" type="number" default="0" min="0" description="learning rate when CR exceeds US, so a CS that is no longer followed by the US loses its response; 0 keeps acquisition only" />
 	<parameter name="inverse" type="bool" default="no" description="Set CR to max(0, CR-US) to imitate cerebellar inhibition." />
 
 	<input name="CS" description="The conditioned stimulus input" optional="yes" />
