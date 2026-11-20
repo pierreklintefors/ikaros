@@ -1,0 +1,21 @@
+<group name="EyeModelTest"
+       description="The goal diameter follows dilator minus sphincter drive and is clipped to pupil_min and pupil_max; with a time constant the pupil starts at the first goal and then approaches each new goal"
+       start="true" stop="6" tick_duration="0.1" threads="1"
+       cli_args="-u${TEST_DIR}"
+       expected_output_contains="tick = {0}&#10;smooth = {5}&#10;direct = {6}||tick = {1}&#10;smooth = {4.05182}&#10;direct = {2}||tick = {2}&#10;smooth = {6.54755}&#10;direct = {10}||tick = {3}&#10;smooth = {3.67295}&#10;direct = {2}">
+    <module class="InputFile" name="Script" filename="fixture_EyeModel.jsonl" send_end_of_file="false" />
+    <module class="EyeModel" name="Direct" pupil_min="2" pupil_max="10" amplifier="1" m3="2" alpha1a="1" time_constant="0" />
+    <module class="EyeModel" name="Smooth" pupil_min="2" pupil_max="8" amplifier="1" m3="1" alpha1a="1" time_constant="0.1" />
+    <module class="Print" name="Out1" />
+    <module class="Print" name="Out2" />
+    <module class="Print" name="Out3" />
+
+    <connection source="Script.SPHINCTER" target="Direct.PUPIL_SPHINCTER" delay="0" />
+    <connection source="Script.DILATOR" target="Direct.PUPIL_DILATOR" delay="0" />
+    <connection source="Script.SPHINCTER" target="Smooth.PUPIL_SPHINCTER" delay="0" />
+    <connection source="Script.DILATOR" target="Smooth.PUPIL_DILATOR" delay="0" />
+
+    <connection source="Script.TICK" target="Out1.INPUT" delay="0" label="tick" />
+    <connection source="Direct.PUPIL_DIAMETER" target="Out2.INPUT" delay="0" label="direct" />
+    <connection source="Smooth.PUPIL_DIAMETER" target="Out3.INPUT" delay="0" label="smooth" />
+</group>

@@ -1,0 +1,23 @@
+<class name="EyeModel" description="Pupil muscles: turns the drive of the pupil sphincter and dilator into a pupil diameter">
+    <description type="text">
+        EyeModel is the last stage of a pupil model. The sphincter, driven by the parasympathetic pathway
+        through the ciliary ganglion, makes the pupil smaller, and the dilator, driven by the sympathetic
+        pathway through the superior cervical ganglion, makes it larger. The goal diameter is
+        pupil_min + (pupil_max - pupil_min) * clip(amplifier * (alpha1a * DILATOR - m3 * SPHINCTER), 0, 1),
+        where m3 and alpha1a are the sensitivities of the muscarinic and alpha-1a receptors of the two
+        muscles. The pupil follows its goal with the time constant time_constant, and starts at the goal
+        of the first tick. Inputs with several elements are averaged.
+    </description>
+
+    <parameter name="pupil_min" type="number" default="2" description="Smallest pupil diameter in mm" />
+    <parameter name="pupil_max" type="number" default="8" description="Largest pupil diameter in mm" />
+    <parameter name="m3" type="number" default="1" min="0" description="Sensitivity of the sphincter (muscarinic M3 receptors)" />
+    <parameter name="alpha1a" type="number" default="1" min="0" description="Sensitivity of the dilator (alpha-1a receptors)" />
+    <parameter name="amplifier" type="number" default="1" min="0" description="Gain on the difference between dilator and sphincter drive" />
+    <parameter name="time_constant" type="number" default="0.3" min="0" unit="s" description="Seconds for the pupil to cover about 63 percent of the way to its goal; 0 follows at once" />
+
+    <input name="PUPIL_SPHINCTER" description="Constriction drive, for example from the ciliary ganglion" />
+    <input name="PUPIL_DILATOR" description="Dilation drive, for example from the superior cervical ganglion" />
+
+    <output name="PUPIL_DIAMETER" size="1" description="Pupil diameter in mm" />
+</class>

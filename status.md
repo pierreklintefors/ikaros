@@ -2098,3 +2098,15 @@ The head should stay with faces: finger following is removed, and a finger broug
 - The distance comes from the width of the hand, taken as 0.1 m, so an open hand looks closer than it is and crosses the eyes from about 0.5 m. Requiring `Hands.POINTING` would limit it to a pointing finger, but POINTING has not been verified.
 - A finger very close to the camera may show too little of the hand for Vision to detect it.
 - The 5 s task timeout at start-up reported by the user is not explained yet; a hardware module's first tick is the likely cause.
+
+## Pupil model and brain activity in the animatronics demo
+
+The pupil model of `PupilLedDemo.ikg` (Ikaros 2) comes to the animatronics demo: a light reflex and an emotional (locus coeruleus) pathway made of `Nucleus` modules drive the pupils, a new way to elicit emotions replaces the QR markers, and the brain activity view is redone as a livelier animation. Nothing may add noticeable lag to the demo.
+
+| # | Task | Status | Verification | Commit |
+|---:|---|---|---|---|
+| 1 | Port `EyeModel` (pupil sphincter and dilator to pupil diameter) to Ikaros 3 as a C++ module with a test. | Done | Build without warnings. `test_EyeModel.ikg` passes: dilator 0.5 gives 6 mm in a 2-10 mm range, a sphincter with `m3` 2 cancels it (2 mm), drives above 1 and below 0 clip to 10 and 2 mm, and with `time_constant` 0.1 s at 0.1 s ticks the pupil starts at its first goal (5 mm) and moves 63 percent of the way to each new goal per tick. | This commit |
+| 2 | Pupil circuit in the demo: light level from the right camera (downsampled, brightest region) through pretectal area, Edinger-Westphal, and ciliary ganglion to the sphincter; locus coeruleus through IML and SCG to the dilator; amygdala (`Delta`) and arousal into the locus coeruleus; combined with the animation and near-response pupil offsets. Measure the cost per tick. | Planned | | |
+| 3 | A new way to elicit emotions in place of the QR markers (chosen by the user). | Planned | | |
+| 4 | New WebUI widget that animates the brain activity: regions that glow with their activity and signals that travel along the pathways; a brain page in the demo. | Planned | | |
+| 5 | Guide, dashboard, and checklist for the pupil model. | Planned | | |
