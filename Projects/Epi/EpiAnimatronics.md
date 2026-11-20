@@ -3,7 +3,8 @@
 `EpiAnimatronics.ikg` makes an Epi robot look alive, playful, and curious. Most of the time it is
 subtle: it blinks, glances, and slowly looks around the room. When it finds someone new it perks up
 with a happy chirp, when someone comes really close its eyes cross, when someone pans their head
-back and forth it starts a game of copycat, and now and then it plays a little reaction: a sly look to the side with a "he-he-heh", a
+back and forth it starts a game of copycat, its pupils react to light and learn to fear a finger
+that pokes at its eyes, and now and then it plays a little reaction: a sly look to the side with a "he-he-heh", a
 cross-eyed moment with blue eyes, a giggle, being "mind blown" with eyes that move apart, a rising
 whistle of surprise, and a "pooof", or a game of copycat in which it mirrors the person's head
 movements. It speaks only in robot chirps and whistles, not every time and never quite the same,
@@ -44,8 +45,8 @@ synchronized with the motion:
 4. **Mood.** `Arousal` keeps an excitement level from 0 to 1. It rests low when Epi is alone and a
    little higher with company. Finding someone new raises it a lot, a face that comes close raises
    it, and each reaction raises it a little. It then falls back over about half a minute. Arousal
-   sets the tempo of the animations (0.8 to 1.15 times), their size (0.8 to 1.2 times), the sound
-   volume, and the pupils, which open with excitement as people's do.
+   sets the tempo of the animations (0.8 to 1.15 times), their size (0.8 to 1.2 times), and the sound
+   volume, and it opens the pupils through the brain model below, as excitement does in people.
 5. **Choosing.** `BehaviorSelector` decides when Epi does what. When someone new appears it plays
    *found you*, and when the person leaves, *curious*. Alone, it only now and then looks around or
    peeks curiously. With company it starts an animation after 8 to 16 quiet seconds, sooner when
@@ -68,10 +69,30 @@ synchronized with the motion:
    finds the hand in the right eye camera, and a second `ProximityVergence`, `FingerNear`, estimates
    its distance from the width of the hand. The eyes start to cross at about 0.3 m and cross fully at
    about 0.12 m. A hand further away has no effect, and Epi never follows a hand with its head.
-9. **Voice.** Most sounds play only in some of the plays, and each time one of three variants is
+9. **Pupils.** A small brain model from Ikaros 2's pupil demo sets the pupil size, and the
+   animations and the near response add their pupil movements on top. It lives in the group
+   `Brain`, which has its own page in the WebUI. Two pathways pull against each other, as in people:
+   - **Light narrows the pupils.** The mean brightness of the right camera drives the pretectal area
+     (`PTA`), the Edinger-Westphal nucleus (`EW`), and the ciliary ganglion (`CG`), which contracts
+     the pupil's sphincter muscle.
+   - **Arousal and fear widen them.** The locus coeruleus (`LC`) drives the spinal cord's
+     intermediolateral column (`IML`) and the superior cervical ganglion (`SCG`), which contracts the
+     dilator muscle, and it also damps the Edinger-Westphal nucleus. The arousal level and fear
+     excite it.
+   - **Fear is learned.** A finger poke (a finger brought close to the eyes, which also makes them
+     cross) is frightening in itself. The amygdala (`Delta`) learns that a hand in view comes before
+     a poke, so after a few pokes the pupils widen as soon as a hand appears, before any poke. Show
+     your hand often without poking and the fear slowly fades again.
+
+   `EyeModel` turns the two muscles' drive into a diameter between 5 and 16 mm. In a normal room the
+   pupils are about 8 mm when Epi is alone, 10 mm with company, and up to 14 mm when it is excited;
+   darkness opens them to 12 to 14 mm and bright light closes them to 5 to 6 mm. The Brain page
+   shows the model as an animated side view of the brain, in which each nucleus glows with its
+   activity and spikes travel along the pathways.
+10. **Voice.** Most sounds play only in some of the plays, and each time one of three variants is
    chosen, so Epi is not chatty and never repeats itself exactly. The signature sounds of mind
    blown always play.
-10. **Body.** `EpiExpression` shows the state and the animation on the LEDs and pupils. `SoundOutput`
+11. **Body.** `EpiExpression` shows the state and the animation on the LEDs and pupils. `SoundOutput`
    plays the sounds, and `EpiServos` and `FadeCandy` drive the hardware.
 
 All modules apart from `EpiServos`, `EpiExpression`, and `FadeCandy` are general and can be used
@@ -239,7 +260,7 @@ The character is tuned on the modules:
 | `Behaviors` | `idle_weights`, `engaged_weights`, `arousal_levels`, `arousal_width` | Which animations it prefers alone, with company, and in each mood |
 | `Behaviors` | `memory`, `cooldown` | How long before an animation can come back |
 | `Arousal` | `idle_level`, `engaged_level`, `boosts`, `drive_gain`, `decay_rate` | How excitable Epi is and how fast it calms down |
-| `Arousal` | `low`, `high` | Tempo, size, volume, and pupil offset at arousal 0 and 1 |
+| `Arousal` | `low`, `high` | Tempo, size, and volume at arousal 0 and 1 |
 | `Animator` | `speed_variation`, `intensity_variation`, `mirror_channels` | How much each play varies |
 | `Blinker`, `EyeGlances`, `HeadGlances` | intervals and sizes | The background life |
 | `Mirror` | `max_pan`, `max_tilt`, dead zones, `engage_time` | The copycat game; see `EpiHeadMirroring.md` |
@@ -249,6 +270,10 @@ The character is tuned on the modules:
 | `NearPupil` | `factor` | How much the pupils narrow when a face is close, in mm (negative) |
 | `FingerNear` | `start_distance`, `full_distance`, `object_width`, `gain`, `max_vergence` | When and how strongly the eyes cross on a close finger. The distance is estimated from the width of the hand, taken as 0.1 m, a hand pointing with one finger; an open hand looks closer than it is, so it starts crossing the eyes at about 0.5 m |
 | `Hands` | `downsample`, `interval`, `hold_time` | How much work hand detection takes, at half resolution on every second tick, and how long a hand that is briefly missed is kept |
+| `Brain.PTA` | `beta` | How strongly light narrows the pupils |
+| `Brain.LC` | `alpha`, `beta` | The resting drive of the locus coeruleus, and how strongly arousal and fear widen the pupils |
+| `Brain.Eyes` | `pupil_min`, `pupil_max`, `m3`, `alpha1a`, `amplifier`, `time_constant` | The pupil range, the strength of the sphincter and dilator muscles, the overall gain, and how fast the pupils move |
+| `Brain.Amygdala` | `alpha`, `extinction` | How fast the fear of a poke is learned (0.02: about three pokes of 1 s), and how fast it fades when a hand comes without a poke (0.002: halved after about 14 s of hand in view) |
 | `HeadPan` | `amplitude`, `swings`, `window`, `smoothing` | How large and quick a back-and-forth head pan must be to start copycat; `smoothing` 20 keeps quick head shakes large enough to count |
 
 ### Camera settings
@@ -282,6 +307,11 @@ the other program and start again.
   close the face is; above 0.3 the head holds still. The left eye camera is shown beside them.
 - **Finger close** rises from 0 to 1 as a hand comes toward the cameras; the eyes are fully crossed
   at 1.
+- Open the group `Brain` for the pupil model's page. The animated brain shows each nucleus glowing
+  with its activity, spikes travelling along the pathways (yellow for light, cyan for narrowing the
+  pupils, orange for widening them, magenta for fear, and red dashes for inhibition), and the eye
+  with its present pupil. Below it, plots show the light level, the fear, the locus coeruleus, and
+  the pupil diameter.
 
 ## Changing the animations
 
@@ -360,7 +390,15 @@ the robot needs someone next to it.
    relax within about a second. If the eyes cross too early or too late, change `start_distance` and
    `full_distance` on `FingerNear`; if a finger very close to the camera is not noticed, the hand
    detector may need more of the hand in view.
-13. **Pacing and mood.** Watch for a few minutes alone and with company. Raise `min_interval` and
+13. **Pupil brain.** Open the `Brain` page. Cover the right eye camera with your hand: the light level
+   should fall and the pupils open to 12 mm or more within a couple of seconds. Shine a phone light
+   into it: they should close toward 5 mm. Then, standing in front of Epi, show your hand at arm's
+   length once (nothing should happen), and poke a finger toward Epi's eyes three times, about a
+   second each, with a few seconds between. Afterwards your hand at arm's length alone should widen
+   the pupils, and the Amygdala should glow on the brain page. If learning takes too many pokes,
+   raise `alpha` on `Brain.Amygdala`; if the pupils hardly change, raise `beta` on `Brain.LC` or
+   `amplifier` on `Brain.Eyes`.
+14. **Pacing and mood.** Watch for a few minutes alone and with company. Raise `min_interval` and
    `max_interval` on `Behaviors` if Epi is too busy, and lower them if it is too calm. Lower
    `decay_rate` on `Arousal` if the excitement fades too fast.
 
@@ -369,6 +407,15 @@ the robot needs someone next to it.
 - **Finger close up untested on the robot.** It has been checked in simulation with photos of hands
   of several sizes, not with a live camera. The distance comes from the width of the hand alone, so
   it is only rough, and a hand that fills most of the view may not be detected at all.
+
+- **Pupil brain untested on the robot.** The pupil model has been checked in simulation with still
+  images and an image sequence, not with a live camera. The eye cameras adjust their exposure
+  automatically, which partly cancels slow changes in room light, so the light reflex is clearest for
+  sudden changes such as covering the camera or shining a light into it.
+- **Fear is forgotten at exit.** The learned fear is kept while the model runs and starts from zero
+  the next time, unless the state is saved with `-W` and loaded with `-L`.
+- **Brain page unchecked in the WebUI.** The animated brain has been checked in a test page, not in
+  the live WebUI.
 
 - **Untested on the robot.** The model has been checked in simulation with a scripted person, not
   on a robot. The head tilt sign, the LED ring layout, the motion speeds, and the pacing must be
