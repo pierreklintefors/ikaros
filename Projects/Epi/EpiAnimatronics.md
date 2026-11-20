@@ -415,6 +415,11 @@ the robot needs someone next to it.
   of several sizes, not with a live camera. The distance comes from the width of the hand alone, so
   it is only rough, and a hand that fills most of the view may not be detected at all.
 
+- **Parallel ticks.** To keep each tick within 40 ms on the robot, the servos and LEDs get their
+  commands one tick (40 ms) later, the left camera's face detection and the hand detection run as
+  separate tasks with one-tick delays, and so the stereo distance is one tick old and finger and fear
+  reactions come two ticks late. Without these delays the camera, face detection, gaze, servo bus, and
+  LEDs ran one after another and a tick took 50 to 60 ms, which starved the WebUI.
 - **Pupil brain untested on the robot.** The pupil model has been checked in simulation with still
   images and an image sequence, not with a live camera. The eye cameras adjust their exposure
   automatically, which partly cancels slow changes in room light, so the light reflex is clearest for

@@ -219,8 +219,8 @@
     <connection source="EyeOffset.OUTPUT" target="Gaze.EYE_OFFSET" delay="0" />
     <connection source="LeftEye.OUTPUT" target="LeftFaces.INPUT" delay="0" />
     <connection source="LeftFaces.BOXES" target="LeftTarget.BOXES" delay="0" />
-    <connection source="LeftTarget.TARGET" target="Stereo.LEFT_TARGET" delay="0" />
-    <connection source="LeftTarget.VALID" target="Stereo.LEFT_VALID" delay="0" />
+    <connection source="LeftTarget.TARGET" target="Stereo.LEFT_TARGET" delay="1" />
+    <connection source="LeftTarget.VALID" target="Stereo.LEFT_VALID" delay="1" />
     <connection source="Target.TARGET" target="Stereo.RIGHT_TARGET" delay="0" />
     <connection source="Target.VALID" target="Stereo.RIGHT_VALID" delay="0" />
     <connection source="Servos.PRESENT_POSITION[2:4]" target="Stereo.EYE_PAN" delay="1" />
@@ -247,7 +247,7 @@
     <connection source="NearPupil.OUTPUT" target="Pupil.INPUT2" delay="0" />
     <connection source="Pupil.OUTPUT" target="Expression.PUPIL_OFFSET" delay="0" />
 
-    <connection source="Gaze.GOAL_POSITION" target="Servos.GOAL_POSITION" delay="0" />
+    <connection source="Gaze.GOAL_POSITION" target="Servos.GOAL_POSITION" delay="1" />
     <connection source="Target.VALID" target="Boredom.ACTIVITY" delay="0" />
     <connection source="Arousal.AROUSAL" target="Boredom.AROUSAL" delay="0" />
     <connection source="Boredom.BORED" target="LightShow.RUN" delay="0" />
@@ -258,10 +258,10 @@
     <connection source="Expression.RIGHT_EYE" target="LightShow.EYE_RIGHT" delay="0" />
     <connection source="Expression.MOUTH_HIGH" target="LightShow.MOUTH_TOP" delay="0" />
     <connection source="Expression.MOUTH_LOW" target="LightShow.MOUTH_BOTTOM" delay="0" />
-    <connection source="LightShow.LEFT_EYE" target="LEDs.LEFT_EYE" delay="0" />
-    <connection source="LightShow.RIGHT_EYE" target="LEDs.RIGHT_EYE" delay="0" />
-    <connection source="LightShow.MOUTH_HIGH" target="LEDs.MOUTH_HIGH" delay="0" />
-    <connection source="LightShow.MOUTH_LOW" target="LEDs.MOUTH_LOW" delay="0" />
+    <connection source="LightShow.LEFT_EYE" target="LEDs.LEFT_EYE" delay="1" />
+    <connection source="LightShow.RIGHT_EYE" target="LEDs.RIGHT_EYE" delay="1" />
+    <connection source="LightShow.MOUTH_HIGH" target="LEDs.MOUTH_HIGH" delay="1" />
+    <connection source="LightShow.MOUTH_LOW" target="LEDs.MOUTH_LOW" delay="1" />
 
     <!-- Dashboard: controls and state -->
 
@@ -269,14 +269,14 @@
     <connection source="Eye.INTENSITY" target="Brain.Brightness.INPUT" delay="0" />
     <connection source="Eye.INTENSITY" target="Brain.GlarePixels.INPUT" delay="0" />
     <connection source="Arousal.AROUSAL" target="Brain.LCDrive.INPUT1" delay="0" />
-    <connection source="Hands.VALID" target="Brain.Amygdala.CS" delay="0" />
+    <connection source="Hands.VALID" target="Brain.Amygdala.CS" delay="1" />
     <connection source="FingerNear.NEAR" target="Brain.Amygdala.US" delay="0" />
     <connection source="FingerNear.NEAR" target="Brain.Fear.INPUT2" delay="0" />
 
     <!-- Finger close up -->
-    <connection source="Eye.OUTPUT" target="Hands.INPUT" delay="0" />
-    <connection source="Hands.TARGET" target="FingerNear.TARGET" delay="0" />
-    <connection source="Hands.VALID" target="FingerNear.VALID" delay="0" />
+    <connection source="Eye.OUTPUT" target="Hands.INPUT" delay="1" />
+    <connection source="Hands.TARGET" target="FingerNear.TARGET" delay="1" />
+    <connection source="Hands.VALID" target="FingerNear.VALID" delay="1" />
     <connection source="Near.VERGENCE" target="NearVergence.INPUT1" delay="0" />
     <connection source="FingerNear.VERGENCE" target="NearVergence.INPUT2" delay="0" />
 
