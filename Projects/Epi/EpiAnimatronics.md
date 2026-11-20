@@ -85,6 +85,13 @@ synchronized with the motion:
      cross) is frightening in itself. The amygdala (`Delta`) learns that a hand in view comes before
      a poke, so after a few pokes the pupils widen as soon as a hand appears, before any poke. Show
      your hand often without poking and the fear slowly fades again.
+   - **Fear shows.** Whenever the fear rises above 0.4 (`Brain.FearCue`), Epi plays *scared*: its
+     eyes and mouth flash red and white, it gives a frightened "eek", flinches back and away, and
+     trembles with pale blue eyes. A poke always scares it. The learned fear reaches 0.4 after
+     about two pokes, so from then on the hand alone, coming into view, makes Epi scared before any
+     poke: the conditioned response. Each time the hand comes without a poke the fear is a little
+     smaller, and after about four such appearances of 3 s the hand no longer scares it:
+     extinction.
 
    `EyeModel` turns the two muscles' drive into a diameter between 5 and 16 mm. In a normal room the
    pupils are about 8 mm when Epi is alone, 10 mm with company, and up to 13.5 mm when it is excited;
@@ -122,6 +129,7 @@ cross-eyed, and the flash comes with the pooof.
 | 8 | Mischief | The eyes slide slowly to the side under half-closed lids, purple glow, a sly laugh with a flash and a bob on each syllable, then a quick, innocent look back with wide eyes | a sly "he-he-heh" | 0.55 |
 | 9 | Look around | The eyes lead each turn and the head follows slowly, about 12 degrees, to one side and the other | | 0.15 |
 | 10 | Copycat | Started by panning the head back and forth: a bright, inviting look and a little lift of the head, then about 17 seconds of mirroring the person's head movements with green eyes, ending with a happy squint | sometimes a hello at the start and a giggle at the end | 0.6 |
+| 11 | Scared | Started by fear: eyes and mouth flash red and white three times, the eyes dart away and widen, the head flinches back and trembles, then pale blue, trembling eyes calm down with a blink | a frightened "eek" that leaps up and whimpers away, every time | 0.9 |
 
 The sound column lists what can play. Each sound event has a probability, from 35 percent for the
 hum of cross-eyed to 85 percent for the giggles; the chirp of found you and the wow and pooof of mind
@@ -261,7 +269,7 @@ The character is tuned on the modules:
 | --- | --- | --- |
 | `Behaviors` | `min_interval`, `max_interval`, `excited_interval_scale` | How often Epi does something, and how much sooner when excited |
 | `Behaviors` | `idle_weights`, `engaged_weights`, `arousal_levels`, `arousal_width` | Which animations it prefers alone, with company, and in each mood |
-| `Behaviors` | `memory`, `cooldown` | How long before an animation can come back |
+| `Behaviors` | `memory`, `cooldown` | How long before an animation can come back; `cooldown` has one value per animation, 25 s for all but scared, which can come back after 1.5 s so that every poke shows |
 | `Arousal` | `idle_level`, `engaged_level`, `boosts`, `drive_gain`, `decay_rate` | How excitable Epi is and how fast it calms down |
 | `Arousal` | `low`, `high` | Tempo, size, and volume at arousal 0 and 1 |
 | `Animator` | `speed_variation`, `intensity_variation`, `mirror_channels` | How much each play varies |
@@ -277,6 +285,7 @@ The character is tuned on the modules:
 | `Brain.PTA` | `beta` | How strongly light narrows the pupils |
 | `Brain.LC` | `alpha`, `beta` | The resting drive of the locus coeruleus, and how strongly arousal and fear widen the pupils |
 | `Brain.Eyes` | `pupil_min`, `pupil_max`, `m3`, `alpha1a`, `amplifier`, `time_constant` | The pupil range, the strength of the sphincter and dilator muscles, the overall gain, and how fast the pupils move |
+| `Brain.FearCue` | `threshold` | Fear above which Epi plays scared (0.4: every poke, and the hand alone after about two pokes) |
 | `Brain.Amygdala` | `alpha`, `extinction` | How fast the fear of a poke is learned (0.02: about three pokes of 1 s), and how fast it fades when a hand comes without a poke (0.002: halved after about 14 s of hand in view) |
 | `HeadPan` | `amplitude`, `swings`, `window`, `smoothing` | How large and quick a back-and-forth head pan must be to start copycat; `smoothing` 20 keeps quick head shakes large enough to count |
 
@@ -298,7 +307,7 @@ the other program and start again.
 - **Faces**, **Locked**, **Animation**, **Next in**, and **Arousal** show how many faces passed the
   filters, whether the gaze is locked, the playing animation (-1 for none), the quiet seconds left
   before the next spontaneous animation, and the excitement level.
-- The eleven numbered buttons play each animation at once.
+- The twelve numbered buttons play each animation at once.
 - **Wave (5 s)** and **Circle (5 s)** play a light pattern, and the other buttons in those rows run the
   LED orientation check. **Lights** shows the playing pattern (0 none, 1 wave, 2 circle, 3 check),
   and **LEDs saved** whether the robot's LED orientation is stored.
@@ -401,9 +410,14 @@ the robot needs someone next to it.
    should fall and the pupils open fully to 16 mm within about a second. Shine a phone light into it
    from about 20 cm: the light level should rise above 0.7 and the pupils close to about 5 mm. Then, standing in front of Epi, show your hand at arm's
    length once (nothing should happen), and poke a finger toward Epi's eyes three times, about a
-   second each, with a few seconds between. Afterwards your hand at arm's length alone should widen
-   the pupils, and the Amygdala should glow on the brain page. If learning takes too many pokes,
-   raise `alpha` on `Brain.Amygdala`; if the pupils hardly change, raise `beta` on `Brain.LC` or
+   second each, with a few seconds between, each time moving the hand into view first. Each poke
+   should make Epi scared, with red flashes and an "eek". From about the third time, the hand
+   coming into view should scare Epi before the poke, the Amygdala should glow on the brain page,
+   and the pupils should widen. Then show your hand at arm's length without poking, for about 3 s at
+   a time with short breaks: Epi should be scared the first few times and then no longer. If
+   learning takes too many pokes, raise `alpha` on `Brain.Amygdala`; if the fear fades too fast or
+   too slowly, change `extinction` there; if the hand scares Epi too easily or never, change
+   `threshold` on `Brain.FearCue`; if the pupils hardly change, raise `beta` on `Brain.LC` or
    `amplifier` on `Brain.Eyes`.
 14. **Pacing and mood.** Watch for a few minutes alone and with company. Raise `min_interval` and
    `max_interval` on `Behaviors` if Epi is too busy, and lower them if it is too calm. Lower

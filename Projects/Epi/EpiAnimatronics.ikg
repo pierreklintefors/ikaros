@@ -67,6 +67,7 @@
         <module class="Delta" name="Amygdala" title="Amygdala: learns that a hand comes before a poke" alpha="0.02" extinction="0.002" _x="1100" _y="624" />
         <module class="Maximum" name="Fear" _x="1340" _y="624" />
         <module class="Add" name="LCDrive" _x="1580" _y="624" />
+        <module class="Threshold" name="FearCue" title="Fear above which Epi shows that it is scared" threshold="0.4" type="binary" _x="1340" _y="768" />
         <module class="EyeModel" name="Eyes" pupil_min="5" pupil_max="16" m3="1.5" alpha1a="2" amplifier="1.3" time_constant="0.3" _x="2540" _y="320" />
 
         <connection source="Brightness.OUTPUT" target="Light.INPUT1" delay="0" />
@@ -76,6 +77,7 @@
         <connection source="Light.OUTPUT" target="PTA.EXCITATION" delay="0" />
         <connection source="Amygdala.CR" target="Fear.INPUT1" delay="0" />
         <connection source="Fear.OUTPUT" target="LCDrive.INPUT2" delay="0" />
+        <connection source="Fear.OUTPUT" target="FearCue.INPUT" delay="0" />
         <connection source="LCDrive.OUTPUT" target="LC.EXCITATION" delay="0" />
         <connection source="PTA.OUTPUT" target="EW.EXCITATION" delay="0" />
         <connection source="LC.OUTPUT" target="EW.SHUNTING_INHIBITION" delay="0" />
@@ -103,18 +105,18 @@
 
     <!-- Behaviour: when to do what, and how it looks -->
     <module class="Constant" name="BehaviorsEnable" data="1" _x="24" _y="264" />
-    <module class="BehaviorSelector" name="Behaviors" count="11" greeting="0" greeting_delay="0.3" farewell="6"
-            idle_weights="0, 0, 0, 0, 0, 0, 0.5, 0, 0, 2, 0" engaged_weights="0, 1, 1.5, 1, 1.5, 1, 0.6, 1, 1.5, 0.3, 0.5"
-            arousal_levels="0.8, 0.5, 0.6, 0.5, 0.75, 0.9, 0.3, 0.35, 0.55, 0.15, 0.6" arousal_width="0.3" memory="3"
-            min_interval="8" max_interval="16" excited_interval_scale="0.6" cooldown="25" reaction_cooldown="10" _x="216" _y="264" />
+    <module class="BehaviorSelector" name="Behaviors" count="12" greeting="0" greeting_delay="0.3" farewell="6"
+            idle_weights="0, 0, 0, 0, 0, 0, 0.5, 0, 0, 2, 0, 0" engaged_weights="0, 1, 1.5, 1, 1.5, 1, 0.6, 1, 1.5, 0.3, 0.5, 0"
+            arousal_levels="0.8, 0.5, 0.6, 0.5, 0.75, 0.9, 0.3, 0.35, 0.55, 0.15, 0.6, 0.9" arousal_width="0.3" memory="3"
+            min_interval="8" max_interval="16" excited_interval_scale="0.6" cooldown="25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 1.5" reaction_cooldown="10" _x="216" _y="264" />
     <module class="KeyframeAnimator" name="Animator" file="../Projects/Epi/EpiAnimations.json"
             channels="eye_offset, vergence, head_tilt, head_pan, pupil, eye_r, eye_g, eye_b, eye_mix, mouth_r, mouth_g, mouth_b, mouth_mix, brightness, lid, mirror, hold"
             rest="0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0"
-            events="blink, hi_1, hi_2, hi_3, wow_1, wow_2, wow_3, poof_1, poof_2, poof_3, giggle_1, giggle_2, giggle_3, hmm_1, hmm_2, hmm_3, aww_1, aww_2, aww_3, sparkle_1, sparkle_2, sparkle_3, hehe_1, hehe_2, hehe_3, chirp_1, chirp_2, chirp_3" event_count="28" release_rate="4"
+            events="blink, hi_1, hi_2, hi_3, wow_1, wow_2, wow_3, poof_1, poof_2, poof_3, giggle_1, giggle_2, giggle_3, hmm_1, hmm_2, hmm_3, aww_1, aww_2, aww_3, sparkle_1, sparkle_2, sparkle_3, hehe_1, hehe_2, hehe_3, chirp_1, chirp_2, chirp_3, eek_1, eek_2, eek_3" event_count="31" release_rate="4"
             intensity_channels="eye_offset, vergence, head_tilt, head_pan, pupil, lid" mirror_channels="eye_offset, head_pan"
             speed_variation="0.12" intensity_variation="0.15" _x="408" _y="264" />
     <module class="SoundOutput" name="Sounds"
-            sounds="../Projects/Epi/Sounds/Animatronics/hi_1.wav, ../Projects/Epi/Sounds/Animatronics/hi_2.wav, ../Projects/Epi/Sounds/Animatronics/hi_3.wav, ../Projects/Epi/Sounds/Animatronics/wow_1.wav, ../Projects/Epi/Sounds/Animatronics/wow_2.wav, ../Projects/Epi/Sounds/Animatronics/wow_3.wav, ../Projects/Epi/Sounds/Animatronics/poof_1.wav, ../Projects/Epi/Sounds/Animatronics/poof_2.wav, ../Projects/Epi/Sounds/Animatronics/poof_3.wav, ../Projects/Epi/Sounds/Animatronics/giggle_1.wav, ../Projects/Epi/Sounds/Animatronics/giggle_2.wav, ../Projects/Epi/Sounds/Animatronics/giggle_3.wav, ../Projects/Epi/Sounds/Animatronics/hmm_1.wav, ../Projects/Epi/Sounds/Animatronics/hmm_2.wav, ../Projects/Epi/Sounds/Animatronics/hmm_3.wav, ../Projects/Epi/Sounds/Animatronics/aww_1.wav, ../Projects/Epi/Sounds/Animatronics/aww_2.wav, ../Projects/Epi/Sounds/Animatronics/aww_3.wav, ../Projects/Epi/Sounds/Animatronics/sparkle_1.wav, ../Projects/Epi/Sounds/Animatronics/sparkle_2.wav, ../Projects/Epi/Sounds/Animatronics/sparkle_3.wav, ../Projects/Epi/Sounds/Animatronics/hehe_1.wav, ../Projects/Epi/Sounds/Animatronics/hehe_2.wav, ../Projects/Epi/Sounds/Animatronics/hehe_3.wav, ../Projects/Epi/Sounds/Animatronics/chirp_1.wav, ../Projects/Epi/Sounds/Animatronics/chirp_2.wav, ../Projects/Epi/Sounds/Animatronics/chirp_3.wav"
+            sounds="../Projects/Epi/Sounds/Animatronics/hi_1.wav, ../Projects/Epi/Sounds/Animatronics/hi_2.wav, ../Projects/Epi/Sounds/Animatronics/hi_3.wav, ../Projects/Epi/Sounds/Animatronics/wow_1.wav, ../Projects/Epi/Sounds/Animatronics/wow_2.wav, ../Projects/Epi/Sounds/Animatronics/wow_3.wav, ../Projects/Epi/Sounds/Animatronics/poof_1.wav, ../Projects/Epi/Sounds/Animatronics/poof_2.wav, ../Projects/Epi/Sounds/Animatronics/poof_3.wav, ../Projects/Epi/Sounds/Animatronics/giggle_1.wav, ../Projects/Epi/Sounds/Animatronics/giggle_2.wav, ../Projects/Epi/Sounds/Animatronics/giggle_3.wav, ../Projects/Epi/Sounds/Animatronics/hmm_1.wav, ../Projects/Epi/Sounds/Animatronics/hmm_2.wav, ../Projects/Epi/Sounds/Animatronics/hmm_3.wav, ../Projects/Epi/Sounds/Animatronics/aww_1.wav, ../Projects/Epi/Sounds/Animatronics/aww_2.wav, ../Projects/Epi/Sounds/Animatronics/aww_3.wav, ../Projects/Epi/Sounds/Animatronics/sparkle_1.wav, ../Projects/Epi/Sounds/Animatronics/sparkle_2.wav, ../Projects/Epi/Sounds/Animatronics/sparkle_3.wav, ../Projects/Epi/Sounds/Animatronics/hehe_1.wav, ../Projects/Epi/Sounds/Animatronics/hehe_2.wav, ../Projects/Epi/Sounds/Animatronics/hehe_3.wav, ../Projects/Epi/Sounds/Animatronics/chirp_1.wav, ../Projects/Epi/Sounds/Animatronics/chirp_2.wav, ../Projects/Epi/Sounds/Animatronics/chirp_3.wav, ../Projects/Epi/Sounds/Animatronics/eek_1.wav, ../Projects/Epi/Sounds/Animatronics/eek_2.wav, ../Projects/Epi/Sounds/Animatronics/eek_3.wav"
             lag="0" _x="600" _y="816" />
 
     <!-- Mood: excitement rises when someone new is found, with a close face, and with each reaction,
@@ -183,7 +185,7 @@
     <connection source="Animator.PLAYING" target="Arousal.STIMULUS[1:2]" delay="1" />
     <connection source="Target.TARGET[2:3]" target="Arousal.DRIVE" delay="0" />
 
-    <connection source="Animator.EVENTS[1:28]" target="Sounds.TRIG" delay="0" />
+    <connection source="Animator.EVENTS[1:31]" target="Sounds.TRIG" delay="0" />
     <connection source="Arousal.MAPPED[2:3]" target="Sounds.GAIN" delay="0" />
     <connection source="Animator.EVENTS[0:1]" target="Blinker.TRIGGER" delay="0" />
     <connection source="Animator.OUTPUT[16:17]" target="Blinker.INHIBIT" delay="0" />
@@ -209,6 +211,7 @@
     <connection source="Target.TARGET_POSE[0:1]" target="HeadPan.INPUT" delay="0" />
     <connection source="Target.VALID" target="HeadPan.VALID" delay="0" />
     <connection source="HeadPan.DETECTED" target="Behaviors.REQUEST[10:11]" delay="0" />
+    <connection source="Brain.FearCue.OUTPUT" target="Behaviors.REQUEST[11:12]" delay="0" />
 
     <connection source="Servos.PRESENT_POSITION" target="Gaze.PRESENT_POSITION" delay="1" />
     <connection source="Mirror.FOLLOW" target="Gaze.FOLLOW" delay="0" />
@@ -321,6 +324,8 @@
             x="1476" y="192" _x="1476" _y="192" width="140" height="40" show_title="no" show_frame="no" />
     <widget class="button" name="CopycatButton" label="10 Copycat" command="Animator.play" select_x="10" type="push"
             x="1624" y="192" _x="1624" _y="192" width="140" height="40" show_title="no" show_frame="no" />
+    <widget class="button" name="ScaredButton" label="11 Scared" command="Animator.play" select_x="11" type="push"
+            x="1772" y="192" _x="1772" _y="192" width="140" height="40" show_title="no" show_frame="no" />
 
     <!-- Dashboard: light shows and the LED orientation check -->
     <widget class="button" name="WaveButton" label="Wave (5 s)" command="LightShow.play" select_x="1" type="push"
