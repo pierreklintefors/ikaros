@@ -77,14 +77,20 @@
         <connection source="CG.OUTPUT" target="Eyes.PUPIL_SPHINCTER" delay="0" />
         <connection source="SCG.OUTPUT" target="Eyes.PUPIL_DILATOR" delay="0" />
 
+        <widget class="brain-activity" name="BrainView" title="Epi's pupil brain"
+                light_source="Light.OUTPUT" pta_source="PTA.OUTPUT" ew_source="EW.OUTPUT" cg_source="CG.OUTPUT"
+                visual_source="Amygdala.CS" touch_source="Fear.INPUT2" amygdala_source="Fear.OUTPUT" arousal_source="LCDrive.INPUT1"
+                lc_source="LC.OUTPUT" iml_source="IML.OUTPUT" scg_source="SCG.OUTPUT" pupil_source="Eyes.PUPIL_DIAMETER"
+                pupil_min="5" pupil_max="16" max_activity="1.2" spike_rate="10" show_values="no"
+                x="24" y="24" _x="24" _y="24" width="1000" height="620" show_title="no" show_frame="no" />
         <widget class="plot" name="LightPlot" title="Light level" source="Light.OUTPUT" buffer_size="200" auto_range="no" y_min="0" y_max="1" include_zero="yes"
-                x="24" y="24" _x="24" _y="24" width="384" height="128" show_title="yes" show_frame="yes" />
+                x="24" y="660" _x="24" _y="660" width="244" height="128" show_title="yes" show_frame="yes" />
+        <widget class="plot" name="FearPlot" title="Fear: amygdala and poke" source="Fear.OUTPUT" buffer_size="200" auto_range="no" y_min="0" y_max="1" include_zero="yes"
+                x="276" y="660" _x="276" _y="660" width="244" height="128" show_title="yes" show_frame="yes" />
+        <widget class="plot" name="LCPlot" title="Locus coeruleus" source="LC.OUTPUT" buffer_size="200" auto_range="no" y_min="0" y_max="1.5" include_zero="yes"
+                x="528" y="660" _x="528" _y="660" width="244" height="128" show_title="yes" show_frame="yes" />
         <widget class="plot" name="PupilPlot" title="Pupil diameter in mm" source="Eyes.PUPIL_DIAMETER" buffer_size="200" auto_range="no" y_min="0" y_max="16" include_zero="yes"
-                x="416" y="24" _x="416" _y="24" width="384" height="128" show_title="yes" show_frame="yes" />
-        <widget class="plot" name="ConstrictPlot" title="Constriction: ciliary ganglion" source="CG.OUTPUT" buffer_size="200" auto_range="no" y_min="0" y_max="1.5" include_zero="yes"
-                x="24" y="168" _x="24" _y="168" width="384" height="128" show_title="yes" show_frame="yes" />
-        <widget class="plot" name="DilatePlot" title="Dilation: superior cervical ganglion" source="SCG.OUTPUT" buffer_size="200" auto_range="no" y_min="0" y_max="1.5" include_zero="yes"
-                x="416" y="168" _x="416" _y="168" width="384" height="128" show_title="yes" show_frame="yes" />
+                x="780" y="660" _x="780" _y="660" width="244" height="128" show_title="yes" show_frame="yes" />
     </group>
 
     <!-- Behaviour: when to do what, and how it looks -->
