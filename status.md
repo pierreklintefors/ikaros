@@ -2182,3 +2182,12 @@ On the robot Epi was scared all the time: hands are always in view, so a learned
 - The card's colour through the real eye camera decides the detection; the settings and the dashboard value **Red in view** are described in the guide for tuning on the robot. Red objects in the room count as the card.
 - Learning is a little slower than with the hand cue, because the poke now lasts only while the finger is very close; three pokes bring the learned response to about 0.5.
 
+
+## A toy corn as the feared cue, and a poke closer to the face
+
+The red card was replaced by something the audience is unlikely to show: the user's plastic toy corn, a saturated yellow cob with a green base. The left eye camera shows its yellow clearly, the right camera's washed-out colours mix it with skin and a paper bag. The user also found that a poke counted while the finger was still too far away.
+
+| # | Task | Status | Verification | Commit |
+|---:|---|---|---|---|
+| 1 | Detect the corn in the left camera as the amygdala's conditioned stimulus: a yellow fraction and a green fraction must both be above their thresholds in the same frame. Tune the thresholds with the real corn; update the guide, the brain view label, and the dashboard. | Done | Colours measured through the live left eye camera: yellow 0.54, 0.42, 0.04 and green 0.10, 0.72, 0.18 as red, green, and blue fractions (the right camera sees the yellow as 0.50, 0.36, 0.14, close to skin and a paper bag). A camera-only probe sampled the left camera at 5 Hz for about two minutes while the user held the corn at arm's length, at about 30 cm, turned, and out of view: without the corn, yellow stayed at 0 (largest 0.0002) while the green of the user's checked shirt reached 0.0024, so green alone would not do. With yellow above 0.001 and green above 0.0002 the corn was seen in nearly every sample while it was held up, with short gaps while it was turned, and in none of the 214 samples without it. The extracted cue chain on saved frames: corn in the left eye 0.0046 yellow, 0.0010 green, seen; left eye without the corn 0, 0, not seen; right eye with the corn 0, 0.0008, not seen. A simulated demo copy on still images, without LEDs and sound, loads and runs without warnings and gives the corn to `Brain.Amygdala.CS`. The brain view's label (V1, sees the cue) was already generic. Not yet checked in the running demo, with pokes, or with other people in view. | This commit |
+| 2 | A poke counts only when the finger is closer to the face than now. | Not started | | |

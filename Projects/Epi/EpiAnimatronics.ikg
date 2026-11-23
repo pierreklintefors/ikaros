@@ -48,17 +48,24 @@
     <module class="Maximum" name="NearVergence" _x="600" _y="1584" />
     <module class="Threshold" name="Poke" title="A finger very close to the cameras, about 0.15 m" threshold="0.85" type="binary" _x="792" _y="1584" />
 
-    <!-- The feared cue: a red card in the right camera. Its own task, one tick behind the camera -->
-    <module class="Downsample" name="CardImage" _x="24" _y="1872" />
-    <module class="ColorMatch" name="CardColor" title="How red each pixel is" target0="0.68" target1="0.16" target2="0.16" sigma="10" threshold="0.3" alpha="0" _x="216" _y="1872" />
-    <module class="Threshold" name="CardPixels" threshold="0.4" type="binary" _x="408" _y="1872" />
-    <module class="Average" name="CardFraction" title="Fraction of the view that is red" _x="600" _y="1872" />
-    <module class="Threshold" name="CardSeen" title="Red card in view: more than 2 percent of the view is red" threshold="0.02" type="binary" _x="792" _y="1872" />
+    <!-- The feared cue: a toy corn, a saturated yellow cob with a green base, in the left camera, whose
+         colours are stronger than the right camera's. Both colours must be in view at once, so yellow
+         clothes or green objects alone do not count. Its own task, one tick behind the camera -->
+    <module class="Downsample" name="CueImage" _x="24" _y="1920" />
+    <module class="ColorMatch" name="CornYellow" title="How corn yellow each pixel is" target0="0.54" target1="0.42" target2="0.04" sigma="15" threshold="0.3" alpha="0" _x="216" _y="1872" />
+    <module class="Threshold" name="YellowPixels" threshold="0.4" type="binary" _x="408" _y="1872" />
+    <module class="Average" name="YellowFraction" title="Fraction of the view that is corn yellow" _x="600" _y="1872" />
+    <module class="Threshold" name="YellowSeen" title="Corn yellow in view: more than 0.1 percent of the view" threshold="0.001" type="binary" _x="792" _y="1872" />
+    <module class="ColorMatch" name="CornGreen" title="How leaf green each pixel is" target0="0.10" target1="0.72" target2="0.18" sigma="4" threshold="0.3" alpha="0" _x="216" _y="1968" />
+    <module class="Threshold" name="GreenPixels" threshold="0.4" type="binary" _x="408" _y="1968" />
+    <module class="Average" name="GreenFraction" title="Fraction of the view that is leaf green" _x="600" _y="1968" />
+    <module class="Threshold" name="GreenSeen" title="Leaf green in view: more than 0.02 percent of the view" threshold="0.0002" type="binary" _x="792" _y="1968" />
+    <module class="And" name="CornSeen" title="Corn in view: yellow and green at once" _x="984" _y="1920" />
 
     <!-- Brain: a pupil model. The light reflex narrows the pupils through the pretectal area, the
          Edinger-Westphal nucleus, and the ciliary ganglion; arousal widens them through the locus
-         coeruleus, the spinal IML, and the superior cervical ganglion. The amygdala learns that a red card
-         in view comes before a finger poke, so after a few pokes the card alone scares Epi.
+         coeruleus, the spinal IML, and the superior cervical ganglion. The amygdala learns that the toy corn
+         in view comes before a finger poke, so after a few pokes the corn alone scares Epi.
          Open the group for its page -->
     <group name="Brain" title="Epi's pupil brain" _x="24" _y="1704">
         <module class="Average" name="Brightness" title="Mean brightness of the camera image" _x="1100" _y="24" />
@@ -72,7 +79,7 @@
         <module class="Nucleus" name="LC" title="Locus coeruleus" alpha="0.3" beta="0.3" time_constant="0.5" _x="1820" _y="624" />
         <module class="Nucleus" name="IML" title="Intermediolateral column" beta="1" time_constant="0.2" _x="2060" _y="624" />
         <module class="Nucleus" name="SCG" title="Superior cervical ganglion" beta="1" time_constant="0.3" _x="2300" _y="624" />
-        <module class="Delta" name="Amygdala" title="Amygdala: learns that the red card comes before a poke" alpha="0.02" extinction="0.002" _x="1100" _y="624" />
+        <module class="Delta" name="Amygdala" title="Amygdala: learns that the corn comes before a poke" alpha="0.02" extinction="0.002" _x="1100" _y="624" />
         <module class="Maximum" name="Fear" _x="1340" _y="624" />
         <module class="Add" name="LCDrive" _x="1580" _y="624" />
         <module class="Threshold" name="FearCue" title="Fear above which Epi shows that it is scared" threshold="0.4" type="binary" _x="1340" _y="768" />
@@ -283,12 +290,18 @@
     <connection source="FingerNear.NEAR" target="Poke.INPUT" delay="0" />
     <connection source="Poke.OUTPUT" target="Brain.Amygdala.US" delay="0" />
     <connection source="Poke.OUTPUT" target="Brain.Fear.INPUT2" delay="0" />
-    <connection source="Eye.OUTPUT" target="CardImage.INPUT" delay="1" />
-    <connection source="CardImage.OUTPUT" target="CardColor.INPUT" delay="0" />
-    <connection source="CardColor.OUTPUT" target="CardPixels.INPUT" delay="0" />
-    <connection source="CardPixels.OUTPUT" target="CardFraction.INPUT" delay="0" />
-    <connection source="CardFraction.OUTPUT" target="CardSeen.INPUT" delay="0" />
-    <connection source="CardSeen.OUTPUT" target="Brain.Amygdala.CS" delay="1" />
+    <connection source="LeftEye.OUTPUT" target="CueImage.INPUT" delay="1" />
+    <connection source="CueImage.OUTPUT" target="CornYellow.INPUT" delay="0" />
+    <connection source="CornYellow.OUTPUT" target="YellowPixels.INPUT" delay="0" />
+    <connection source="YellowPixels.OUTPUT" target="YellowFraction.INPUT" delay="0" />
+    <connection source="YellowFraction.OUTPUT" target="YellowSeen.INPUT" delay="0" />
+    <connection source="CueImage.OUTPUT" target="CornGreen.INPUT" delay="0" />
+    <connection source="CornGreen.OUTPUT" target="GreenPixels.INPUT" delay="0" />
+    <connection source="GreenPixels.OUTPUT" target="GreenFraction.INPUT" delay="0" />
+    <connection source="GreenFraction.OUTPUT" target="GreenSeen.INPUT" delay="0" />
+    <connection source="YellowSeen.OUTPUT" target="CornSeen.INPUT1" delay="0" />
+    <connection source="GreenSeen.OUTPUT" target="CornSeen.INPUT2" delay="0" />
+    <connection source="CornSeen.OUTPUT" target="Brain.Amygdala.CS" delay="1" />
 
     <!-- Finger close up -->
     <connection source="Eye.OUTPUT" target="Hands.INPUT" delay="1" />
@@ -408,8 +421,12 @@
             x="1276" y="1184" _x="1276" _y="1184" width="236" height="56" show_title="yes" show_frame="yes" />
     <widget class="table" name="FingerTable" title="Finger close (eyes cross at 1)" source="FingerNear.NEAR" decimals="2" colorize="no"
             x="1032" y="1248" _x="1032" _y="1248" width="236" height="56" show_title="yes" show_frame="yes" />
-    <widget class="table" name="CardTable" title="Red in view (card above 0.02)" source="CardFraction.OUTPUT" decimals="3" colorize="no"
+    <widget class="table" name="CornTable" title="Corn seen (yellow and green)" source="CornSeen.OUTPUT" decimals="0" colorize="no"
             x="1276" y="1248" _x="1276" _y="1248" width="236" height="56" show_title="yes" show_frame="yes" />
+    <widget class="table" name="YellowTable" title="Corn yellow (above 0.001)" source="YellowFraction.OUTPUT" decimals="4" colorize="no"
+            x="1032" y="1312" _x="1032" _y="1312" width="236" height="56" show_title="yes" show_frame="yes" />
+    <widget class="table" name="GreenTable" title="Leaf green (above 0.0002)" source="GreenFraction.OUTPUT" decimals="4" colorize="no"
+            x="1276" y="1312" _x="1276" _y="1312" width="236" height="56" show_title="yes" show_frame="yes" />
     <widget class="text" name="LeftCameraCaption" text="Left eye camera"
             x="1528" y="1040" _x="1528" _y="1040" width="384" height="24" show_title="no" show_frame="no" />
     <widget class="image" name="LeftCameraImage" source="LeftEye.OUTPUT" format="rgb" scale="both"

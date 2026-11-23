@@ -4,7 +4,7 @@
 subtle: it blinks, glances, and slowly looks around the room. When it finds someone new it perks up
 with a happy chirp, when someone comes really close its eyes cross, when someone pans their head
 back and forth it starts a game of copycat, its pupils react to light, it is scared by a finger
-that pokes at its eyes and learns to fear a red card shown before the pokes, and now and then it plays a little reaction: a sly look to the side with a "he-he-heh", a
+that pokes at its eyes and learns to fear a toy corn shown before the pokes, and now and then it plays a little reaction: a sly look to the side with a "he-he-heh", a
 cross-eyed moment with blue eyes, a giggle, being "mind blown" with eyes that move apart, a rising
 whistle of surprise, and a "pooof", or a game of copycat in which it mirrors the person's head
 movements. It speaks only in robot chirps and whistles, not every time and never quite the same,
@@ -83,18 +83,23 @@ synchronized with the motion:
      excite it.
    - **Fear is learned.** A finger poke, a finger within about 0.15 m of the eyes (`Poke`), is
      frightening in itself; a finger further away only makes the eyes cross. The cue Epi can learn
-     to fear is a red card: `CardImage`, `CardColor` (`ColorMatch`), `CardPixels`, and
-     `CardFraction` measure how much of the right camera's view is strongly red, and `CardSeen` is
-     1 when that is more than 2 percent. The amygdala (`Delta`) learns that the card comes before a
-     poke, so after a few pokes with the card in view, the card alone widens the pupils. Show the
-     card often without poking and the fear fades again. A hand is not a good cue, because hands are
-     in view most of the time and Epi would be scared constantly.
+     to fear is a plastic toy corn, a saturated yellow cob with a green base, seen by the left
+     camera, whose colours are stronger than the right camera's. `CueImage` halves the image;
+     `CornYellow` and `CornGreen` (`ColorMatch`) mark corn-yellow and leaf-green pixels, and
+     `YellowFraction` and `GreenFraction` measure how much of the view each covers. `CornSeen` is 1
+     when both are in view at once: yellow above 0.1 percent and green above 0.02 percent. At arm's
+     length the corn covers about 0.4 percent yellow and 0.1 percent green. Requiring both colours
+     keeps yellow clothes or green things alone from counting. The amygdala (`Delta`) learns that
+     the corn comes before a poke, so after a few pokes with the corn in view, the corn alone widens
+     the pupils. Show the corn often without poking and the fear fades again. A hand is not a good
+     cue, because hands are in view most of the time and Epi would be scared constantly; a red card
+     was replaced because red clothes are common in an audience.
    - **Fear shows.** Whenever the fear rises above 0.4 (`Brain.FearCue`), Epi plays *scared*: its
      eyes and mouth flash red and white, it gives a frightened "eek", flinches back and away, and
      trembles with pale blue eyes. A poke always scares it. The learned fear passes 0.4 after
-     two to three pokes with the card in view, so from then on the card alone, coming into view,
-     makes Epi scared before any poke: the conditioned response. Each time the card comes without a
-     poke the fear is a little smaller, and after about three such appearances of 3 s the card no
+     two to three pokes with the corn in view, so from then on the corn alone, coming into view,
+     makes Epi scared before any poke: the conditioned response. Each time the corn comes without a
+     poke the fear is a little smaller, and after about three such appearances of 3 s the corn no
      longer scares it: extinction.
 
    `EyeModel` turns the two muscles' drive into a diameter between 5 and 16 mm. In a normal room the
@@ -289,9 +294,9 @@ The character is tuned on the modules:
 | `Brain.PTA` | `beta` | How strongly light narrows the pupils |
 | `Brain.LC` | `alpha`, `beta` | The resting drive of the locus coeruleus, and how strongly arousal and fear widen the pupils |
 | `Brain.Eyes` | `pupil_min`, `pupil_max`, `m3`, `alpha1a`, `amplifier`, `time_constant` | The pupil range, the strength of the sphincter and dilator muscles, the overall gain, and how fast the pupils move |
-| `Brain.FearCue` | `threshold` | Fear above which Epi plays scared (0.4: every poke, and the card alone after two to three pokes) |
+| `Brain.FearCue` | `threshold` | Fear above which Epi plays scared (0.4: every poke, and the corn alone after two to three pokes) |
 | `Poke` | `threshold` | How close a finger must come to count as a poke, as a value of `FingerNear.NEAR` (0.85: about 0.15 m); raise it toward 1 if pokes count from too far away |
-| `CardColor`, `CardPixels`, `CardSeen` | `target0` to `target2`, `sigma`; `threshold`; `threshold` | The card's colour as red, green, and blue fractions (0.68, 0.16, 0.16), how closely a pixel must match it (`sigma` 10 with the pixel `threshold` 0.4), and how much of the view must be red to count as the card (0.02). Watch **Red in view** on the dashboard: if the card stays below 0.02, lower `sigma` or move `target0` to `target2` toward the card's colour as the camera sees it; if skin or clothes count, raise `sigma` |
+| `CornYellow`, `CornGreen`; `YellowSeen`, `GreenSeen` | `target0` to `target2`, `sigma`; `threshold` | The corn's yellow (0.54, 0.42, 0.04) and green (0.10, 0.72, 0.18) as red, green, and blue fractions, measured through the left eye camera, and how closely a pixel must match them (`sigma` 15 for yellow and 4 for the more varied green); how much of the view each must cover (0.001 and 0.0002). Watch **Corn yellow** and **Leaf green** on the dashboard: if the corn stays below a threshold, lower that threshold or `sigma`; if something else counts, raise them. Without the corn, yellow stayed at 0 in the lab, while the green of a checked shirt reached 0.002 |
 | `Brain.Amygdala` | `alpha`, `extinction` | How fast the fear of a poke is learned (0.02: about three pokes of 1 s), and how fast it fades when a hand comes without a poke (0.002: halved after about 14 s of hand in view) |
 | `HeadPan` | `amplitude`, `swings`, `window`, `smoothing` | How large and quick a back-and-forth head pan must be to start copycat; `smoothing` 20 keeps quick head shakes large enough to count |
 
@@ -325,8 +330,9 @@ the other program and start again.
   both eyes** whether it comes from the two cameras (1) or from the face size (0), and **Near** how
   close the face is; above 0.3 the head holds still. The left eye camera is shown beside them.
 - **Finger close** rises from 0 to 1 as a hand comes toward the cameras; the eyes are fully crossed
-  at 1, and above 0.85 it counts as a poke. **Red in view** shows how much of the view is strongly
-  red; above 0.02 Epi sees the red card.
+  at 1, and above 0.85 it counts as a poke. **Corn seen** is 1 while the left eye sees the corn;
+  **Corn yellow** and **Leaf green** show how much of the view each colour covers, and both must be
+  above their thresholds, 0.001 and 0.0002.
 - Open the group `Brain` for the pupil model's page. The animated brain shows each nucleus glowing
   with its activity, spikes travelling along the pathways (yellow for light, cyan for narrowing the
   pupils, orange for widening them, magenta for fear, and red dashes for inhibition), and the eye
@@ -416,20 +422,20 @@ the robot needs someone next to it.
 13. **Pupil brain.** Open the `Brain` page. Cover the right eye camera with your hand: the light level
    should fall and the pupils open fully to 16 mm within about a second. Shine a phone light into it
    from about 20 cm: the light level should rise above 0.7 and the pupils close to about 5 mm.
-   Then the fear conditioning, with a red card about A5 size or larger:
-   - Hold the card up about 0.5 m in front of Epi. **Red in view** should rise above 0.02, and
-     nothing else should happen yet. Move your hands and step around without the card: it should
-     stay well below 0.02.
-   - Bring a finger slowly toward Epi's eyes without the card. The eyes cross from about 0.3 m;
+   Then the fear conditioning, with the toy corn:
+   - Hold the corn up at arm's length in front of Epi, the green base visible. **Corn seen** should
+     be 1, and nothing else should happen yet. Move your hands and step around without the corn:
+     **Corn seen** should stay 0.
+   - Bring a finger slowly toward Epi's eyes without the corn. The eyes cross from about 0.3 m;
      only at about 0.15 m should Epi be scared, with red flashes and an "eek".
-   - Three times, a few seconds apart: show the card, then poke while it is still in view. Each poke
-     scares Epi. From about the third time, the card coming into view should scare Epi before the
+   - Three times, a few seconds apart: show the corn, then poke while it is still in view. Each poke
+     scares Epi. From about the third time, the corn coming into view should scare Epi before the
      poke, the Amygdala should glow on the brain page, and the pupils should widen.
-   - Then show the card without poking, for about 3 s at a time with short breaks. Epi should be
+   - Then show the corn without poking, for about 3 s at a time with short breaks. Epi should be
      scared the first two or three times, and then no longer.
 
    If learning takes too many pokes, raise `alpha` on `Brain.Amygdala`; if the fear fades too fast
-   or too slowly, change `extinction` there; if the card scares Epi too easily or never, change
+   or too slowly, change `extinction` there; if the corn scares Epi too easily or never, change
    `threshold` on `Brain.FearCue`; if the pupils hardly change, raise `beta` on `Brain.LC` or
    `amplifier` on `Brain.Eyes`.
 14. **Pacing and mood.** Watch for a few minutes alone and with company. Raise `min_interval` and
@@ -447,9 +453,12 @@ the robot needs someone next to it.
   separate tasks with one-tick delays, and so the stereo distance is one tick old and finger and fear
   reactions come two ticks late. Without these delays the camera, face detection, gaze, servo bus, and
   LEDs ran one after another and a tick took 50 to 60 ms, which starved the WebUI.
-- **The card's colour.** The red card was only tested with synthetic cards painted into photos; its
-  colour as the eye camera sees it, under the room's light, decides whether it is detected. A
-  reddish wall, poster, or shirt in view counts as the card too.
+- **The corn's colours.** The thresholds were set from about two minutes of the left eye camera in
+  the lab, with the corn at arm's length, at about 30 cm, turned, and out of view. Other light can
+  change the colours the camera sees, so check **Corn yellow** and **Leaf green** in a new room.
+  Something yellow and green together, such as a yellow and green garment, would count as the
+  corn. With the corn turned so that its green base is hidden, it is not seen. In the single-camera
+  setup (`camera="InputVideo"`), the left eye shows a still image, so the corn is never seen.
 - **Pupil brain untested on the robot.** The pupil model has been checked in simulation with still
   images and an image sequence, not with a live camera. The eye cameras adjust their exposure
   automatically, which partly cancels slow changes in room light, so the light reflex is clearest for
