@@ -172,9 +172,25 @@ class EpiServos : public Module
     std::string pupilAlert[2];        // cached hardware-alert description per pupil servo, empty when none
     bool pupilsActive = true;         // false after a tolerated pupil setup failure (require_pupils=false)
     std::string pupilSetupError;      // last failed pupil setup write
-    // A status packet may claim up to 1024 bytes after its 7-byte header; see PupilTxRx().
-    std::array<uint8_t, 16> pupilTxPacket {};
-    std::array<uint8_t, 1024 + 16> pupilRxPacket {};
+    // Instruction and status packet buffers for one serial bus; see SafeTxRx(). A status packet may
+    // claim up to 1024 bytes after its 7-byte header.
+    struct PacketBuffers
+    {
+        std::array<uint8_t, 16> tx {};
+        std::array<uint8_t, 1024 + 16> rx {};
+    };
+    PacketBuffers pupilBuffers;
+
+    // Per servo chain (head, left arm, right arm, body), used by that chain's communication thread:
+    // packet buffers, the reason the last tick failed, and how many ticks in a row have failed.
+    struct ChainState
+    {
+        const char * name;
+        PacketBuffers buffers;
+        std::string failure;
+        int failedTicks = 0;
+    };
+    std::array<ChainState, 4> chains {{{"head"}, {"left arm"}, {"right arm"}, {"body"}}};
     // dynamixel::GroupSyncRead *groupSyncReadPupil;
     // dynamixel::GroupSyncWrite *groupSyncWritePupil;
 
@@ -281,12 +297,13 @@ class EpiServos : public Module
     }
 
 
-    // Sends one Protocol 2.0 instruction to a pupil servo and receives its status packet into
-    // pupilRxPacket. The SDK's writeNByteTxRx helpers receive into an 11-byte stack buffer, and
-    // rxPacket() trusts the length field of a corrupted reply up to 1024 bytes, which overflowed
-    // that buffer and crashed Ikaros. Corrupted replies now fail as COMM_RX_CORRUPT or a timeout.
-    int PupilTxRx(uint8_t id, uint8_t instruction, uint16_t address, const uint8_t * parameters,
-                  uint16_t parameterCount, uint8_t * error)
+    // Sends one Protocol 2.0 instruction and receives the status packet into buffers.rx. The SDK's
+    // writeNByteTxRx helpers receive into an 11-byte stack buffer, and rxPacket() trusts the length
+    // field of a corrupted reply up to 1024 bytes, which overflowed that buffer and crashed Ikaros.
+    // Corrupted replies now fail as COMM_RX_CORRUPT or a timeout. Each bus needs its own buffers.
+    static int SafeTxRx(dynamixel::PortHandler * port, dynamixel::PacketHandler * packetHandler,
+                        PacketBuffers & buffers, uint8_t id, uint8_t instruction, uint16_t address,
+                        const uint8_t * parameters, uint16_t parameterCount, uint8_t * error)
     {
         constexpr int packetId = 4;
         constexpr int packetLengthLow = 5;
@@ -294,25 +311,35 @@ class EpiServos : public Module
         constexpr int packetInstruction = 7;
         constexpr int packetParameter = 8;
 
-        pupilTxPacket.fill(0);
-        pupilTxPacket[packetId] = id;
-        pupilTxPacket[packetLengthLow] = DXL_LOBYTE(parameterCount + 5); // instruction, address, CRC
-        pupilTxPacket[packetLengthHigh] = DXL_HIBYTE(parameterCount + 5);
-        pupilTxPacket[packetInstruction] = instruction;
-        pupilTxPacket[packetParameter] = DXL_LOBYTE(address);
-        pupilTxPacket[packetParameter + 1] = DXL_HIBYTE(address);
+        buffers.tx.fill(0);
+        buffers.tx[packetId] = id;
+        buffers.tx[packetLengthLow] = DXL_LOBYTE(parameterCount + 5); // instruction, address, CRC
+        buffers.tx[packetLengthHigh] = DXL_HIBYTE(parameterCount + 5);
+        buffers.tx[packetInstruction] = instruction;
+        buffers.tx[packetParameter] = DXL_LOBYTE(address);
+        buffers.tx[packetParameter + 1] = DXL_HIBYTE(address);
         for (int i = 0; i < parameterCount; i++)
-            pupilTxPacket[packetParameter + 2 + i] = parameters[i];
+            buffers.tx[packetParameter + 2 + i] = parameters[i];
 
-        return packetHandlerPupil->txRxPacket(portHandlerPupil, pupilTxPacket.data(), pupilRxPacket.data(), error);
+        return packetHandler->txRxPacket(port, buffers.tx.data(), buffers.rx.data(), error);
     }
 
 
-    // Writes a 1- or 2-byte pupil register without the SDK's overflow-prone write helpers.
+    // Writes a 1-, 2-, or 4-byte register without the SDK's overflow-prone write helpers.
+    static int SafeWriteTxRx(dynamixel::PortHandler * port, dynamixel::PacketHandler * packetHandler,
+                             PacketBuffers & buffers, uint8_t id, uint16_t address, uint16_t size,
+                             uint32_t value, uint8_t * error)
+    {
+        const uint8_t data[4] = {DXL_LOBYTE(DXL_LOWORD(value)), DXL_HIBYTE(DXL_LOWORD(value)),
+                                 DXL_LOBYTE(DXL_HIWORD(value)), DXL_HIBYTE(DXL_HIWORD(value))};
+        return SafeTxRx(port, packetHandler, buffers, id, INST_WRITE, address, data, size, error);
+    }
+
+
+    // Writes a 1- or 2-byte pupil register.
     int PupilWriteTxRx(uint8_t id, uint16_t address, uint16_t size, uint16_t value, uint8_t * error)
     {
-        const uint8_t data[2] = {DXL_LOBYTE(value), DXL_HIBYTE(value)};
-        return PupilTxRx(id, INST_WRITE, address, data, size, error);
+        return SafeWriteTxRx(portHandlerPupil, packetHandlerPupil, pupilBuffers, id, address, size, value, error);
     }
 
 
@@ -320,14 +347,16 @@ class EpiServos : public Module
     int PupilReadTxRx(uint8_t id, uint16_t address, uint16_t size, uint16_t * value, uint8_t * error)
     {
         const uint8_t length[2] = {DXL_LOBYTE(size), DXL_HIBYTE(size)};
-        const int result = PupilTxRx(id, INST_READ, address, length, 2, error);
+        const int result = SafeTxRx(portHandlerPupil, packetHandlerPupil, pupilBuffers, id, INST_READ, address,
+                                    length, 2, error);
         if (result != COMM_SUCCESS)
             return result;
 
         // The status length counts instruction, error, data, and CRC; data starts at byte 9.
-        if (DXL_MAKEWORD(pupilRxPacket[5], pupilRxPacket[6]) != size + 4)
+        const auto & rx = pupilBuffers.rx;
+        if (DXL_MAKEWORD(rx[5], rx[6]) != size + 4)
             return COMM_RX_CORRUPT;
-        *value = size == 1 ? pupilRxPacket[9] : DXL_MAKEWORD(pupilRxPacket[9], pupilRxPacket[10]);
+        *value = size == 1 ? rx[9] : DXL_MAKEWORD(rx[9], rx[10]);
         return COMM_SUCCESS;
     }
 
@@ -480,12 +509,56 @@ class EpiServos : public Module
         return failures.empty();
     }
 
+    static int ChainSlot(int IOIndex)
+    {
+        switch (IOIndex)
+        {
+            case LEFT_ARM_INDEX_IO: return 1;
+            case RIGHT_ARM_INDEX_IO: return 2;
+            case BODY_INDEX_IO: return 3;
+            default: return 0;
+        }
+    }
+
+
+    // Reports a chain's communication once when it starts failing, about once a second while it
+    // keeps failing, and once when it works again. A single failed tick only skips that tick's
+    // commands; the next tick reads and writes the servos as usual.
+    void ReportChain(int IOIndex, bool succeeded, dynamixel::PortHandler * portHandler)
+    {
+        ChainState & chain = chains[ChainSlot(IOIndex)];
+        if (succeeded)
+        {
+            if (chain.failedTicks > 0)
+                Notify(msg_print, std::string("Communication with the ") + chain.name + " restored after " +
+                                  std::to_string(chain.failedTicks) + " failed tick" + (chain.failedTicks > 1 ? "s." : "."));
+            chain.failedTicks = 0;
+            return;
+        }
+
+        chain.failedTicks++;
+        if (portHandler != nullptr)
+            portHandler->clearPort();
+        const int ticksPerSecond = std::max(1, static_cast<int>(std::lround(1.0 / GetTickDuration())));
+        if (chain.failedTicks == 1 || chain.failedTicks % ticksPerSecond == 0)
+            Warning(std::string("Can not communicate with the ") + chain.name + " on " +
+                    (portHandler != nullptr ? portHandler->getPortName() : std::string("no port")) + ": " +
+                    (chain.failure.empty() ? std::string("unknown failure") : chain.failure) +
+                    (chain.failedTicks > 1 ? " (" + std::to_string(chain.failedTicks) + " ticks in a row)." : "."));
+    }
+
+
     bool Communication(int IDMin, int IDMax, int IOIndex, dynamixel::PortHandler *portHandler, dynamixel::PacketHandler *packetHandler, dynamixel::GroupSyncRead *groupSyncRead, dynamixel::GroupSyncWrite *groupSyncWrite)
     {
         if (portHandler == nullptr)
             return true;
+        ChainState & chain = chains[ChainSlot(IOIndex)];
+        chain.failure.clear();
         if (packetHandler == nullptr || groupSyncRead == nullptr || groupSyncWrite == nullptr)
+        {
+            chain.failure = "the servo bus is not set up";
             return false;
+        }
 
         int dxl_comm_result = COMM_TX_FAIL;
         bool hasSyncWriteParameters = false;
@@ -494,6 +567,7 @@ class EpiServos : public Module
         {
             if (!groupSyncRead->addParam(i))
             {
+                chain.failure = "servo " + std::to_string(i) + " could not be added to the synchronous read";
                 groupSyncWrite->clearParam();
                 groupSyncRead->clearParam();
                 return false;
@@ -503,7 +577,8 @@ class EpiServos : public Module
         dxl_comm_result = groupSyncRead->txRxPacket();
         if (dxl_comm_result != COMM_SUCCESS)
         {
-            Warning("GroupSyncRead failed: ");
+            chain.failure = std::string("synchronous read (GroupSyncRead) failed: ") +
+                            packetHandler->getTxRxResult(dxl_comm_result);
             groupSyncWrite->clearParam();
             groupSyncRead->clearParam();
             return false;
@@ -515,7 +590,7 @@ class EpiServos : public Module
                                                          ikaros::episervos::readPacketSize);
             if (!dxl_comm_result)
             {
-                Warning("Synchronous read data is unavailable for servo " + std::to_string(i) + ".");
+                chain.failure = "no data from servo " + std::to_string(i) + " in the synchronous read";
                 groupSyncWrite->clearParam();
                 groupSyncRead->clearParam();
                 return false;
@@ -548,7 +623,7 @@ class EpiServos : public Module
 
             if (!goalPosition.connected())
             {
-                Warning("EpiServos requires a goal-position input while operating hardware.");
+                chain.failure = "EpiServos requires a goal-position input while operating hardware";
                 groupSyncWrite->clearParam();
                 groupSyncRead->clearParam();
                 return false;
@@ -568,7 +643,7 @@ class EpiServos : public Module
             {
                 if (!groupSyncWrite->addParam(i, packet.data()))
                 {
-                    Warning("Could not add servo " + std::to_string(i) + " to the synchronous write.");
+                    chain.failure = "servo " + std::to_string(i) + " could not be added to the synchronous write";
                     groupSyncWrite->clearParam();
                     groupSyncRead->clearParam();
                     return false;
@@ -583,20 +658,20 @@ class EpiServos : public Module
                 dxl_comm_result = COMM_SUCCESS;
                 if (refreshSettings || writtenTorque[index] != torqueValue)
                 {
-                    dxl_comm_result = packetHandler->write1ByteTxRx(portHandler, i, ADDR_TORQUE_ENABLE,
-                                                                     torqueValue, &dxl_error);
+                    dxl_comm_result = SafeWriteTxRx(portHandler, packetHandler, chain.buffers, i,
+                                                    ADDR_TORQUE_ENABLE, 1, torqueValue, &dxl_error);
                     if (dxl_comm_result == COMM_SUCCESS && dxl_error == 0)
                         writtenTorque[index] = torqueValue;
                 }
                 if (dxl_comm_result == COMM_SUCCESS && dxl_error == 0)
-                    dxl_comm_result = packetHandler->write4ByteTxRx(portHandler, i, ADDR_GOAL_POSITION,
-                                                                    command.goalPosition, &dxl_error);
+                    dxl_comm_result = SafeWriteTxRx(portHandler, packetHandler, chain.buffers, i,
+                                                    ADDR_GOAL_POSITION, 4, command.goalPosition, &dxl_error);
                 if (dxl_comm_result == COMM_SUCCESS && dxl_error == 0 &&
                     (refreshSettings || writtenPWM[index] != pwmValue))
                 {
-                    dxl_comm_result = packetHandler->write2ByteTxRx(portHandler, i, ADDR_GOAL_PWM,
-                                                                    static_cast<std::uint16_t>(pwmValue),
-                                                                    &dxl_error);
+                    dxl_comm_result = SafeWriteTxRx(portHandler, packetHandler, chain.buffers, i,
+                                                    ADDR_GOAL_PWM, 2, static_cast<std::uint16_t>(pwmValue),
+                                                    &dxl_error);
                     if (dxl_comm_result == COMM_SUCCESS && dxl_error == 0)
                         writtenPWM[index] = pwmValue;
                 }
@@ -604,8 +679,10 @@ class EpiServos : public Module
                 {
                     writtenTorque[index] = -1;
                     writtenPWM[index] = -1;
-                    Warning("Direct position write failed for non-current servo " + std::to_string(i) +
-                            " on " + portHandler->getPortName() + ".");
+                    chain.failure = "write to servo " + std::to_string(i) + " failed: " +
+                                    (dxl_comm_result != COMM_SUCCESS
+                                         ? std::string(packetHandler->getTxRxResult(dxl_comm_result))
+                                         : std::string(packetHandler->getRxPacketError(dxl_error)));
                     groupSyncWrite->clearParam();
                     groupSyncRead->clearParam();
                     return false;
@@ -622,8 +699,8 @@ class EpiServos : public Module
             {
                 groupSyncWrite->clearParam();
                 groupSyncRead->clearParam();
-                Warning("Synchronous servo write failed: " +
-                        std::string(groupSyncWrite->getPacketHandler()->getTxRxResult(dxl_comm_result)));
+                chain.failure = std::string("synchronous write failed: ") +
+                                packetHandler->getTxRxResult(dxl_comm_result);
                 return false;
             }
         }
@@ -1408,11 +1485,7 @@ class EpiServos : public Module
             ? std::async(std::launch::async, &EpiServos::CommunicationPupil, this) // Special!
             : std::async(std::launch::deferred, [] { return true; });
 
-        if (!headThread.get())
-        {
-            Warning("Can not communicate with head");
-            portHandlerHead->clearPort();
-        }
+        ReportChain(HEAD_INDEX_IO, headThread.get(), portHandlerHead);
 
         // CommunicationPupil reports its own failures once per change.
         pupilThread.get();
@@ -1423,21 +1496,9 @@ class EpiServos : public Module
             auto rightArmThread = std::async(std::launch::async, &EpiServos::Communication, this, ARM_ID_MIN, ARM_ID_MAX, RIGHT_ARM_INDEX_IO, std::ref(portHandlerRightArm), std::ref(packetHandlerRightArm), std::ref(groupSyncReadRightArm), std::ref(groupSyncWriteRightArm));
             auto bodyThread = std::async(std::launch::async, &EpiServos::Communication, this, BODY_ID_MIN, BODY_ID_MIN, BODY_INDEX_IO, std::ref(portHandlerBody), std::ref(packetHandlerBody), std::ref(groupSyncReadBody), std::ref(groupSyncWriteBody));
 
-            if (!leftArmThread.get())
-            {
-                Warning("Can not communicate with left arm");
-                portHandlerLeftArm->clearPort();
-            }
-            if (!rightArmThread.get())
-            {
-                Warning("Can not communicate with right arm");
-                portHandlerRightArm->clearPort();
-            }
-            if (!bodyThread.get())
-            {
-                Warning("Can not communicate with body");
-                portHandlerBody->clearPort();
-            }
+            ReportChain(LEFT_ARM_INDEX_IO, leftArmThread.get(), portHandlerLeftArm);
+            ReportChain(RIGHT_ARM_INDEX_IO, rightArmThread.get(), portHandlerRightArm);
+            ReportChain(BODY_INDEX_IO, bodyThread.get(), portHandlerBody);
         }
     }
 

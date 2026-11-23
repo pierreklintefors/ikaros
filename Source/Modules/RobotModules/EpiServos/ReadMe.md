@@ -30,6 +30,19 @@ the XL-320 range of 6.0 to 8.4 V, is reported with its cause, but the pupils are
 the servo executes instructions while the alert flag is set. A failing pupil does not stop the other
 pupil from being driven.
 
+A head, arm, or body tick whose servo communication fails, for example a synchronous read that times
+out (`There is no status packet!`) or receives a garbled reply (`Incorrect status packet!`), skips
+that tick's commands for the chain; the next tick reads and writes the servos as usual. The warning
+names the chain, the port, and the bus result. It is given when the failures start and about once a
+second while they last, with the number of failed ticks in a row, and a message says when
+communication is restored.
+
+Every per-tick transfer that waits for a single servo's reply, on the pupil bus and to the eye
+servos on the head bus, receives into a buffer large enough for any reply the Dynamixel SDK accepts.
+The SDK's `write1ByteTxRx`, `write2ByteTxRx`, and `write4ByteTxRx` receive into an 11-byte stack
+buffer that a garbled reply with a large length field overflows, which crashed Ikaros. The start-up
+settings still use the SDK's helpers.
+
 The servos are released, with the power-off ramp and torque off, when the model stops: when Ikaros
 quits, including with Ctrl-C, and when the model is stopped from the WebUI. Releasing them there,
 rather than in the destructor, keeps the shutdown out of process exit, where it crashed Ikaros and
