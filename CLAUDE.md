@@ -51,9 +51,6 @@ The notes below are practical facts that are easy to miss and cost time in earli
   JPEG quality about 70; 1280 x 720 at quality 85 overloaded the link.
 - `InputVideoStream` with `synchronized_tick="true"` waits forever when a stream stalls or a video
   file ends, and Ikaros then cannot be stopped normally.
-- The EpiBlack pupil XL-320 servos have measured 5.3 V, below their 6.0-8.4 V range, which raises an
-  input-voltage alert and makes the pupil bus unreliable. Check the pupil supply before debugging
-  pupil software.
 - Read-only diagnostics of servo registers are safe without the user present; anything that writes
   to the servos or moves the robot needs the user present.
 
