@@ -1,5 +1,5 @@
 //
-//	  InputVideoStream.cc		This file is a part of the IKAROS project
+//    InputVideoStream.cc        This file is a part of the IKAROS project
 //
 //    Copyright (C) 2018 Birger Johansson
 //
@@ -19,13 +19,6 @@
 //
 //    See http://www.ikaros-project.org/ for more information.
 //
-//
-// Code inspired from:
-// https://www.ffmpeg.org/doxygen/2.8/examples.html
-// http://dranger.com/ffmpeg/
-// https://sourceforge.net/u/leixiaohua1020/profile/
-// https://blogs.gentoo.org/lu_zero/2016/03/29/new-avcodec-api/
-// And enormous amount of googleing...
 
 #include "FFMpegGrab.h"
 #include "ikaros.h"
@@ -44,6 +37,14 @@ class InputVideoStream : public Module
 {
 	parameter size_x;
 	parameter size_y;
+
+	// Crop rectangle in source-frame coordinates.
+	// crop_width/crop_height <= 0 means use the full remaining dimension.
+	parameter crop_x;
+	parameter crop_y;
+	parameter crop_width;
+	parameter crop_height;
+
 	parameter printInfo;
 	parameter url;
 	parameter uv4l;
@@ -64,22 +65,29 @@ class InputVideoStream : public Module
 	{
 		framegrabber = std::make_unique<FFMpegGrab>();
 		framegrabber->SetUv4l(uv4l);
+
 		const std::string stream_url = url.as_string();
 		framegrabber->SetUrl(stream_url.c_str());
 		framegrabber->SetPrintInfo(printInfo);
+
 		framegrabber->SetOutputSize(size_x.as_int(), size_y.as_int());
+		framegrabber->SetCrop(crop_x.as_int(),
+							  crop_y.as_int(),
+							  crop_width.as_int(),
+							  crop_height.as_int());
+
 		framegrabber->SetSynchronized(synchronized_framegrabber);
 		return framegrabber->Init();
 	}
 
 	void
-	ConvertFrameToOutputs(const uint8_t * data, int width, int height)
+	ConvertFrameToOutputs(const uint8_t *data, int width, int height)
 	{
 		const int pixel_count = width * height;
-		float * r = red.data();
-		float * g = green.data();
-		float * b = blue.data();
-		float * intensity_data = intensity.data();
+		float *r = red.data();
+		float *g = green.data();
+		float *b = blue.data();
+		float *intensity_data = intensity.data();
 
 #if defined(MAC_OS_X)
 		const vDSP_Length count = static_cast<vDSP_Length>(pixel_count);
@@ -120,6 +128,12 @@ class InputVideoStream : public Module
 	{
 		Bind(size_x, "size_x");
 		Bind(size_y, "size_y");
+
+		Bind(crop_x, "crop_x");
+		Bind(crop_y, "crop_y");
+		Bind(crop_width, "crop_width");
+		Bind(crop_height, "crop_height");
+
 		Bind(url, "url");
 		Bind(printInfo, "info");
 		Bind(uv4l, "uv4l");
@@ -129,6 +143,12 @@ class InputVideoStream : public Module
 		if (size_x.as_int() <= 0 || size_y.as_int() <= 0)
 		{
 			Notify(msg_fatal_error, "InputVideoStream requires positive size_x and size_y.");
+			return;
+		}
+
+		if (crop_x.as_int() < 0 || crop_y.as_int() < 0)
+		{
+			Notify(msg_fatal_error, "InputVideoStream requires crop_x and crop_y to be non-negative.");
 			return;
 		}
 
@@ -149,14 +169,14 @@ class InputVideoStream : public Module
 			if (!InitializeFrameGrabber())
 			{
 				Notify(msg_fatal_error, "InputVideoStream could not start its frame grabber: " +
-				       framegrabber->LastError());
+											framegrabber->LastError());
 				return;
 			}
 		}
-		catch (const std::exception & e)
+		catch (const std::exception &e)
 		{
 			Notify(msg_fatal_error, "InputVideoStream could not create its frame grabber: " +
-			       std::string(e.what()));
+										std::string(e.what()));
 			return;
 		}
 

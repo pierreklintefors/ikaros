@@ -39,6 +39,7 @@ class FFMpegGrab
 	FFMpegGrab & operator=(const FFMpegGrab &) = delete;
 
 	void SetOutputSize(int width, int height);
+	void SetCrop(int x, int y, int width, int height);
 	void SetUrl(const char * stream_url);
 	void SetPrintInfo(bool enabled);
 	void SetUv4l(bool enabled);

@@ -1,15 +1,30 @@
-<?xml version="1.0"?>
+<class name="InputVideoStream">
+    <description>Grabs video using FFmpeg, optionally crops the decoded source frame, resizes it, and outputs RGB/intensity images.</description>
 
-<class name="InputVideoStream" description="grabbing a video stream using FFmpeg">
-	<parameter name="size_x" type="number" default="1280" description="Size of the output image. The video stream size will be converted to this size." />
-	<parameter name="size_y" type="number" default="720" description="Size of the output image. The video stream size will be converted to this size." />
-	<parameter name="url" type="string" default="" description="Stream address" />
-	<parameter name="info" type="bool" default="false" description="Print information about the stream" />
-	<parameter name="synchronized_framegrabber" default="false" type="bool" description="The framegrabber (grabs and decodes frames) is either synchronized with the tick or runs as fast or slow as it can. This is useful when grabbing live streams where the latest frame is more important than keeping every frame." />
-	<parameter name="synchronized_tick" default="true" type="bool" description="Ikaros waits until a new frame is given by the framegrabber. If set to false, Ikaros does not care whether the input is new or not. This can give the module a faster tick time but could potentially feed unnecessary data into Ikaros (false is not recommended)."/>
-	<parameter name="uv4l" type="bool" default="false" description="Forces the system to decode the stream as H.264. This is useful when receiving a raw H.264 stream from a UV4L server on a Raspberry Pi." />
-	
-	<output name="RED" description="The red channel." alias="OUTPUT[0]"/>
+    <parameter name="size_x" type="int" default="640" />
+    <parameter name="size_y" type="int" default="480" />
+
+    <!-- Crop rectangle in SOURCE-FRAME pixels. A width/height of 0 means
+         use the full remaining source dimension. -->
+    <parameter name="crop_x" type="number" default="0"
+           description="Horizontal crop offset in source-frame pixels, measured from the left edge." />
+
+    <parameter name="crop_y" type="number" default="0"
+            description="Vertical crop offset in source-frame pixels, measured from the top edge." />
+
+    <parameter name="crop_width" type="number" default="0"
+            description="Width of crop region in source-frame pixels. Set to 0 to use the available source width." />
+
+    <parameter name="crop_height" type="number" default="0"
+            description="Height of crop region in source-frame pixels. Set to 0 to use the available source height." />
+
+    <parameter name="url" type="string" default="" />
+    <parameter name="info" type="bool" default="false" />
+    <parameter name="synchronized_framegrabber" type="bool" default="false" />
+    <parameter name="synchronized_tick" type="bool" default="true" />
+    <parameter name="uv4l" type="bool" default="false" />
+
+    <output name="RED" description="The red channel." alias="OUTPUT[0]"/>
 	<output name="GREEN" description="The green channel." alias="OUTPUT[1]"/>
 	<output name="BLUE" description="The blue channel." alias="OUTPUT[2]"/>
 
