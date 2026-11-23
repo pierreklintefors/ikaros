@@ -172,6 +172,9 @@ class EpiServos : public Module
     std::string pupilAlert[2];        // cached hardware-alert description per pupil servo, empty when none
     bool pupilsActive = true;         // false after a tolerated pupil setup failure (require_pupils=false)
     std::string pupilSetupError;      // last failed pupil setup write
+    // A status packet may claim up to 1024 bytes after its 7-byte header; see PupilTxRx().
+    std::array<uint8_t, 16> pupilTxPacket {};
+    std::array<uint8_t, 1024 + 16> pupilRxPacket {};
     // dynamixel::GroupSyncRead *groupSyncReadPupil;
     // dynamixel::GroupSyncWrite *groupSyncWritePupil;
 
@@ -278,6 +281,57 @@ class EpiServos : public Module
     }
 
 
+    // Sends one Protocol 2.0 instruction to a pupil servo and receives its status packet into
+    // pupilRxPacket. The SDK's writeNByteTxRx helpers receive into an 11-byte stack buffer, and
+    // rxPacket() trusts the length field of a corrupted reply up to 1024 bytes, which overflowed
+    // that buffer and crashed Ikaros. Corrupted replies now fail as COMM_RX_CORRUPT or a timeout.
+    int PupilTxRx(uint8_t id, uint8_t instruction, uint16_t address, const uint8_t * parameters,
+                  uint16_t parameterCount, uint8_t * error)
+    {
+        constexpr int packetId = 4;
+        constexpr int packetLengthLow = 5;
+        constexpr int packetLengthHigh = 6;
+        constexpr int packetInstruction = 7;
+        constexpr int packetParameter = 8;
+
+        pupilTxPacket.fill(0);
+        pupilTxPacket[packetId] = id;
+        pupilTxPacket[packetLengthLow] = DXL_LOBYTE(parameterCount + 5); // instruction, address, CRC
+        pupilTxPacket[packetLengthHigh] = DXL_HIBYTE(parameterCount + 5);
+        pupilTxPacket[packetInstruction] = instruction;
+        pupilTxPacket[packetParameter] = DXL_LOBYTE(address);
+        pupilTxPacket[packetParameter + 1] = DXL_HIBYTE(address);
+        for (int i = 0; i < parameterCount; i++)
+            pupilTxPacket[packetParameter + 2 + i] = parameters[i];
+
+        return packetHandlerPupil->txRxPacket(portHandlerPupil, pupilTxPacket.data(), pupilRxPacket.data(), error);
+    }
+
+
+    // Writes a 1- or 2-byte pupil register without the SDK's overflow-prone write helpers.
+    int PupilWriteTxRx(uint8_t id, uint16_t address, uint16_t size, uint16_t value, uint8_t * error)
+    {
+        const uint8_t data[2] = {DXL_LOBYTE(value), DXL_HIBYTE(value)};
+        return PupilTxRx(id, INST_WRITE, address, data, size, error);
+    }
+
+
+    // Reads a 1- or 2-byte pupil register. The reply length is checked before the data is used.
+    int PupilReadTxRx(uint8_t id, uint16_t address, uint16_t size, uint16_t * value, uint8_t * error)
+    {
+        const uint8_t length[2] = {DXL_LOBYTE(size), DXL_HIBYTE(size)};
+        const int result = PupilTxRx(id, INST_READ, address, length, 2, error);
+        if (result != COMM_SUCCESS)
+            return result;
+
+        // The status length counts instruction, error, data, and CRC; data starts at byte 9.
+        if (DXL_MAKEWORD(pupilRxPacket[5], pupilRxPacket[6]) != size + 4)
+            return COMM_RX_CORRUPT;
+        *value = size == 1 ? pupilRxPacket[9] : DXL_MAKEWORD(pupilRxPacket[9], pupilRxPacket[10]);
+        return COMM_SUCCESS;
+    }
+
+
     // Writes one pupil setup register, retrying a few times because the XL-320 bus can miss a reply.
     // A hardware alert alone does not fail the write; the instruction is still executed.
     bool PupilWrite(int id, int address, int size, int value, const char * name)
@@ -288,8 +342,8 @@ class EpiServos : public Module
         {
             dxlError = 0;
             result = size == 1
-                ? packetHandlerPupil->write1ByteTxRx(portHandlerPupil, id, address, static_cast<uint8_t>(value), &dxlError)
-                : packetHandlerPupil->write2ByteTxRx(portHandlerPupil, id, address, static_cast<uint16_t>(value), &dxlError);
+                ? PupilWriteTxRx(id, address, 1, static_cast<uint8_t>(value), &dxlError)
+                : PupilWriteTxRx(id, address, 2, static_cast<uint16_t>(value), &dxlError);
             if (result == COMM_SUCCESS && !PupilInstructionRejected(dxlError))
                 return true;
             portHandlerPupil->clearPort();
@@ -336,10 +390,10 @@ class EpiServos : public Module
     std::string DescribePupilAlert(int id)
     {
         std::string description = "pupil servo " + std::to_string(id) + ":";
-        uint8_t status = 0;
-        uint8_t voltage = 0;
+        uint16_t status = 0;
+        uint16_t voltage = 0;
         uint8_t statusError = 0;
-        if (packetHandlerPupil->read1ByteTxRx(portHandlerPupil, id, 50, &status, &statusError) != COMM_SUCCESS)
+        if (PupilReadTxRx(id, 50, 1, &status, &statusError) != COMM_SUCCESS)
             return description + " hardware error status could not be read";
 
         if (status & 0x01)
@@ -349,7 +403,7 @@ class EpiServos : public Module
         if (status & 0x04)
         {
             description += " input voltage";
-            if (packetHandlerPupil->read1ByteTxRx(portHandlerPupil, id, 45, &voltage, &statusError) == COMM_SUCCESS)
+            if (PupilReadTxRx(id, 45, 1, &voltage, &statusError) == COMM_SUCCESS)
                 description += " " + std::to_string(voltage / 10) + "." + std::to_string(voltage % 10) +
                                " V, outside the XL-320 range of 6.0 to 8.4 V; check the pupil power supply";
         }
@@ -384,8 +438,7 @@ class EpiServos : public Module
             const int slot = i - PUPIL_ID_MIN;
             uint8_t dxl_error = 0;
             const uint8_t enableTorque = !torqueEnable.connected() || torqueEnable(index) != 0 ? 1 : 0;
-            int result = packetHandlerPupil->write1ByteTxRx(portHandlerPupil, i, 24,
-                                                            enableTorque, &dxl_error);
+            int result = PupilWriteTxRx(i, 24, 1, enableTorque, &dxl_error);
             if (result != COMM_SUCCESS || PupilInstructionRejected(dxl_error))
             {
                 failures += (failures.empty() ? "" : "; ") + DescribePupilFailure(i, "torque", result, dxl_error);
@@ -397,8 +450,7 @@ class EpiServos : public Module
             const uint16_t pupilPosition = static_cast<uint16_t>(
                 std::clamp(goalPosition(index), 0.0f, 1023.0f));
             dxl_error = 0;
-            result = packetHandlerPupil->write2ByteTxRx(portHandlerPupil, i, 30,
-                                                        pupilPosition, &dxl_error);
+            result = PupilWriteTxRx(i, 30, 2, pupilPosition, &dxl_error);
             if (result != COMM_SUCCESS || PupilInstructionRejected(dxl_error))
             {
                 failures += (failures.empty() ? "" : "; ") + DescribePupilFailure(i, "position", result, dxl_error);
@@ -1792,63 +1844,63 @@ class EpiServos : public Module
 
         // PUPIL ID 2 (Left pupil)
         // Limit position min
-        if (COMM_SUCCESS != packetHandlerPupil->write2ByteTxRx(portHandlerPupil, 2, 6, AngleMinLimitPupil[0], &dxl_error))
+        if (COMM_SUCCESS != PupilWriteTxRx(2, 6, 2, AngleMinLimitPupil[0], &dxl_error))
             return false;
         Sleep(xlTimer);
 
         // Limit position max
-        if (COMM_SUCCESS != packetHandlerPupil->write2ByteTxRx(portHandlerPupil, 2, 8, AngleMaxLimitPupil[0], &dxl_error))
+        if (COMM_SUCCESS != PupilWriteTxRx(2, 8, 2, AngleMaxLimitPupil[0], &dxl_error))
             return false;
         Sleep(xlTimer);
 
         // Moving speed
-        if (COMM_SUCCESS != packetHandlerPupil->write2ByteTxRx(portHandlerPupil, 2, 32, pupil_moving_speed, &dxl_error))
+        if (COMM_SUCCESS != PupilWriteTxRx(2, 32, 2, pupil_moving_speed, &dxl_error))
             return false;
         Sleep(xlTimer);
 
         // P
-        if (COMM_SUCCESS != packetHandlerPupil->write1ByteTxRx(portHandlerPupil, 2, 29, pupil_p_gain, &dxl_error))
+        if (COMM_SUCCESS != PupilWriteTxRx(2, 29, 1, pupil_p_gain, &dxl_error))
             return false;
         Sleep(xlTimer);
 
         // I
-        if (COMM_SUCCESS != packetHandlerPupil->write1ByteTxRx(portHandlerPupil, 2, 28, pupil_i_gain, &dxl_error))
+        if (COMM_SUCCESS != PupilWriteTxRx(2, 28, 1, pupil_i_gain, &dxl_error))
             return false;
         Sleep(xlTimer);
 
         // D
-        if (COMM_SUCCESS != packetHandlerPupil->write1ByteTxRx(portHandlerPupil, 2, 27, pupil_d_gain, &dxl_error))
+        if (COMM_SUCCESS != PupilWriteTxRx(2, 27, 1, pupil_d_gain, &dxl_error))
             return false;
         Sleep(xlTimer);
 
         // PUPIL ID 3 (Right pupil)
         // Limit position in
-        if (COMM_SUCCESS != packetHandlerPupil->write2ByteTxRx(portHandlerPupil, 3, 6, AngleMinLimitPupil[1], &dxl_error))
+        if (COMM_SUCCESS != PupilWriteTxRx(3, 6, 2, AngleMinLimitPupil[1], &dxl_error))
             return false;
         Sleep(xlTimer);
 
         // Limit position max
-        if (COMM_SUCCESS != packetHandlerPupil->write2ByteTxRx(portHandlerPupil, 3, 8, AngleMaxLimitPupil[1], &dxl_error))
+        if (COMM_SUCCESS != PupilWriteTxRx(3, 8, 2, AngleMaxLimitPupil[1], &dxl_error))
             return false;
         Sleep(xlTimer);
 
         // Moving speed
-        if (COMM_SUCCESS != packetHandlerPupil->write2ByteTxRx(portHandlerPupil, 3, 32, pupil_moving_speed, &dxl_error))
+        if (COMM_SUCCESS != PupilWriteTxRx(3, 32, 2, pupil_moving_speed, &dxl_error))
             return false;
         Sleep(xlTimer);
 
         // P
-        if (COMM_SUCCESS != packetHandlerPupil->write1ByteTxRx(portHandlerPupil, 3, 29, pupil_p_gain, &dxl_error))
+        if (COMM_SUCCESS != PupilWriteTxRx(3, 29, 1, pupil_p_gain, &dxl_error))
             return false;
         Sleep(xlTimer);
 
         // I
-        if (COMM_SUCCESS != packetHandlerPupil->write1ByteTxRx(portHandlerPupil, 3, 28, pupil_i_gain, &dxl_error))
+        if (COMM_SUCCESS != PupilWriteTxRx(3, 28, 1, pupil_i_gain, &dxl_error))
             return false;
         Sleep(xlTimer);
 
         // D
-        if (COMM_SUCCESS != packetHandlerPupil->write1ByteTxRx(portHandlerPupil, 3, 27, pupil_d_gain, &dxl_error))
+        if (COMM_SUCCESS != PupilWriteTxRx(3, 27, 1, pupil_d_gain, &dxl_error))
             return false;
         Sleep(xlTimer);
 
@@ -2781,70 +2833,70 @@ class EpiServos : public Module
 
         // PUPIL ID 2 (Left pupil)
         // Limit position min
-        if (COMM_SUCCESS != packetHandlerPupil->write2ByteTxRx(portHandlerPupil, 2, 6, AngleMinLimitPupil[0], &dxl_error))
+        if (COMM_SUCCESS != PupilWriteTxRx(2, 6, 2, AngleMinLimitPupil[0], &dxl_error))
             return false;
         Sleep(xlTimer);
 
         // Limit position max
-        if (COMM_SUCCESS != packetHandlerPupil->write2ByteTxRx(portHandlerPupil, 2, 8, AngleMaxLimitPupil[0], &dxl_error))
+        if (COMM_SUCCESS != PupilWriteTxRx(2, 8, 2, AngleMaxLimitPupil[0], &dxl_error))
             return false;
         Sleep(xlTimer);
 
         // Moving speed
-        if (COMM_SUCCESS != packetHandlerPupil->write2ByteTxRx(portHandlerPupil, 2, 32, pupil_moving_speed, &dxl_error))
+        if (COMM_SUCCESS != PupilWriteTxRx(2, 32, 2, pupil_moving_speed, &dxl_error))
             return false;
         Sleep(xlTimer);
 
         // P
-        if (COMM_SUCCESS != packetHandlerPupil->write1ByteTxRx(portHandlerPupil, 2, 29, pupil_p_gain, &dxl_error))
+        if (COMM_SUCCESS != PupilWriteTxRx(2, 29, 1, pupil_p_gain, &dxl_error))
             return false;
         Sleep(xlTimer);
 
 
         // I
-        if (COMM_SUCCESS != packetHandlerPupil->write1ByteTxRx(portHandlerPupil, 2, 28, pupil_i_gain, &dxl_error))
+        if (COMM_SUCCESS != PupilWriteTxRx(2, 28, 1, pupil_i_gain, &dxl_error))
             return false;
         Sleep(xlTimer);
 
 
         // D
-        if (COMM_SUCCESS != packetHandlerPupil->write1ByteTxRx(portHandlerPupil, 2, 27, pupil_d_gain, &dxl_error))
+        if (COMM_SUCCESS != PupilWriteTxRx(2, 27, 1, pupil_d_gain, &dxl_error))
             return false;
         Sleep(xlTimer);
 
 
         // PUPIL ID 3 (Right pupil)
         // Limit position in
-        if (COMM_SUCCESS != packetHandlerPupil->write2ByteTxRx(portHandlerPupil, 3, 6, AngleMinLimitPupil[1], &dxl_error))
+        if (COMM_SUCCESS != PupilWriteTxRx(3, 6, 2, AngleMinLimitPupil[1], &dxl_error))
             return false;
         Sleep(xlTimer);
 
 
         // Limit position max
-        if (COMM_SUCCESS != packetHandlerPupil->write2ByteTxRx(portHandlerPupil, 3, 8, AngleMaxLimitPupil[1], &dxl_error))
+        if (COMM_SUCCESS != PupilWriteTxRx(3, 8, 2, AngleMaxLimitPupil[1], &dxl_error))
             return false;
         Sleep(xlTimer);
 
 
         // Moving speed
-        if (COMM_SUCCESS != packetHandlerPupil->write2ByteTxRx(portHandlerPupil, 3, 32, pupil_moving_speed, &dxl_error))
+        if (COMM_SUCCESS != PupilWriteTxRx(3, 32, 2, pupil_moving_speed, &dxl_error))
             return false;
         Sleep(xlTimer);
 
         // P
-        if (COMM_SUCCESS != packetHandlerPupil->write1ByteTxRx(portHandlerPupil, 3, 29, pupil_p_gain, &dxl_error))
+        if (COMM_SUCCESS != PupilWriteTxRx(3, 29, 1, pupil_p_gain, &dxl_error))
             return false;
         Sleep(xlTimer);
 
 
         // I
-        if (COMM_SUCCESS != packetHandlerPupil->write1ByteTxRx(portHandlerPupil, 3, 28, pupil_i_gain, &dxl_error))
+        if (COMM_SUCCESS != PupilWriteTxRx(3, 28, 1, pupil_i_gain, &dxl_error))
             return false;
         Sleep(xlTimer);
 
 
         // D
-        if (COMM_SUCCESS != packetHandlerPupil->write1ByteTxRx(portHandlerPupil, 3, 27, pupil_d_gain, &dxl_error))
+        if (COMM_SUCCESS != PupilWriteTxRx(3, 27, 1, pupil_d_gain, &dxl_error))
             return false;
         Sleep(xlTimer);
 
@@ -3076,9 +3128,9 @@ class EpiServos : public Module
         uint8_t dxl_error = 0; // Dynamixel error
 
         // Enable torque. No fancy rampiong
-        if (COMM_SUCCESS != packetHandlerPupil->write1ByteTxRx(portHandlerPupil, 2, 24, 1, &dxl_error))
+        if (COMM_SUCCESS != PupilWriteTxRx(2, 24, 1, 1, &dxl_error))
             return false;
-        if (COMM_SUCCESS != packetHandlerPupil->write1ByteTxRx(portHandlerPupil, 3, 24, 1, &dxl_error))
+        if (COMM_SUCCESS != PupilWriteTxRx(3, 24, 1, 1, &dxl_error))
             return false;
         return true;
     }
@@ -3183,9 +3235,9 @@ class EpiServos : public Module
         uint8_t dxl_error = 0; // Dynamixel error
 
         // Torque off. No fancy rampiong
-        if (COMM_SUCCESS != packetHandlerPupil->write1ByteTxRx(portHandlerPupil, 2, 24, 0, &dxl_error))
+        if (COMM_SUCCESS != PupilWriteTxRx(2, 24, 1, 0, &dxl_error))
             return false;
-        if (COMM_SUCCESS != packetHandlerPupil->write1ByteTxRx(portHandlerPupil, 3, 24, 0, &dxl_error))
+        if (COMM_SUCCESS != PupilWriteTxRx(3, 24, 1, 0, &dxl_error))
             return false;
 
         return true;
@@ -3306,7 +3358,7 @@ class EpiServos : public Module
             Sleep(0.05);
             for (int k = 0; k < 2; ++k)
             {
-                if (COMM_SUCCESS != packetHandlerPupil->read2ByteTxRx(portHandlerPupil, 2 + k, 37, &present_postition_value[k], &dxl_error))
+                if (COMM_SUCCESS != PupilReadTxRx(2 + k, 37, 2, &present_postition_value[k], &dxl_error))
                     return false;
                 still[k] = (last[k] != 0xffff && std::abs(int(present_postition_value[k]) - int(last[k])) <= 2) ? still[k] + 1 : 0;
                 last[k] = present_postition_value[k];
