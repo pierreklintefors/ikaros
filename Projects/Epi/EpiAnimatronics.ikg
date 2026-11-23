@@ -27,13 +27,13 @@
     <module class="@camera" name="Eye" url="@eye_url" id="@camera_id" size_x="640" size_y="480" _x="24" _y="24" />
     <module class="AppleVisionFaceDetector" name="Faces" max_faces="8" downsample="1" _x="216" _y="24" />
     <module class="FaceTargetSelector" name="Target" selection="largest" min_width="0.08" min_confidence="0.6"
-            switch_ratio="1.5" switch_delay="0.7" hold_time="0.5" _x="408" _y="24" />
+            switch_ratio="2.5" switch_delay="1.5" hold_time="0.5" _x="408" _y="24" />
 
     <!-- Second eye: the left camera finds the same face, and the two views give its distance -->
     <module class="@left_camera" name="LeftEye" url="@left_eye_url" filename="../Projects/Epi/NoCamera.jpg" size_x="640" size_y="480" _x="24" _y="1296" />
     <module class="AppleVisionFaceDetector" name="LeftFaces" max_faces="8" downsample="1" _x="216" _y="1296" />
     <module class="FaceTargetSelector" name="LeftTarget" selection="largest" min_width="0.08" min_confidence="0.6"
-            switch_ratio="1.5" switch_delay="0.7" hold_time="0.5" _x="408" _y="1296" />
+            switch_ratio="2.5" switch_delay="1.5" hold_time="0.5" _x="408" _y="1296" />
     <module class="StereoDistance" name="Stereo" still_time="0.25" position_offset="180" left_sign="1" max_distance="2" smoothing="6" hold_time="0.3" _x="600" _y="1296" />
 
     <!-- Camera setup: both eye cameras get the same settings before their streams open -->

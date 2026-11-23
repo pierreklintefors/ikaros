@@ -22,8 +22,12 @@ synchronized with the motion:
 1. **Seeing.** `InputVideoStream`, `AppleVisionFaceDetector`, and `FaceTargetSelector` find the
    closest face in the right eye camera, as in `EpiHeadMirroring.ikg`, and a second chain finds it
    in the left eye camera. `StereoDistance` combines the two views with the eyes' angles to measure
-   how far away the face is, without assuming its size. Before either stream opens, two
-   `UV4LSettings` modules give both eye cameras the same resolution, frame rate, and JPEG quality.
+   how far away the face is, without assuming its size. Once a face is followed, another face takes
+   over only when it is 2.5 times as wide for 1.5 s (`switch_ratio`, `switch_delay`): people at the
+   same distance differ in face width by up to two times through head turn, hair, and the wide-angle
+   lens, and with the earlier 1.5 times for 0.7 s Epi switched back and forth between them. Before
+   either stream opens, two `UV4LSettings` modules give both eye cameras the same resolution, frame
+   rate, and JPEG quality.
 2. **Looking.** `GazeLock` keeps the eyes on the face and turns the head after it. `camera_eye`
    tells it that the camera is in the right eye, so the face direction stays correct while the eyes
    cross or dart. When someone comes really close, `ProximityVergence` makes the eyes converge on
@@ -499,7 +503,9 @@ the robot needs someone next to it.
 - **Close faces.** While a face is close the head holds still, so a close person who moves far to
   the side can leave the eyes' range; the head follows again once they step back. The eyes cannot
   look up or down, so a close face that moves up or down can also leave the view.
-- **Two faces.** Each camera follows the largest face it sees. With several people close by, the two
+- **Two faces.** Each camera follows the largest face it sees, and keeps it unless another face is
+  2.5 times as wide for 1.5 s or the followed face is lost for 0.5 s; then the largest remaining face
+  is taken, which can be another person. With several people close by, the two
   cameras can pick different faces; detections at clearly different heights are ignored, but two
   people at the same height could give a wrong distance.
 - **Simulation.** Simulated servos start at 0 degrees and move at 45 degrees per second, so the

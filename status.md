@@ -2198,3 +2198,13 @@ The red card was replaced by something the audience is unlikely to show: the use
 - The widths were measured with one person's hand. A half-open hand counts as a finger, and a pointing finger at 10 cm was found in only part of the frames before the restart.
 - The thresholds of the corn were set in one room; other light can change its colours. Something yellow and green together counts as the corn, and the corn turned so that its green base is hidden does not.
 - The full conditioning sequence (corn with pokes, the corn alone, extinction) has not been run on the robot with the new cue and poke.
+
+## Face tracking with several people, and servo read errors
+
+With several people at about the same distance, Epi switches back and forth between their faces. On another laptop, the head servos twice reported a `GroupSyncRead` error; it has not happened on this Mac.
+
+| # | Task | Status | Verification | Commit |
+|---:|---|---|---|---|
+| 1 | Stop the gaze from switching between faces of about the same size. | Done | A 165 s log of the running demo at about 7 Hz with two people: the followed face was about 0.11 wide and the other 0.16 to 0.22, at about the same distance, and every switch to the other face came after it had been 1.5 to 2 times as wide for more than 0.7 s, the selector's `switch_ratio` 1.5 and `switch_delay` 0.7 s. Replaying the logged face boxes through `FaceTargetSelector` with the demo's settings gave 21 target changes; with `switch_ratio` 2 to 3 and `switch_delay` 1.5 to 2 s it gave 9, all after the followed face was lost or at the start, and partly artefacts of the 7 Hz sampling. Both selectors (right and left eye) now use 2.5 and 1.5 s; the guide explains the setting. Not yet checked live with two people. | This commit |
+| 2 | Find the cause of the `GroupSyncRead` errors on the other laptop and make the servo communication report and recover from them. | Not started | | |
+| 3 | Epi is scared at random: find what triggers the scared animation when nobody pokes and the corn is not in view. | Not started | | |
