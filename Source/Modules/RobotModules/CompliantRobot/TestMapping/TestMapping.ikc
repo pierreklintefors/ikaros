@@ -1,0 +1,37 @@
+<class name="TestMapping" description="Maps positions to currents and logs trajectory data">
+	<parameter name="NumberTransitions" description="Number of transitions to make" type="int" default="4"/>
+	<parameter name="RobotType" default="Torso" description="Type of the robot" options="Torso, FullBody" type="string" control="menu" />
+	<parameter name="CurrentPredictionModel" default="temporal_mlp_TimeSteps3_no_IMU" description="Model to use for predicting current" type="string" control="menu" />
+	<parameter name="CurrentIncrement" default="10" description="Current increment" type="int" />
+	<parameter name="StaticTestMode" default="0" description="Enable static testing mode with timed push prompts" type="bool" />
+	<parameter name="StaticCountdown" default="3.0" description="Countdown before prompting for push (seconds)" type="number" />
+	<parameter name="StaticDataCollection" default="2.0" description="Duration for data collection during push (seconds)" type="number" />
+	<parameter name="StaticInterval" default="1.0" description="Interval between test cycles (seconds)" type="number" />
+	<parameter name="TestingServo" default="both" optional="true" options="tilt, pan, both" description="Name of servo (Tilt, Pan)" type="string" control="menu" />
+	<parameter name="PerturbationType" default="none" description="Type of perturbation to apply" type="string" control="menu" options="push, obstacle, sustained, none" />
+
+	<input name="PresentPosition" description=""/>
+	<input name="PresentCurrent" description="" />
+	<input name ="GyroData" description="Gyro data (XYZ) degrees/s" />
+	<input name="AccelData" description="Accelerometer data (XYZ) m/s^2" />
+	<input name="EulerAngles" description="Euler angles (XYZ) degrees" />
+	<input name="ANN_prediction" optional="true" description="ANN prediction from PythonScriptCaller" />
+	<input name="GoalPositionIn" description="Goal position from GoalSetter" size="19"/>
+	<input name="StartPositionIn" optional="true" description="Start position from GoalSetter" size="19"/>
+	
+
+	<output name="ModelPrediction" description="" size="19"/>
+	<output name="RecordIndicator" description="Indicates when to record data" size="1"/>
+	<output name="TransitionsRemaining" description="Number of transitions remaining" size="1"/>
+	
+	<author>
+		<name>Pierre Klintefors</name>
+		<email>Pierre.Klintefors@lucs.lu.se</email>
+		<affiliation>Lund University Cognitive Science</affiliation>
+	</author>
+	<files>
+   		<file>TestMapping.cc</file>
+   		<file>TestMapping.ikc</file>
+   </files>
+</class>
+

@@ -1,0 +1,81 @@
+{
+"deviance_data" : [    {
+      "tick": 3,
+      "time": 0.0750,
+      "transition": 0,
+      "present_position": [117.9492, 229.5703],
+      "goal_position": [209.0000, 177.0000],
+      "present_current": [0.0000, 0.0000],
+      "model_prediction": [0.0000, 0.0000],
+      "gyro": [-0.3118, 0.5804, -0.2741],
+      "accel": [0.7538, 0.5852, -0.2673],
+      "angles": [-66.2256, 49.5154, -120.8716],
+      "starting_positions": [117.9492, 229.6582]
+    },
+    {
+      "tick": 4,
+      "time": 0.1000,
+      "transition": 0,
+      "present_position": [117.9492, 229.5703],
+      "goal_position": [209.0000, 177.0000],
+      "present_current": [151.2000, -157.9200],
+      "model_prediction": [0.0000, 0.0000],
+      "gyro": [0.2609, -2.6763, 36.1929],
+      "accel": [0.7783, 0.5599, -0.2801],
+      "angles": [-66.1597, 49.6252, -120.8386],
+      "starting_positions": [117.9492, 229.6582]
+    },
+    {
+      "tick": 5,
+      "time": 0.1250,
+      "transition": 0,
+      "present_position": [118.2129, 228.0762],
+      "goal_position": [209.0000, 177.0000],
+      "present_current": [406.5600, -628.3200],
+      "model_prediction": [0.0000, 0.0000],
+      "gyro": [11.3580, -12.1279, 101.7758],
+      "accel": [0.8123, 0.5606, -0.2736],
+      "angles": [-64.3140, 51.8335, -118.8281],
+      "starting_positions": [117.9492, 229.6582]
+    },
+    {
+      "tick": 6,
+      "time": 0.1500,
+      "transition": 0,
+      "present_position": [119.0918, 224.5605],
+      "goal_position": [209.0000, 177.0000],
+      "present_current": [796.3200, -588.0000],
+      "model_prediction": [0.0000, 0.0000],
+      "gyro": [27.2371, -36.9822, 176.4737],
+      "accel": [0.8918, 0.5312, -0.3095],
+      "angles": [-60.3809, 55.6128, -114.5874],
+      "starting_positions": [117.9492, 229.6582]
+    },
+    {
+      "tick": 7,
+      "time": 0.1750,
+      "transition": 0,
+      "present_position": [121.2012, 218.3203],
+      "goal_position": [209.0000, 177.0000],
+      "present_current": [1068.4800, -346.0800],
+      "model_prediction": [0.0000, 0.0000],
+      "gyro": [33.4036, -76.0059, 201.6026],
+      "accel": [0.9726, 0.4989, -0.3246],
+      "angles": [-50.1965, 60.8643, -103.7659],
+      "starting_positions": [117.9492, 229.6582]
+    },
+    {
+      "tick": 8,
+      "time": 0.2000,
+      "transition": 0,
+      "present_position": [124.8047, 210.4980],
+      "goal_position": [209.0000, 177.0000],
+      "present_current": [937.4400, -241.9200],
+      "model_prediction": [0.0000, 0.0000],
+      "gyro": [32.7715, -125.0026, 229.5839],
+      "accel": [1.0198, 0.4192, -0.3201],
+      "angles": [-37.4414, 64.0283, -90.0769],
+      "starting_positions": [117.9492, 229.6582]
+    }
+  ]
+}

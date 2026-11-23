@@ -2,6 +2,7 @@
 
 /build/
 /articles/
+/.venv/
 # Compiled source #
 ###################
 *.com
@@ -58,6 +59,9 @@ Thumbs.db
 # Other
 .vscode
 /status.md
+.venv
+.cursorrules
+.tensorflow_venv/
 /Debug/
 /Release/
 /Build/

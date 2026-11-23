@@ -1,0 +1,63 @@
+<group filename="" log_level="8" name="Untitled" real_time="True" start="true" stop="-1" tick_duration="0.025" webui_port="8000">
+   <connection delay="1" source="TestMapping.GoalPositionOut" target="EpiServos.GOAL_POSITION"/>
+   <connection delay="1" source="TestMapping.GoalCurrent" target="EpiServos.GOAL_CURRENT"/>
+   <connection delay="1" source="EpiServos.PRESENT_POSITION" target="TestMapping.PresentPosition"/>
+   <connection delay="1" source="EpiServos.PRESENT_CURRENT" target="TestMapping.PresentCurrent"/>
+   <connection delay="1" source="UM7.EulerAngles" target="TestMapping.EulerAngles"/>
+   <connection delay="1" source="UM7.ProcessedGyro" target="TestMapping.GyroData"/>
+   <connection delay="1" source="UM7.ProcessedAccel" target="TestMapping.AccelData"/>
+
+   <connection delay="1" source="UM7.ProcessedGyro" target="CurrentPrediction.Input[0:3]"/>
+   <connection delay="1" source="UM7.ProcessedAccel" target="CurrentPrediction.Input[3:6]"/>
+   <connection delay="1" source="UM7.EulerAngles" target="CurrentPrediction.Input[6:9]"/>
+   <connection delay="1" source="EpiServos.PRESENT_POSITION[0]" target="CurrentPrediction.Input[10]"/>
+   
+
+   
+   <connection delay="1" source="CurrentPrediction.Output" target="TestMapping.ANN_prediction"/>
+   <module NumberInputs="19" NumberOutputs="2" ScriptPath="/Users/pierre/ikaros/Source/Modules/RobotModules/CompliantRobot/TestMapping/ANN_prediction.py" SharedMemoryName="ikaros_ann_shm" VenvPath="/Users/pierre/ikaros/Source/Modules/RobotModules/CompliantRobot/TestMapping/.tensorflow_venv/bin/python3.12" _x="624" _y="96" class="PythonScriptCaller" log_level="7" name="CurrentPrediction"/>
+
+
+   <module CurrentIncrement="50" CurrentPrediction="ANN" DevianceLogging="true" MaxLimits="230, 240" MinLimits="130, 142" NumberTransitions="100" RobotType="Torso" _x="408" _y="48" class="TestMapping" log_level="8" name="TestMapping">
+      <files>
+         <file/>
+         <file/>
+      </files>
+   </module>
+   <module _x="144" _y="96" class="EpiServos" log_level="5" name="EpiServos" robot="EpiBlack" simulate="false">
+      <example description="A simple example">
+         <module class="EpiServo" name="EpiServo" robot="EpiBlack" simulate="false"/>
+      </example>
+      <files>
+         <file/>
+         <file/>
+         <file/>
+      </files>
+      <limitations/>
+      <link class="EpiServo"/>
+   </module>
+   <module _x="0" _y="192" class="UM7" log_level="5" name="UM7">
+      <example description="A simple example">
+         <module class="UM7" name="UM7"/>
+      </example>
+      <files>
+         <file/>
+         <file/>
+         <file/>
+      </files>
+      <link class="UM7"/>
+   </module>
+   <parameter control="menu" default="0" name="log_level" type="number" value="8.000000"/>
+   <widget _index_="0" _x="24" _y="360" class="table" colorize="true" decimals="0" direction="normal" frame-style="" height="49" label_x="" label_y="" max="1" min="" name="Widget_1" scrollable="false" select="" show_frame="false" show_title="true" source="TestMapping.PresentPosition" style="" title="Position" width="817"/>
+   <widget _index_="2" _x="24" _y="408" class="table" colorize="true" decimals="0" direction="normal" frame-style="" height="49" label_x="" label_y="" max="1" min="" name="Widget_2" scrollable="false" select="" show_frame="false" show_title="true" source="TestMapping.GoalPositionOut" style="" title="Goal Position" width="817"/>
+   <widget _index_="4" _x="24" _y="456" class="table" colorize="true" decimals="0" direction="normal" frame-style="" height="49" label_x="" label_y="" max="1" min="" name="Widget_3" scrollable="false" select="" show_frame="false" show_title="true" source="TestMapping.PresentCurrent" style="" title="Current" width="817"/>
+   <widget _index_="6" _x="24" _y="504" class="table" colorize="true" decimals="0" direction="normal" frame-style="" height="49" label_x="" label_y="" max="1" min="" name="Widget_4" scrollable="false" select="" show_frame="false" show_title="true" source="EpiServos.GOAL_CURRENT" style="" title="Goal Current" width="817"/>
+   <widget _index_="8" _x="24" _y="552" class="table" colorize="true" decimals="0" direction="normal" frame-style="" height="49" label_x="" label_y="" max="1" min="" name="Widget_5" scrollable="false" select="" show_frame="false" show_title="true" source="TestMapping.ModelPrediction" style="" title="Model Prediction" width="817"/>
+   <widget _index_="10" _x="24" _y="600" class="table" colorize="true" decimals="0" direction="normal" frame-style="" height="49" label_x="" label_y="" max="1" min="" name="Widget_6" scrollable="false" select="" show_frame="false" show_title="true" source="TestMapping.ModelPredictionStart" style="" title="Model Prediction Start" width="817"/>
+   <widget _index_="12" _x="30" _y="700" buffer_size="60" class="plot" color="blue" direction="vertical" select="" frame-style="" height="400" max="1300" min="-1300" name="Widget_7" show_frame="false" show_title="true" source="TestMapping.ModelPrediction[0]" style="--decimals:0" title="Present Current vs Model Prediction Tilt" width="600"/>
+   <widget _index_="14" _x="30" _y="700" buffer_size="60" class="plot" color="green" direction="vertical" select="" frame-style="" height="400" max="1300" min="-1300" name="Widget_8" show_frame="false" show_title="true" source="EpiServos.PRESENT_CURRENT[0]" style="--decimals:0" title="Present Current vs Model Prediciton Tilt" width="600"/>
+   <widget _index_="16" _x="660" _y="700" buffer_size="100" class="plot" color="blue" direction="vertical" select="" frame-style="" height="400" max="1300" min="-1300" name="Widget_9" show_frame="false" show_title="true" source="TestMapping.ModelPrediction[1]" style="--decimals:0" title="Present Current vs Model Prediction Pan" width="600"/>
+   <widget _index_="18" _x="660" _y="700" buffer_size="100" class="plot" color="green" direction="vertical" select="" frame-style="" height="400" max="1300" min="-1300" name="Widget_10" show_frame="false" show_title="true" source="EpiServos.PRESENT_CURRENT[1]" style="--decimals:0" title="Present Current vs Model Prediciton Pan" width="600"/>
+   <widget _index_="20" _x="30" _y="1200" buffer_size="100" class="plot" color="blue" direction="vertical" select="" frame-style="" height="400" max="50" min="-50" name="Widget_11" show_frame="false" show_title="true" source="TestMapping.GyroData" style="--decimals:0" title="Gyro Data" width="600"/>
+   <widget _index_="22" _x="660" _y="1200" buffer_size="100" class="plot" color="green" direction="vertical" select="" frame-style="" height="400" max="10" min="-10" name="Widget_12" show_frame="false" show_title="true" source="TestMapping.AccelData" style="--decimals:0" title="Accel Data" width="600"/>
+</group>

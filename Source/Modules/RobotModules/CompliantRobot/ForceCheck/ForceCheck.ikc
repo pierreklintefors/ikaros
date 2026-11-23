@@ -1,17 +1,51 @@
 <class name="ForceCheck" description="Checking the used current and increase it step by step to reach the target. Reduce the current with too much restance is met">
-	<parameter name="GainConstant" type= "double" default= "8.5" description="Gain constant for how much current should increased in relation to distance from goal position" />
-    <parameter name="SmoothFactor" type= "double" default= "0.7" description="Determines the influence of present current to goal current"/>
-	<parameter name="ErrorThreshold" type= "double" default= "10" description="Threshold for position error (in degrees) for when the current should be reduced to avoid overshooting"/>
+	
+	<parameter name="PullBackAmount" type= "int" default= "1" description="Number of degrees motor should pullback in the event of an obstacle in aviodance mode"/>
+	<parameter name="HistoryLength" type="int" default="10" description="Number ticks back for devation history"/>
+	<parameter name="ControlMode" type="int" options="0,1,2" default="0" description="The control mode for how the robot handles deviations from predicted current, 0=Normal, 1=Avoidant, 2=Compliant"/>
+	<parameter name="SustainedHoldDurationMs" type="int" default="1500" description="The duration in milliseconds that the robot should hold a position before switching to compliant mode"/>
+
+	<parameter name="SustainedForceThresholdRatio" type="number" default="0.7" description="The minimum ratio of deviation to trigger compliant mode"/>
+	<parameter name="AutomaticModeSwitchingEnabled" type="bool" default="false" description="Enable automatic switching between control modes based on conditions"/>
+	<parameter name="MovementThresholdScalar" type="number" default="1.0" description="Scalar for allowed devation threshold when motors are in motion"/>
+	<parameter name="PeakWidth" type="number" default="0.2" description="Peak width of error , used to determine the deviance peaks is wide enough to not be noise"/>
+	<parameter name="PeakHeight" type="number" default="2.0" description="The minimum height of a peak in the current prediction error to be considered a valid deviation"/>
+	<parameter name="MinConfidenceForStateSwitch" type="number" default="0.8" description="Minimum confidence required to switch robot states"/>
+	
+	<!-- Classification thresholds -->
+	<parameter name="PushMinMagnitude" type="number" default="150.0" description="Minimum peak magnitude to classify as push"/>
+	<parameter name="PushMaxMagnitude" type="number" default="400.0" description="Maximum peak magnitude to classify as push"/>
+	<parameter name="ObstacleMinStdDev" type="number" default="60.0" description="Minimum standard deviation to classify as obstacle"/>
+	<parameter name="ObstacleMinPeaks" type="int" default="3" description="Minimum number of sharp peaks to classify as obstacle"/>
+	<parameter name="RefactoryDuration" type="number" default="1.0" description="Cooldown duration in seconds after retraction before allowing another retraction"/>
+
 	<input name="GoalPositionIn" description="The goal position of the servomotors in degrees" size="19"/>
+	<input name="StartPosition" description="The start position of the servomotors in degrees"/>
 	<input name="PresentPosition" description="The present position of the servomotors in degrees"/>
 	<input name="PresentCurrent" description="The present current from the servomotors in mA" />
-	<input name="CurrentLimit" description="The present current from the servomotors in mA"/>
-	<output name="CurrentOutput" description="Goal current in mA to be sent to the servos (only in current-based (position) control mode)" />
-	<output name="GoalPositionOut" description="The goal position of the servomotors in degrees"/>
+	<input name="CurrentPrediction" description="The current prediction from the servomotors in mA" />
+	<input name="AllowedDeviance" optional="true" default= "700, 200" description="Allowed deviance of the current from the current prediction"/>
+	<input name="PerturbationClassification" optional="true" description="The perturbation classifier output from PythonScriptCaller" />
+
+	<output name="GoalPositionOut" size="19" description="The goal position of the servomotors in degrees"/>
+	<output name="ForceOutput" size="CurrentPrediction.size" description="The force output of the servomotors in PWM percentage"/>
+	<output name="Deviation" size="CurrentPrediction.size" description="The deviation of the current from the current prediction in mA"/>
+	<output name="LedIntensity" size="3" default="0.5, 0.5, 0.5" description="The intensity of the leds in percentage, left eye, right eye, mouth"/>
+	<output name="LedColorEyes" size="3,12"  description="The color of the leds in RGB, 0-1 "/>
+	<output name="LedColorMouth" size="3,8"  description="The color of the leds in RGB, 0-1 "/>
+	<output name="Torque" size="19" description="The torque off status of the servos, 0 if torque is off, 1 if torque is on"/>
+
+	
+	<author>
+		<name>Pierre Klintefors</name>
+		<email>Pierre.Klintefors@lucs.lu.se</email>
+		<affiliation>Lund University Cognitive Science</affiliation>
+	</author>
 	<files>
    		<file>ForceCheck.cc</file>
    		<file>ForceCheck.ikc</file>
    </files>
+
    
 </class>
 

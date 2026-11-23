@@ -2,7 +2,9 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 add_subdirectory(ForceCheck)
 add_subdirectory(PositionSelection)
 add_subdirectory(CurrentPositionMapping)
-
+add_subdirectory(TestMapping)
+add_subdirectory(GoalSetter)
+add_subdirectory(ForceCheckActiveInference)
 
 
 set(SOURCE ${SOURCE} PARENT_SCOPE)

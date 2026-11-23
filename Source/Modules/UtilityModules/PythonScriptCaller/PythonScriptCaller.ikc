@@ -1,0 +1,10 @@
+<class name="PythonScriptCaller" description="Calls a Python script, passing inputs and outputs via shared memory.">
+    <parameter name="ScriptPath" type="string" description="Full path to the Python script to execute."/>
+    <parameter name="VenvPath" type="string" description="Full path to the Python executable within the virtual environment (e.g., /path/to/venv/bin/python)."/>
+    <parameter name="NumberInputs" type="int" description="The exact number of float inputs the Python script expects. Determines SHM allocation for inputs."/>
+    <parameter name="NumberOutputs" type="int" description="The exact number of float outputs the Python script returns. Determines SHM allocation for outputs."/>
+    <parameter name="SharedMemoryName" type="string" default="ikaros_python_shm" description="Base name for the POSIX shared memory object (e.g., 'my_python_shm'). Do not include a leading slash."/>
+    <parameter name="Timeout" type="int" default="20" description="Timeout in milliseconds for the Python script to respond. Default is 20 milliseconds."/>
+    <input name="Input" type="matrix" size="19" description="Input matrix (vector) of floats to pass to the Python script. Its size must match 'NumberInputs'."/>
+    <output name="Output" type="matrix" size="2" description="Output matrix (vector) of floats received from the Python script."/>
+</class>

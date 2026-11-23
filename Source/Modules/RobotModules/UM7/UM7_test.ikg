@@ -1,12 +1,6 @@
-<group name = "Example">
-   <module _x="191.000000" _y="214.000000" class="UM7" description="connect to a UM7 orientation sensor via USB" name="UM7" port="/dev/cu.usbserial-AU04OEIL"/>
-
-      <widget class="plot" buffer_size="50" stroke_color="" orientation="vertical" frame-style="" height="341" y_max="180" y_min="-180" select="" show_frame="no" show_title="yes" source="UM7.ROLL" style="" title="Roll" width="701" x="20" y="20"/>
-      <widget class="plot" buffer_size="50" stroke_color="" orientation="vertical" frame-style="" height="341" y_max="90" y_min="-90" select="" show_frame="no" show_title="yes" source="UM7.PITCH" style="" title="Pitch" width="701" x="20" y="360"/>
-      <widget class="plot" buffer_size="50" stroke_color="" orientation="vertical" frame-style="" height="341" y_max="360" y_min="-360" select="" show_frame="no" show_title="yes" source="UM7.YAW" style="" title="Yay" width="701" x="20" y="700"/>
-      <widget class="table" colorize="no" decimals="0" frame-style="" height="341" label_x="" label_y="" scrollable="no" show_frame="no" show_title="no" source="UM7.ROLL" style="" title="Default Title" width="301" x="720" y="20" transpose="no"/>
-      <widget class="table" colorize="no" decimals="0" frame-style="" height="341" label_x="" label_y="" scrollable="no" show_frame="no" show_title="no" source="UM7.PITCH" style="" title="Default Title" width="301" x="720" y="360" transpose="no"/>
-      <widget class="table" colorize="no" decimals="0" frame-style="" height="341" label_x="" label_y="" scrollable="no" show_frame="no" show_title="no" source="UM7.YAW" style="" title="Default Title" width="301" x="720" y="700" transpose="no"/>
-  
-   <widget _index_="0.000000" _x="358.000000" _y="131.000000" auto_range="no" class="bar-graph" stroke_color="" orientation="vertical" fill_color="" frame-style="" height="200.000000" labels="" line_cap="" line_join="" line_width="1.000000" y_max="80.000000" y_min="0.000000" name="Widget_1" show_frame="no" show_title="yes" source="UM7.ROLL" style="" title="Widget_1" transpose="no" width="200.000000"/>
+<group name="Example">
+   <module _x="1272" _y="168" class="UM7" description="connect to a UM7 orientation sensor via USB" name="UM7" port="/dev/cu.usbserial-AU04OIL4"/>
+   <widget _index_="0" _x="48" _y="48" x="48" y="48" buffer_size="50" class="plot" stroke_color="blue, green, red" orientation="vertical" height="313" y_max="100" y_min="0" name="Gyroplot" show_frame="no" show_title="yes" source="UM7.ProcessedGyro" title="Gyro" width="385"/>
+   <widget _index_="1" _x="432" _y="48" x="432" y="48" buffer_size="50" class="plot" stroke_color="blue, green, red" orientation="vertical" height="313" y_max="1" y_min="-1" name="Accelplot" show_frame="no" show_title="yes" source="UM7.ProcessedAccel" title="Accelerometer" width="385"/>
+   <widget _index_="2" _x="48" _y="432" x="48" y="432" buffer_size="80" class="plot" stroke_color="blue, green, red" orientation="vertical" height="337" y_max="80" y_min="0" name="Eulerplot" show_frame="no" show_title="yes" source="UM7.EulerAngles" title="Euler" width="745"/>
 </group>

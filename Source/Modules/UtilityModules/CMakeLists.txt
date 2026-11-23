@@ -48,6 +48,7 @@ add_subdirectory(LinearSplines)
 add_subdirectory(PythonModule)
 add_subdirectory(Softmax)
 
+add_subdirectory(PythonScriptCaller)
 set(SOURCE ${SOURCE} PARENT_SCOPE)
 set(MODULES_INCLUDS ${MODULES_INCLUDS} PARENT_SCOPE)
 set(MODULES_LIBS ${MODULES_LIBS} PARENT_SCOPE)
