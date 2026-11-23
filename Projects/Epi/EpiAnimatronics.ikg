@@ -41,12 +41,20 @@
     <module class="UV4LSettings" name="LeftCameraSettings" url="@left_eye_url" width="640" height="480" frame_rate="30" quality="70" _x="216" _y="1488" />
 
     <!-- Finger close up: the eyes cross on a hand that comes within about 0.3 m of the cameras, while the
-         head keeps following the face -->
+         head keeps following the face. A poke is judged from the hand's width in the image: an open hand
+         looks about twice as wide as a pointing finger at the same distance, so a hand that is not open
+         counts from a width of 0.42 (a finger about 5 cm away) and an open hand only from 1.0 (about 5 to
+         7 cm), when it nearly fills the view -->
     <module class="AppleVisionHandDetector" name="Hands" point="index_tip" downsample="1" interval="2" _x="216" _y="1584" />
     <module class="ProximityVergence" name="FingerNear" object_width="0.1" start_distance="0.3" full_distance="0.12" gain="3"
             max_vergence="31" rate="4" hold_time="0.3" _x="408" _y="1584" />
     <module class="Maximum" name="NearVergence" _x="600" _y="1584" />
-    <module class="Threshold" name="Poke" title="A finger very close to the cameras, about 0.15 m" threshold="0.85" type="binary" _x="792" _y="1584" />
+    <module class="Threshold" name="WideHand" title="Hand wider than a finger about 5 cm away" threshold="0.42" type="binary" _x="408" _y="1680" />
+    <module class="Threshold" name="OpenHand" title="Open hand: more than half the fingers stretched out" threshold="0.5" type="binary" _x="408" _y="1776" />
+    <module class="Subtract" name="WideNotOpen" _x="600" _y="1680" />
+    <module class="Threshold" name="FingerPoke" title="A hand that is not open, about 5 cm from the cameras" threshold="0.5" type="binary" _x="792" _y="1680" />
+    <module class="Threshold" name="VeryClose" title="Any hand that nearly fills the view" threshold="1" type="binary" _x="792" _y="1776" />
+    <module class="Or" name="Poke" title="A poke: a finger or a hand right in front of the cameras" _x="984" _y="1728" />
 
     <!-- The feared cue: a toy corn, a saturated yellow cob with a green base, in the left camera, whose
          colours are stronger than the right camera's. Both colours must be in view at once, so yellow
@@ -287,7 +295,6 @@
     <connection source="Eye.INTENSITY" target="Brain.Brightness.INPUT" delay="0" />
     <connection source="Eye.INTENSITY" target="Brain.GlarePixels.INPUT" delay="0" />
     <connection source="Arousal.AROUSAL" target="Brain.LCDrive.INPUT1" delay="0" />
-    <connection source="FingerNear.NEAR" target="Poke.INPUT" delay="0" />
     <connection source="Poke.OUTPUT" target="Brain.Amygdala.US" delay="0" />
     <connection source="Poke.OUTPUT" target="Brain.Fear.INPUT2" delay="0" />
     <connection source="LeftEye.OUTPUT" target="CueImage.INPUT" delay="1" />
@@ -307,6 +314,14 @@
     <connection source="Eye.OUTPUT" target="Hands.INPUT" delay="1" />
     <connection source="Hands.TARGET" target="FingerNear.TARGET" delay="1" />
     <connection source="Hands.VALID" target="FingerNear.VALID" delay="1" />
+    <connection source="Hands.TARGET[2:3]" target="WideHand.INPUT" delay="1" />
+    <connection source="Hands.OPEN" target="OpenHand.INPUT" delay="1" />
+    <connection source="WideHand.OUTPUT" target="WideNotOpen.INPUT1" delay="0" />
+    <connection source="OpenHand.OUTPUT" target="WideNotOpen.INPUT2" delay="0" />
+    <connection source="WideNotOpen.OUTPUT" target="FingerPoke.INPUT" delay="0" />
+    <connection source="Hands.TARGET[2:3]" target="VeryClose.INPUT" delay="1" />
+    <connection source="FingerPoke.OUTPUT" target="Poke.INPUT1" delay="0" />
+    <connection source="VeryClose.OUTPUT" target="Poke.INPUT2" delay="0" />
     <connection source="Near.VERGENCE" target="NearVergence.INPUT1" delay="0" />
     <connection source="FingerNear.VERGENCE" target="NearVergence.INPUT2" delay="0" />
 
@@ -427,6 +442,10 @@
             x="1032" y="1312" _x="1032" _y="1312" width="236" height="56" show_title="yes" show_frame="yes" />
     <widget class="table" name="GreenTable" title="Leaf green (above 0.0002)" source="GreenFraction.OUTPUT" decimals="4" colorize="no"
             x="1276" y="1312" _x="1276" _y="1312" width="236" height="56" show_title="yes" show_frame="yes" />
+    <widget class="table" name="HandWidthTable" title="Hand x, y, width (poke 0.42, open 1)" source="Hands.TARGET" decimals="2" colorize="no"
+            x="1032" y="1376" _x="1032" _y="1376" width="236" height="56" show_title="yes" show_frame="yes" />
+    <widget class="table" name="PokeTable" title="Poke" source="Poke.OUTPUT" decimals="0" colorize="no"
+            x="1276" y="1376" _x="1276" _y="1376" width="236" height="56" show_title="yes" show_frame="yes" />
     <widget class="text" name="LeftCameraCaption" text="Left eye camera"
             x="1528" y="1040" _x="1528" _y="1040" width="384" height="24" show_title="no" show_frame="no" />
     <widget class="image" name="LeftCameraImage" source="LeftEye.OUTPUT" format="rgb" scale="both"

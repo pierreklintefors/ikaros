@@ -81,8 +81,13 @@ synchronized with the motion:
      intermediolateral column (`IML`) and the superior cervical ganglion (`SCG`), which contracts the
      dilator muscle, and it also damps the Edinger-Westphal nucleus. The arousal level and fear
      excite it.
-   - **Fear is learned.** A finger poke, a finger within about 0.15 m of the eyes (`Poke`), is
-     frightening in itself; a finger further away only makes the eyes cross. The cue Epi can learn
+   - **Fear is learned.** A poke (`Poke`), a finger about 5 cm from the right eye or a hand that
+     nearly fills its view, is frightening in itself; a finger further away only makes the eyes
+     cross. The poke is judged from the hand's width in the image (`Hands.TARGET`), because the
+     distance estimated from that width is too rough this close. An open hand looks about twice as
+     wide as a pointing finger at the same distance, so a hand that is not open (`OpenHand`, from
+     `Hands.OPEN`) counts from a width of 0.42 (`WideHand`, `FingerPoke`), and an open hand only from
+     1.0 (`VeryClose`), at about 5 to 7 cm. The cue Epi can learn
      to fear is a plastic toy corn, a saturated yellow cob with a green base, seen by the left
      camera, whose colours are stronger than the right camera's. `CueImage` halves the image;
      `CornYellow` and `CornGreen` (`ColorMatch`) mark corn-yellow and leaf-green pixels, and
@@ -295,7 +300,7 @@ The character is tuned on the modules:
 | `Brain.LC` | `alpha`, `beta` | The resting drive of the locus coeruleus, and how strongly arousal and fear widen the pupils |
 | `Brain.Eyes` | `pupil_min`, `pupil_max`, `m3`, `alpha1a`, `amplifier`, `time_constant` | The pupil range, the strength of the sphincter and dilator muscles, the overall gain, and how fast the pupils move |
 | `Brain.FearCue` | `threshold` | Fear above which Epi plays scared (0.4: every poke, and the corn alone after two to three pokes) |
-| `Poke` | `threshold` | How close a finger must come to count as a poke, as a value of `FingerNear.NEAR` (0.85: about 0.15 m); raise it toward 1 if pokes count from too far away |
+| `WideHand`, `VeryClose`, `OpenHand` | `threshold` | The hand width at which a hand that is not open counts as a poke (0.42: a pointing finger about 5 cm from the right eye, measured as 0.43 to 0.47 there and 0.38 to 0.41 at 10 cm), the width at which any hand counts (1.0: an open hand measured 0.51 at 20 cm, up to 0.93 at 10 cm, and 0.95 to 1.7 at 5 cm), and the share of stretched-out fingers above which a hand is open (0.5). Raise the widths if pokes count from too far away. Watch **Hand x, y, width** and **Poke** on the dashboard |
 | `CornYellow`, `CornGreen`; `YellowSeen`, `GreenSeen` | `target0` to `target2`, `sigma`; `threshold` | The corn's yellow (0.54, 0.42, 0.04) and green (0.10, 0.72, 0.18) as red, green, and blue fractions, measured through the left eye camera, and how closely a pixel must match them (`sigma` 15 for yellow and 4 for the more varied green); how much of the view each must cover (0.001 and 0.0002). Watch **Corn yellow** and **Leaf green** on the dashboard: if the corn stays below a threshold, lower that threshold or `sigma`; if something else counts, raise them. Without the corn, yellow stayed at 0 in the lab, while the green of a checked shirt reached 0.002 |
 | `Brain.Amygdala` | `alpha`, `extinction` | How fast the fear of a poke is learned (0.02: about three pokes of 1 s), and how fast it fades when a hand comes without a poke (0.002: halved after about 14 s of hand in view) |
 | `HeadPan` | `amplitude`, `swings`, `window`, `smoothing` | How large and quick a back-and-forth head pan must be to start copycat; `smoothing` 20 keeps quick head shakes large enough to count |
@@ -330,7 +335,8 @@ the other program and start again.
   both eyes** whether it comes from the two cameras (1) or from the face size (0), and **Near** how
   close the face is; above 0.3 the head holds still. The left eye camera is shown beside them.
 - **Finger close** rises from 0 to 1 as a hand comes toward the cameras; the eyes are fully crossed
-  at 1, and above 0.85 it counts as a poke. **Corn seen** is 1 while the left eye sees the corn;
+  at 1. **Hand x, y, width** shows the hand's position and width, and **Poke** is 1 while a hand that
+  is not open is wider than 0.42 or any hand is wider than 1.0. **Corn seen** is 1 while the left eye sees the corn;
   **Corn yellow** and **Leaf green** show how much of the view each colour covers, and both must be
   above their thresholds, 0.001 and 0.0002.
 - Open the group `Brain` for the pupil model's page. The animated brain shows each nucleus glowing
@@ -427,7 +433,8 @@ the robot needs someone next to it.
      be 1, and nothing else should happen yet. Move your hands and step around without the corn:
      **Corn seen** should stay 0.
    - Bring a finger slowly toward Epi's eyes without the corn. The eyes cross from about 0.3 m;
-     only at about 0.15 m should Epi be scared, with red flashes and an "eek".
+     only at about 5 cm should Epi be scared, with red flashes and an "eek". An open hand should
+     not scare it at 20 or 10 cm, only when it nearly covers the camera.
    - Three times, a few seconds apart: show the corn, then poke while it is still in view. Each poke
      scares Epi. From about the third time, the corn coming into view should scare Epi before the
      poke, the Amygdala should glow on the brain page, and the pupils should widen.
@@ -444,9 +451,11 @@ the robot needs someone next to it.
 
 ## Known limitations
 
-- **Finger close up untested on the robot.** It has been checked in simulation with photos of hands
-  of several sizes, not with a live camera. The distance comes from the width of the hand alone, so
-  it is only rough, and a hand that fills most of the view may not be detected at all.
+- **Finger distance is rough.** The eyes cross from a distance estimated from the hand's width
+  alone, and the poke is judged from that width directly. The widths were measured once on EpiBlack
+  with a ruler, for one person's hand. A larger or smaller hand counts a little further away or
+  closer, and a hand that is half open counts as a finger. A pointing finger at 10 cm is found in
+  only part of the frames, and a hand that fills the view is sometimes lost.
 
 - **Parallel ticks.** To keep each tick within 40 ms on the robot, the servos and LEDs get their
   commands one tick (40 ms) later, the left camera's face detection and the hand detection run as
