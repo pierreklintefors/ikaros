@@ -1,0 +1,18 @@
+<class name="AveragePool" description="Averages an image over square windows that may overlap">
+    <description type="text">
+        AveragePool replaces each square window of size by size pixels with its mean, moving the window
+        stride pixels at a time. With stride equal to size the windows tile the image, as in Downsample
+        for size 2; with a smaller stride neighbouring windows overlap, so something that lies across a
+        window boundary is still found whole in some window. Applied to a binary map, each output value is
+        the fraction of the window that is set, for example how much of a patch has a given colour. A
+        channel-first input [channels, rows, cols] is pooled channel by channel. Pixels beyond the last
+        whole window are not used.
+    </description>
+
+    <parameter name="size" type="number" default="2" min="1" description="Width and height of each window in pixels" />
+    <parameter name="stride" type="number" default="2" min="1" description="Pixels the window moves between neighbouring outputs; smaller than size makes the windows overlap" />
+
+    <input name="INPUT" description="Image [rows, cols] or channel-first image [channels, rows, cols]" />
+    <output name="OUTPUT" description="Window means; (rows - size) / stride + 1 rows and (cols - size) / stride + 1 columns, rounded down"
+            size="optional(INPUT.size_z), (INPUT.rows-@size)/@stride+1, (INPUT.cols-@size)/@stride+1" />
+</class>

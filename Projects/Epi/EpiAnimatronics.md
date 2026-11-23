@@ -95,10 +95,15 @@ synchronized with the motion:
      to fear is a plastic toy corn, a saturated yellow cob with a green base, seen by the left
      camera, whose colours are stronger than the right camera's. `CueImage` halves the image;
      `CornYellow` and `CornGreen` (`ColorMatch`) mark corn-yellow and leaf-green pixels, and
-     `YellowFraction` and `GreenFraction` measure how much of the view each covers. `CornSeen` is 1
-     when both are in view at once: yellow above 0.1 percent and green above 0.02 percent. At arm's
-     length the corn covers about 0.4 percent yellow and 0.1 percent green. Requiring both colours
-     keeps yellow clothes or green things alone from counting. The amygdala (`Delta`) learns that
+     `YellowFraction` and `GreenFraction` measure how much of the view each covers, for the
+     dashboard. The corn counts only where both colours lie together: `YellowPatches` and
+     `GreenPatches` (`AveragePool`) give each colour's share in overlapping patches of 24 x 24
+     pixels of the half-size image, 8 pixels apart; `YellowSpots` and `GreenSpots` mark patches with
+     more than 2 percent yellow and more than 1 percent green, and `CornSeen` is 1 when at least one
+     patch has both (`CornSpots`). Requiring both colours in one patch keeps yellow clothes, green
+     things, and a yellow object beside a green one from counting: a plant with a yellow stand and
+     greenish leaves scared Epi whenever it looked around the room while any yellow and green in
+     view counted. The amygdala (`Delta`) learns that
      the corn comes before a poke, so after a few pokes with the corn in view, the corn alone widens
      the pupils. Show the corn often without poking and the fear fades again. A hand is not a good
      cue, because hands are in view most of the time and Epi would be scared constantly; a red card
@@ -305,7 +310,7 @@ The character is tuned on the modules:
 | `Brain.Eyes` | `pupil_min`, `pupil_max`, `m3`, `alpha1a`, `amplifier`, `time_constant` | The pupil range, the strength of the sphincter and dilator muscles, the overall gain, and how fast the pupils move |
 | `Brain.FearCue` | `threshold` | Fear above which Epi plays scared (0.4: every poke, and the corn alone after two to three pokes) |
 | `WideHand`, `VeryClose`, `OpenHand` | `threshold` | The hand width at which a hand that is not open counts as a poke (0.42: a pointing finger about 5 cm from the right eye, measured as 0.43 to 0.47 there and 0.38 to 0.41 at 10 cm), the width at which any hand counts (1.0: an open hand measured 0.51 at 20 cm, up to 0.93 at 10 cm, and 0.95 to 1.7 at 5 cm), and the share of stretched-out fingers above which a hand is open (0.5). Raise the widths if pokes count from too far away. Watch **Hand x, y, width** and **Poke** on the dashboard |
-| `CornYellow`, `CornGreen`; `YellowSeen`, `GreenSeen` | `target0` to `target2`, `sigma`; `threshold` | The corn's yellow (0.54, 0.42, 0.04) and green (0.10, 0.72, 0.18) as red, green, and blue fractions, measured through the left eye camera, and how closely a pixel must match them (`sigma` 15 for yellow and 4 for the more varied green); how much of the view each must cover (0.001 and 0.0002). Watch **Corn yellow** and **Leaf green** on the dashboard: if the corn stays below a threshold, lower that threshold or `sigma`; if something else counts, raise them. Without the corn, yellow stayed at 0 in the lab, while the green of a checked shirt reached 0.002 |
+| `CornYellow`, `CornGreen`; `YellowPatches`, `GreenPatches`; `YellowSpots`, `GreenSpots` | `target0` to `target2`, `sigma`; `size`, `stride`; `threshold` | The corn's yellow (0.54, 0.42, 0.04) and green (0.10, 0.72, 0.18) as red, green, and blue fractions, measured through the left eye camera, and how closely a pixel must match them (`sigma` 15 for yellow and 4 for the more varied green); the patch size and spacing in pixels of the half-size image (24 and 8); how much of a patch each colour must cover (0.02 and 0.01). With these values the corn was seen in 38 of 42 snapshots held in different ways, missing only when its green base was hidden or it was far away, and in none of 38 snapshots that the earlier whole-view rule had taken for the corn. Watch **Corn seen**, **Corn yellow**, and **Leaf green** on the dashboard: if the corn is missed, lower the patch thresholds or make the patches larger; if something else counts, raise them |
 | `Brain.Amygdala` | `alpha`, `extinction` | How fast the fear of a poke is learned (0.02: about three pokes of 1 s), and how fast it fades when a hand comes without a poke (0.002: halved after about 14 s of hand in view) |
 | `HeadPan` | `amplitude`, `swings`, `window`, `smoothing` | How large and quick a back-and-forth head pan must be to start copycat; `smoothing` 20 keeps quick head shakes large enough to count |
 
@@ -340,9 +345,9 @@ the other program and start again.
   close the face is; above 0.3 the head holds still. The left eye camera is shown beside them.
 - **Finger close** rises from 0 to 1 as a hand comes toward the cameras; the eyes are fully crossed
   at 1. **Hand x, y, width** shows the hand's position and width, and **Poke** is 1 while a hand that
-  is not open is wider than 0.42 or any hand is wider than 1.0. **Corn seen** is 1 while the left eye sees the corn;
-  **Corn yellow** and **Leaf green** show how much of the view each colour covers, and both must be
-  above their thresholds, 0.001 and 0.0002.
+  is not open is wider than 0.42 or any hand is wider than 1.0. **Corn seen** is 1 while the left
+  eye sees the corn, yellow and green together in one patch; **Corn yellow** and **Leaf green** show
+  how much of the whole view each colour covers.
 - Open the group `Brain` for the pupil model's page. The animated brain shows each nucleus glowing
   with its activity, spikes travelling along the pathways (yellow for light, cyan for narrowing the
   pupils, orange for widening them, magenta for fear, and red dashes for inhibition), and the eye
@@ -466,11 +471,11 @@ the robot needs someone next to it.
   separate tasks with one-tick delays, and so the stereo distance is one tick old and finger and fear
   reactions come two ticks late. Without these delays the camera, face detection, gaze, servo bus, and
   LEDs ran one after another and a tick took 50 to 60 ms, which starved the WebUI.
-- **The corn's colours.** The thresholds were set from about two minutes of the left eye camera in
-  the lab, with the corn at arm's length, at about 30 cm, turned, and out of view. Other light can
-  change the colours the camera sees, so check **Corn yellow** and **Leaf green** in a new room.
-  Something yellow and green together, such as a yellow and green garment, would count as the
-  corn. With the corn turned so that its green base is hidden, it is not seen. In the single-camera
+- **The corn's colours.** The colours and thresholds were set from the left eye camera in the lab,
+  with the corn at different distances and angles and out of view. Other light can change the
+  colours the camera sees, so check **Corn seen**, **Corn yellow**, and **Leaf green** in a new
+  room. Something with yellow right next to green, such as a yellow and green patterned garment,
+  would count as the corn. With the corn turned so that its green base is hidden, it is not seen. In the single-camera
   setup (`camera="InputVideo"`), the left eye shows a still image, so the corn is never seen.
 - **Pupil brain untested on the robot.** The pupil model has been checked in simulation with still
   images and an image sequence, not with a live camera. The eye cameras adjust their exposure

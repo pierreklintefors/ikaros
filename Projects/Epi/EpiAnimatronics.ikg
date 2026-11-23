@@ -57,18 +57,25 @@
     <module class="Or" name="Poke" title="A poke: a finger or a hand right in front of the cameras" _x="984" _y="1728" />
 
     <!-- The feared cue: a toy corn, a saturated yellow cob with a green base, in the left camera, whose
-         colours are stronger than the right camera's. Both colours must be in view at once, so yellow
-         clothes or green objects alone do not count. Its own task, one tick behind the camera -->
+         colours are stronger than the right camera's. Yellow and green must be found together in one
+         patch: AveragePool gives the share of each colour in overlapping windows of 24 x 24 pixels of the
+         half-size image, 8 pixels apart, and a window with both counts as the corn. Yellow and green in
+         different places, such as a yellow plant stand with green leaves or a green bag, do not. Its own
+         task, one tick behind the camera -->
     <module class="Downsample" name="CueImage" _x="24" _y="1920" />
     <module class="ColorMatch" name="CornYellow" title="How corn yellow each pixel is" target0="0.54" target1="0.42" target2="0.04" sigma="15" threshold="0.3" alpha="0" _x="216" _y="1872" />
     <module class="Threshold" name="YellowPixels" threshold="0.4" type="binary" _x="408" _y="1872" />
-    <module class="Average" name="YellowFraction" title="Fraction of the view that is corn yellow" _x="600" _y="1872" />
-    <module class="Threshold" name="YellowSeen" title="Corn yellow in view: more than 0.1 percent of the view" threshold="0.001" type="binary" _x="792" _y="1872" />
+    <module class="Average" name="YellowFraction" title="Fraction of the view that is corn yellow" _x="600" _y="1776" />
+    <module class="AveragePool" name="YellowPatches" title="Share of corn-yellow pixels in each patch" size="24" stride="8" _x="600" _y="1872" />
+    <module class="Threshold" name="YellowSpots" title="Patches more than 2 percent corn yellow" threshold="0.02" type="binary" _x="792" _y="1872" />
     <module class="ColorMatch" name="CornGreen" title="How leaf green each pixel is" target0="0.10" target1="0.72" target2="0.18" sigma="4" threshold="0.3" alpha="0" _x="216" _y="1968" />
     <module class="Threshold" name="GreenPixels" threshold="0.4" type="binary" _x="408" _y="1968" />
-    <module class="Average" name="GreenFraction" title="Fraction of the view that is leaf green" _x="600" _y="1968" />
-    <module class="Threshold" name="GreenSeen" title="Leaf green in view: more than 0.02 percent of the view" threshold="0.0002" type="binary" _x="792" _y="1968" />
-    <module class="And" name="CornSeen" title="Corn in view: yellow and green at once" _x="984" _y="1920" />
+    <module class="Average" name="GreenFraction" title="Fraction of the view that is leaf green" _x="600" _y="2064" />
+    <module class="AveragePool" name="GreenPatches" title="Share of leaf-green pixels in each patch" size="24" stride="8" _x="600" _y="1968" />
+    <module class="Threshold" name="GreenSpots" title="Patches more than 1 percent leaf green" threshold="0.01" type="binary" _x="792" _y="1968" />
+    <module class="And" name="CornSpots" title="Patches with corn yellow and leaf green together" _x="984" _y="1920" />
+    <module class="Average" name="CornSpotShare" _x="1176" _y="1920" />
+    <module class="Threshold" name="CornSeen" title="Corn in view: at least one patch with both colours" threshold="0" type="binary" _x="1368" _y="1920" />
 
     <!-- Brain: a pupil model. The light reflex narrows the pupils through the pretectal area, the
          Edinger-Westphal nucleus, and the ciliary ganglion; arousal widens them through the locus
@@ -301,13 +308,17 @@
     <connection source="CueImage.OUTPUT" target="CornYellow.INPUT" delay="0" />
     <connection source="CornYellow.OUTPUT" target="YellowPixels.INPUT" delay="0" />
     <connection source="YellowPixels.OUTPUT" target="YellowFraction.INPUT" delay="0" />
-    <connection source="YellowFraction.OUTPUT" target="YellowSeen.INPUT" delay="0" />
+    <connection source="YellowPixels.OUTPUT" target="YellowPatches.INPUT" delay="0" />
+    <connection source="YellowPatches.OUTPUT" target="YellowSpots.INPUT" delay="0" />
     <connection source="CueImage.OUTPUT" target="CornGreen.INPUT" delay="0" />
     <connection source="CornGreen.OUTPUT" target="GreenPixels.INPUT" delay="0" />
     <connection source="GreenPixels.OUTPUT" target="GreenFraction.INPUT" delay="0" />
-    <connection source="GreenFraction.OUTPUT" target="GreenSeen.INPUT" delay="0" />
-    <connection source="YellowSeen.OUTPUT" target="CornSeen.INPUT1" delay="0" />
-    <connection source="GreenSeen.OUTPUT" target="CornSeen.INPUT2" delay="0" />
+    <connection source="GreenPixels.OUTPUT" target="GreenPatches.INPUT" delay="0" />
+    <connection source="GreenPatches.OUTPUT" target="GreenSpots.INPUT" delay="0" />
+    <connection source="YellowSpots.OUTPUT" target="CornSpots.INPUT1" delay="0" />
+    <connection source="GreenSpots.OUTPUT" target="CornSpots.INPUT2" delay="0" />
+    <connection source="CornSpots.OUTPUT" target="CornSpotShare.INPUT" delay="0" />
+    <connection source="CornSpotShare.OUTPUT" target="CornSeen.INPUT" delay="0" />
     <connection source="CornSeen.OUTPUT" target="Brain.Amygdala.CS" delay="1" />
 
     <!-- Finger close up -->
@@ -436,11 +447,11 @@
             x="1276" y="1184" _x="1276" _y="1184" width="236" height="56" show_title="yes" show_frame="yes" />
     <widget class="table" name="FingerTable" title="Finger close (eyes cross at 1)" source="FingerNear.NEAR" decimals="2" colorize="no"
             x="1032" y="1248" _x="1032" _y="1248" width="236" height="56" show_title="yes" show_frame="yes" />
-    <widget class="table" name="CornTable" title="Corn seen (yellow and green)" source="CornSeen.OUTPUT" decimals="0" colorize="no"
+    <widget class="table" name="CornTable" title="Corn seen (both in one patch)" source="CornSeen.OUTPUT" decimals="0" colorize="no"
             x="1276" y="1248" _x="1276" _y="1248" width="236" height="56" show_title="yes" show_frame="yes" />
-    <widget class="table" name="YellowTable" title="Corn yellow (above 0.001)" source="YellowFraction.OUTPUT" decimals="4" colorize="no"
+    <widget class="table" name="YellowTable" title="Corn yellow in view" source="YellowFraction.OUTPUT" decimals="4" colorize="no"
             x="1032" y="1312" _x="1032" _y="1312" width="236" height="56" show_title="yes" show_frame="yes" />
-    <widget class="table" name="GreenTable" title="Leaf green (above 0.0002)" source="GreenFraction.OUTPUT" decimals="4" colorize="no"
+    <widget class="table" name="GreenTable" title="Leaf green in view" source="GreenFraction.OUTPUT" decimals="4" colorize="no"
             x="1276" y="1312" _x="1276" _y="1312" width="236" height="56" show_title="yes" show_frame="yes" />
     <widget class="table" name="HandWidthTable" title="Hand x, y, width (poke 0.42, open 1)" source="Hands.TARGET" decimals="2" colorize="no"
             x="1032" y="1376" _x="1032" _y="1376" width="236" height="56" show_title="yes" show_frame="yes" />
