@@ -80,7 +80,8 @@
     <!-- Brain: a pupil model. The light reflex narrows the pupils through the pretectal area, the
          Edinger-Westphal nucleus, and the ciliary ganglion; arousal widens them through the locus
          coeruleus, the spinal IML, and the superior cervical ganglion. The amygdala learns that the toy corn
-         in view comes before a finger poke, so after a few pokes the corn alone scares Epi.
+         in view comes before a finger poke, once per poke and once per appearance of the corn, so after
+         two pokes the corn alone scares Epi, and after two or three appearances without a poke it no longer does.
          Open the group for its page -->
     <group name="Brain" title="Epi's pupil brain" _x="24" _y="1704">
         <module class="Average" name="Brightness" title="Mean brightness of the camera image" _x="1100" _y="24" />
@@ -94,7 +95,7 @@
         <module class="Nucleus" name="LC" title="Locus coeruleus" alpha="0.3" beta="0.3" time_constant="0.5" _x="1820" _y="624" />
         <module class="Nucleus" name="IML" title="Intermediolateral column" beta="1" time_constant="0.2" _x="2060" _y="624" />
         <module class="Nucleus" name="SCG" title="Superior cervical ganglion" beta="1" time_constant="0.3" _x="2300" _y="624" />
-        <module class="Delta" name="Amygdala" title="Amygdala: learns that the corn comes before a poke" alpha="0.02" extinction="0.002" _x="1100" _y="624" />
+        <module class="Delta" name="Amygdala" title="Amygdala: learns that the corn comes before a poke" alpha="0.35" extinction="0.2" trials="yes" gap="1" _x="1100" _y="624" />
         <module class="Maximum" name="Fear" _x="1340" _y="624" />
         <module class="Add" name="LCDrive" _x="1580" _y="624" />
         <module class="Threshold" name="FearCue" title="Fear above which Epi shows that it is scared" threshold="0.4" type="binary" _x="1340" _y="768" />

@@ -104,17 +104,25 @@ synchronized with the motion:
      things, and a yellow object beside a green one from counting: a plant with a yellow stand and
      greenish leaves scared Epi whenever it looked around the room while any yellow and green in
      view counted. The amygdala (`Delta`) learns that
-     the corn comes before a poke, so after a few pokes with the corn in view, the corn alone widens
-     the pupils. Show the corn often without poking and the fear fades again. A hand is not a good
+     the corn comes before a poke, so after two pokes with the corn in view, the corn alone widens
+     the pupils. Show the corn a few times without poking and the fear fades again. It learns
+     once per event rather than every tick (`trials`), so how long a poke or a showing lasts does
+     not matter: each poke with the corn in view moves the learned fear 35 percent of the way to
+     1 (`alpha`), and each appearance of the corn that ends without a poke takes 20 percent of it
+     away (`extinction`). An appearance lasts until the corn has been out of view for 1 s
+     (`gap`), and a poke counts again only after the hand has been away for 1 s, so a missed
+     detection neither splits an appearance nor turns one poke into two. A hand is not a good
      cue, because hands are in view most of the time and Epi would be scared constantly; a red card
      was replaced because red clothes are common in an audience.
    - **Fear shows.** Whenever the fear rises above 0.4 (`Brain.FearCue`), Epi plays *scared*: its
      eyes and mouth flash red and white, it gives a frightened "eek", flinches back and away, and
-     trembles with pale blue eyes. A poke always scares it. The learned fear passes 0.4 after
-     two to three pokes with the corn in view, so from then on the corn alone, coming into view,
-     makes Epi scared before any poke: the conditioned response. Each time the corn comes without a
-     poke the fear is a little smaller, and after about three such appearances of 3 s the corn no
-     longer scares it: extinction.
+     trembles with pale blue eyes. A poke always scares it. The learned fear is 0.35 after one poke
+     with the corn in view and 0.58 after two, so from then on the corn alone, coming into view,
+     makes Epi scared before any poke: the conditioned response. Each time the corn comes and goes
+     without a poke the fear is a fifth smaller: after two pokes the corn scares Epi on its next
+     two appearances (0.58, 0.46) and not on the third (0.37), and after three pokes on three:
+     extinction. A corn that leaves the view for more than 1 s while Epi flinches and comes back
+     counts as a new appearance.
 
    `EyeModel` turns the two muscles' drive into a diameter between 5 and 16 mm. In a normal room the
    pupils are about 8 mm when Epi is alone, 10 mm with company, and up to 13.5 mm when it is excited;
@@ -308,10 +316,10 @@ The character is tuned on the modules:
 | `Brain.PTA` | `beta` | How strongly light narrows the pupils |
 | `Brain.LC` | `alpha`, `beta` | The resting drive of the locus coeruleus, and how strongly arousal and fear widen the pupils |
 | `Brain.Eyes` | `pupil_min`, `pupil_max`, `m3`, `alpha1a`, `amplifier`, `time_constant` | The pupil range, the strength of the sphincter and dilator muscles, the overall gain, and how fast the pupils move |
-| `Brain.FearCue` | `threshold` | Fear above which Epi plays scared (0.4: every poke, and the corn alone after two to three pokes) |
+| `Brain.FearCue` | `threshold` | Fear above which Epi plays scared (0.4: every poke, and the corn alone after two pokes) |
 | `WideHand`, `VeryClose`, `OpenHand` | `threshold` | The hand width at which a hand that is not open counts as a poke (0.42: a pointing finger about 5 cm from the right eye, measured as 0.43 to 0.47 there and 0.38 to 0.41 at 10 cm), the width at which any hand counts (1.0: an open hand measured 0.51 at 20 cm, up to 0.93 at 10 cm, and 0.95 to 1.7 at 5 cm), and the share of stretched-out fingers above which a hand is open (0.5). Raise the widths if pokes count from too far away. Watch **Hand x, y, width** and **Poke** on the dashboard |
 | `CornYellow`, `CornGreen`; `YellowPatches`, `GreenPatches`; `YellowSpots`, `GreenSpots` | `target0` to `target2`, `sigma`; `size`, `stride`; `threshold` | The corn's yellow (0.54, 0.42, 0.04) and green (0.10, 0.72, 0.18) as red, green, and blue fractions, measured through the left eye camera, and how closely a pixel must match them (`sigma` 15 for yellow and 4 for the more varied green); the patch size and spacing in pixels of the half-size image (24 and 8); how much of a patch each colour must cover (0.02 and 0.01). With these values the corn was seen in 38 of 42 snapshots held in different ways, missing only when its green base was hidden or it was far away, and in none of 38 snapshots that the earlier whole-view rule had taken for the corn. Watch **Corn seen**, **Corn yellow**, and **Leaf green** on the dashboard: if the corn is missed, lower the patch thresholds or make the patches larger; if something else counts, raise them |
-| `Brain.Amygdala` | `alpha`, `extinction` | How fast the fear of a poke is learned (0.02: about three pokes of 1 s), and how fast it fades when a hand comes without a poke (0.002: halved after about 14 s of hand in view) |
+| `Brain.Amygdala` | `alpha`, `extinction`, `gap` | Share of the way to full fear learned per poke with the corn in view (0.35: 0.35 after one poke, 0.58 after two), share of the fear lost per appearance of the corn without a poke (0.2: two to three appearances), and seconds without the corn or the poke that end an appearance or a poke (1) |
 | `HeadPan` | `amplitude`, `swings`, `window`, `smoothing` | How large and quick a back-and-forth head pan must be to start copycat; `smoothing` 20 keeps quick head shakes large enough to count |
 
 ### Camera settings
@@ -444,14 +452,15 @@ the robot needs someone next to it.
    - Bring a finger slowly toward Epi's eyes without the corn. The eyes cross from about 0.3 m;
      only at about 5 cm should Epi be scared, with red flashes and an "eek". An open hand should
      not scare it at 20 or 10 cm, only when it nearly covers the camera.
-   - Three times, a few seconds apart: show the corn, then poke while it is still in view. Each poke
-     scares Epi. From about the third time, the corn coming into view should scare Epi before the
-     poke, the Amygdala should glow on the brain page, and the pupils should widen.
-   - Then show the corn without poking, for about 3 s at a time with short breaks. Epi should be
-     scared the first two or three times, and then no longer.
+   - Twice, a few seconds apart: show the corn, then poke while it is still in view. Each poke
+     scares Epi. Then take the corn away for a few seconds and show it again: it should now scare
+     Epi before any poke, the Amygdala should glow on the brain page, and the pupils should widen.
+   - Then show the corn without poking a few more times, taking it out of view for at least 2 s
+     in between. Epi should be scared by it twice in all (counting the first showing after the
+     pokes), and then no longer.
 
-   If learning takes too many pokes, raise `alpha` on `Brain.Amygdala`; if the fear fades too fast
-   or too slowly, change `extinction` there; if the corn scares Epi too easily or never, change
+   If learning takes too many pokes, raise `alpha` on `Brain.Amygdala`; if the fear fades after too
+   few or too many appearances, change `extinction` there; if the corn scares Epi too easily or never, change
    `threshold` on `Brain.FearCue`; if the pupils hardly change, raise `beta` on `Brain.LC` or
    `amplifier` on `Brain.Eyes`.
 14. **Pacing and mood.** Watch for a few minutes alone and with company. Raise `min_interval` and

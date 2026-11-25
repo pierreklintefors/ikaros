@@ -1,0 +1,16 @@
+<group name="DeltaTrialsTest"
+       description="With trials, each US onset during a CS presentation is one learning step and each presentation without the US one extinction step; gaps shorter than gap neither split a presentation nor start a new US"
+       start="true" stop="41" tick_duration="0.1" threads="1"
+       cli_args="-u${TEST_DIR}"
+       expected_output_contains="tick = {6}&#10;cr = {0.35}||tick = {10}&#10;cr = {0.35}||tick = {11}&#10;cr = {0.5775}||tick = {14}&#10;cr = {0.5775}||tick = {15}&#10;cr = {0}||tick = {18}&#10;cr = {0.5775}||tick = {25}&#10;cr = {0.462}||tick = {31}&#10;cr = {0.3696}||tick = {38}&#10;cr = {0.29568}">
+    <module class="InputFile" name="Script" filename="fixture_Delta_trials.jsonl" send_end_of_file="false" />
+    <module class="Delta" name="Learner" alpha="0.35" extinction="0.2" trials="yes" gap="0.25" />
+    <module class="Print" name="Out1" />
+    <module class="Print" name="Out2" />
+
+    <connection source="Script.CS" target="Learner.CS" delay="0" />
+    <connection source="Script.US" target="Learner.US" delay="0" />
+
+    <connection source="Script.TICK" target="Out1.INPUT" delay="0" label="tick" />
+    <connection source="Learner.CR" target="Out2.INPUT" delay="0" label="cr" />
+</group>
