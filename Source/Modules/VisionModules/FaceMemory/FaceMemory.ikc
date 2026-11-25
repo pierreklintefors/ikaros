@@ -7,7 +7,8 @@
         another face in view, preferring faces not looked at for longest; a face never looked at is taken
         as soon as min_dwell has passed. NEW_FACE marks a face looked at for the first time, or again
         after regreet_time, once the look has lasted min_seen. When the selector loses the face for a
-        moment and takes another face by itself, the robot turns back within return_time. Memory is updated only on new frames while
+        moment and takes another face by itself, the robot turns back within return_time. CALL turns
+        the robot to the person who asks for attention, for example by waving. Memory is updated only on new frames while
         the camera has been nearly still for still_time.
     </description>
 
@@ -27,12 +28,14 @@
     <parameter name="max_dwell" type="number" default="8" min="0" description="Longest time in seconds the robot looks at one face while others are in view" />
     <parameter name="regreet_time" type="number" default="60" min="0" description="Seconds without being looked at after which a face counts as new again" />
     <parameter name="return_time" type="number" default="2" min="0" description="When the selector loses the face looked at for a moment and takes another, the robot turns back to it if it is seen again within this many seconds and its dwell is not over, unless the other face is twice as wide or more, someone much closer; 0 keeps every switch the selector makes" />
+    <parameter name="call_radius" type="number" default="20" min="0" description="Degrees around a CALL, such as a waving hand, within which the face of the person calling is looked for" />
     <parameter name="seed" type="number" default="-1" min="-1" description="Random seed; negative selects nondeterministic seeding" />
 
     <input name="BOXES" description="Face box rows: x, y, width, height, confidence in centered image coordinates, for example AppleVisionFaceDetector.BOXES" />
     <input name="CAMERA" size="2" description="Elevation and azimuth in degrees of the camera's image center when the image was taken, for example GazeLock.CAMERA_DIRECTION" />
     <input name="TARGET" description="The followed face: x, y, width in centered image coordinates, with width 0 when none, for example FaceTargetSelector.TARGET" />
     <input name="BUSY" optional="yes" size="1" description="1 while the robot does something else, for example KeyframeAnimator.PLAYING; it does not turn to another face and the time spent does not count" />
+    <input name="CALL" optional="yes" size="3" description="x, y in centered image coordinates of someone asking for attention, such as a waving hand, and a flag: when the flag rises above 0.5, the robot turns to the face in view nearest that place within call_radius, also while BUSY, and stays with it for a new dwell; that face then counts as looked at, so NEW_FACE does not mark it" />
 
     <output name="PREFERRED" size="3" description="x, y of the face to turn to and 1 on the tick the robot should turn; zero otherwise; for FaceTargetSelector.PREFERRED" />
     <output name="NEW_FACE" size="1" description="1 for one tick, min_seen after the robot started looking at a face it has not looked at before, or not for regreet_time seconds" />

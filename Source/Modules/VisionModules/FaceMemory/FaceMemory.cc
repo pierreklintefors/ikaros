@@ -13,6 +13,7 @@ class FaceMemory : public Module
     static constexpr float continuityTime = 1.0f; // seconds a face counts as still in view for matching
     static constexpr float closerRatio = 2.0f;    // a face this many times wider is someone much closer
     static constexpr float returnInterval = 1.0f; // seconds between requests to turn back to a face
+    static constexpr float callTimeout = 1.0f;    // seconds a call waits for a measured frame with a face near it
 
     struct Detection
     {
@@ -56,12 +57,14 @@ class FaceMemory : public Module
     parameter maxDwell;
     parameter regreetTime;
     parameter returnTime;
+    parameter callRadius;
     parameter seed;
 
     matrix boxes;
     matrix camera;
     matrix target;
     matrix busy;
+    matrix call;
 
     matrix preferred;
     matrix newFace;
@@ -80,6 +83,11 @@ class FaceMemory : public Module
     int intendedId = 0;                // face the robot means to look at, 0 for none
     float slipTime = 0;                // seconds the selector has followed another face than the intended one
     float lastReturn = -1000;          // when the robot last asked to turn back to the intended face
+    bool callPending = false;          // a call waits for a measured frame
+    float callElevation = 0;
+    float callAzimuth = 0;
+    float callTime = 0;
+    float previousCallFlag = 0;
     float lookStart = 0;               // when the present look began
     bool judged = true;                // whether the present look has been judged new or not
     float dwellTime = 0;
@@ -427,6 +435,62 @@ class FaceMemory : public Module
     }
 
 
+    // A rising CALL flag, such as a wave, is stored as a direction; on the next measured frame the robot
+    // turns to the face in view nearest to it, or stays with that face if it is the one looked at. The
+    // face counts as looked at, so the call is answered by the caller's own reaction, not by NEW_FACE.
+    void
+    Call(int followed, bool measured)
+    {
+        if(!call.connected())
+            return;
+        const float flag = call(2);
+        if(flag > 0.5f && previousCallFlag <= 0.5f)
+        {
+            Direction(call(0), call(1), callElevation, callAzimuth);
+            callPending = true;
+            callTime = now;
+        }
+        previousCallFlag = flag;
+
+        if(!callPending || !measured)
+            return;
+        if(now - callTime > callTimeout)
+        {
+            callPending = false;
+            return;
+        }
+
+        int nearest = -1;
+        float nearestDistance = callRadius.as_float();
+        for(int i = 0; i < static_cast<int>(memory.size()); ++i)
+        {
+            if(!memory[i].used || !memory[i].visible)
+                continue;
+            const float distance = Distance(memory[i], callElevation, callAzimuth);
+            if(distance <= nearestDistance)
+            {
+                nearestDistance = distance;
+                nearest = i;
+            }
+        }
+        if(nearest < 0)
+            return;
+
+        callPending = false;
+        Face & caller = memory[nearest];
+        caller.lastLooked = now;
+        intendedId = caller.id;
+        if(nearest != followed)
+        {
+            preferred(0) = caller.x;
+            preferred(1) = caller.y;
+            preferred(2) = 1;
+            lastReturn = now;
+        }
+        StartDwell();
+    }
+
+
     void
     StartDwell()
     {
@@ -474,12 +538,14 @@ public:
         Bind(maxDwell, "max_dwell");
         Bind(regreetTime, "regreet_time");
         Bind(returnTime, "return_time");
+        Bind(callRadius, "call_radius");
         Bind(seed, "seed");
 
         Bind(boxes, "BOXES");
         Bind(camera, "CAMERA");
         Bind(target, "TARGET");
         Bind(busy, "BUSY");
+        Bind(call, "CALL");
 
         Bind(preferred, "PREFERRED");
         Bind(newFace, "NEW_FACE");
@@ -535,6 +601,7 @@ public:
             followedId = 0;
         // While the camera moves, the target's direction is uncertain, so the followed face is kept.
         int followed = still ? Followed() : IndexOf(followedId);
+        Call(followed, measured);
         if(followed >= 0 && Slipped(followed))
         {
             // The look at the intended face goes on; the other face does not count as looked at.

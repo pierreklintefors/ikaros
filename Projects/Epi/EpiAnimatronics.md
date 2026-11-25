@@ -80,10 +80,16 @@ synchronized with the motion:
    peeks curiously. With company it starts an animation after 8 to 16 quiet seconds, sooner when
    excited, so the subtle background behaviour fills most of the time. When the person pans their
    head left, right, and left again within 3 seconds, `OscillationDetector` asks for *copycat* at
-   once. The choice follows the mood: each animation has an energy
+   once. When someone waves, a second `OscillationDetector` (`Wave`) watches the hand that
+   `AppleVisionHandDetector` finds: four swings from side to side within 1.5 s, each at least a
+   twentieth of the image width, count as a wave. Epi then turns to the face nearest the hand
+   (`Memory.CALL`), even in the middle of a look at someone else, stays with that person for a new 5
+   to 12 s, and plays *greet*, at most every 12 s, with a lift of excitement. The waving person does
+   not also get *found you*. Waves count only between animations, because the eye movements of an
+   animation move the hand in the image and could look like a wave. The choice follows the mood: each animation has an energy
    level, and the ones that match the present arousal are preferred, so Epi is lively right after
    meeting someone and calmer later. The last three animations are avoided, and none comes back
-   within 25 seconds.
+   within 25 seconds, *greet* not within 12.
 7. **Performing.** `KeyframeAnimator` plays the animations from `EpiAnimations.json` on 17
    channels: eye offset, vergence, head tilt and pan, pupil, eye and mouth colors, brightness,
    eyelid, mirroring, and a blink hold. Each play varies a little in tempo and size, and the sideways
@@ -174,7 +180,7 @@ cross-eyed, and the flash comes with the pooof.
 | # | Name | What Epi does | Sound | Energy |
 | ---: | --- | --- | --- | ---: |
 | 0 | Found you | A noticing blink and a still moment, then it perks up (pupils open, a lift of the head, a warm glow), gives a small happy nod, and smiles | a happy, quirky one-syllable chirp | 0.8 |
-| 1 | Greet | A small lift, a nod on the chirp, a springy return, warm eyes and a smile | bouncy chirps that end high | 0.5 |
+| 1 | Greet | Also started by a wave: a small lift, a nod on the chirp, a springy return, warm eyes and a smile | bouncy chirps that end high | 0.5 |
 | 2 | Cross-eyed | A tiny outward flick, then the eyes meet at the nose and turn blue, pupils tighten, head dips | a hum, then a rising, questioning chirp | 0.6 |
 | 3 | Eye dart | A small counter-move, then four swings from side to side with flickering cyan eyes | | 0.5 |
 | 4 | Giggle | Mouth flashes and pupils pulse on every chirp, the head bobs, eyes squint happily in pink | quick chirps hopping between high and low | 0.75 |
@@ -324,7 +330,7 @@ The character is tuned on the modules:
 | --- | --- | --- |
 | `Behaviors` | `min_interval`, `max_interval`, `excited_interval_scale` | How often Epi does something, and how much sooner when excited |
 | `Behaviors` | `idle_weights`, `engaged_weights`, `arousal_levels`, `arousal_width` | Which animations it prefers alone, with company, and in each mood |
-| `Behaviors` | `memory`, `cooldown` | How long before an animation can come back; `cooldown` has one value per animation, 25 s for most, 10 s for found you, so that Epi greets at most one new person every 10 s in a crowd, and 1.5 s for scared, so that every poke shows |
+| `Behaviors` | `memory`, `cooldown` | How long before an animation can come back; `cooldown` has one value per animation, 25 s for most, 10 s for found you, so that Epi greets at most one new person every 10 s in a crowd, 12 s for greet, so that a wave is mostly answered, and 1.5 s for scared, so that every poke shows |
 | `Memory` | `min_dwell`, `max_dwell`, `regreet_time`, `forget_time` | How long Epi looks at one person before turning to another (5 to 12 s; a face not looked at yet after 5 s), after how long a person counts as new again and gets *found you* (60 s), and how long an unseen face is remembered (120 s) |
 | `Memory` | `return_time` | How long after the selector has lost the face Epi looks at and taken another one Epi still turns back to it (2 s); 0 lets the selector switch freely |
 | `Target`, `LeftTarget`, `Memory` | `min_width` | The smallest face that counts, as a fraction of the image width over 2 (0.05, about 3 m away); raise it if Epi attends to people far away or to faces on posters, but keep all three the same |
@@ -340,7 +346,9 @@ The character is tuned on the modules:
 | `Near` | `start_distance`, `full_distance`, `gain`, `max_vergence`, `object_width` | When and how strongly the eyes converge on a close face |
 | `NearPupil` | `factor` | How much the pupils narrow when a face is close, in mm (negative) |
 | `FingerNear` | `start_distance`, `full_distance`, `object_width`, `gain`, `max_vergence` | When and how strongly the eyes cross on a close finger. The distance is estimated from the width of the hand, taken as 0.1 m, a hand pointing with one finger; an open hand looks closer than it is, so it starts crossing the eyes at about 0.5 m |
-| `Hands` | `downsample`, `interval`, `hold_time` | How much work hand detection takes, at half resolution on every second tick, and how long a hand that is briefly missed is kept |
+| `Hands` | `downsample`, `interval`, `hold_time` | How much work hand detection takes, at full resolution on every second tick so that a waving hand is found farther away (about 7 ms per detection on this Mac, against 6 ms at half resolution), and how long a hand that is briefly missed is kept |
+| `Wave` | `amplitude`, `swings`, `window`, `refractory` | How wide and quick a wave must be: 4 swings of at least 0.1 of the image width over 2 within 1.5 s; after a wave, the next one counts after 5 s |
+| `Memory` | `call_radius` | How far in degrees from the waving hand the waving person's face may be (20) |
 | `Brain.GlarePixels`, `Brain.GlareGain` | `threshold`, `factor` | How bright a pixel must be to count as glare (0.9), and how much glare adds to the light level (2.5); raise `factor` if a light shone into the camera hardly narrows the pupils |
 | `Brain.PTA` | `beta` | How strongly light narrows the pupils |
 | `Brain.LC` | `alpha`, `beta` | The resting drive of the locus coeruleus, and how strongly arousal and fear widen the pupils |
@@ -387,6 +395,8 @@ the other program and start again.
   how much of the whole view each colour covers.
 - **Faces remembered** shows how many faces `Memory` knows, in view or not, and **On this face for**
   how long Epi has looked at the present face; it turns to someone else in view after 5 to 12 s.
+  **Wave swings** counts the hand's swings from side to side within the last 1.5 s; at 4 Epi turns
+  to the person and greets them.
 - Open the group `Brain` for the pupil model's page. The animated brain shows each nucleus glowing
   with its activity, spikes travelling along the pathways (yellow for light, cyan for narrowing the
   pupils, orange for widening them, magenta for fear, and red dashes for inhibition), and the eye
@@ -499,13 +509,18 @@ the robot needs someone next to it.
    the gaze arrives, but not more than once every 10 s, and look from person to person every 5 to 12
    s, blinking as it turns. Stand two people side by side 2 to 2.5 m away: Epi should stay on one of
    them for the whole 5 to 12 s; a short glance at the other that comes straight back is the selector
-   losing the face, which `Memory` corrects. **Faces remembered** should be about the number of people. Step out of
-   view for 20 s and come back: Epi should look at you again without *found you*; after more than a
+   losing the face, which `Memory` corrects. **Faces remembered** should be about the number of
+   people. Step out of view for 20 s and come back: Epi should look at you again without *found you*; after more than a
    minute away it greets you again. If Epi turns too often or too seldom, change `min_dwell` and
    `max_dwell` on `Memory`; if it greets people it has already met, and **Faces remembered** is much
    higher than the number of people, the camera direction does not line up with the image: check
    `x_sign`, `y_sign`, and `horizontal_fov` as in `EpiFaceFollowing.md`, or raise `still_time`.
-15. **Pacing and mood.** Watch for a few minutes alone and with company. Raise `min_interval` and
+15. **Waving.** While Epi looks at someone else, wave at it from 1 to 2.5 m with your hand beside
+   your face, from side to side two or three times a second. Within about a second Epi should turn to
+   you and play *greet*. Watch **Hand x, y, width** and **Wave swings**: if the hand is not found at
+   your distance (width 0), come closer; if the swings stay below 4, wave wider or faster, or lower
+   `amplitude` on `Wave` (0.1). If Epi greets when nobody waves, raise `amplitude` or `swings`.
+16. **Pacing and mood.** Watch for a few minutes alone and with company. Raise `min_interval` and
    `max_interval` on `Behaviors` if Epi is too busy, and lower them if it is too calm. Lower
    `decay_rate` on `Arousal` if the excitement fades too fast.
 
@@ -576,6 +591,11 @@ the robot needs someone next to it.
   image by one tick, Epi greeted every person who stood still when it first looked at them in all
   eight runs, missed a person walking across the group in four runs, and greeted one person a second
   time in four runs; the two of these that were traced came from the walker passing that person.
+- **Waving.** The hand detector reports only the largest hand in view, so in a crowd a closer hand
+  that is held still can hide a farther hand that waves. Apple Vision finds a hand only when it is
+  large enough in the image, and how far away a waving hand is still found has not been measured on
+  the robot. A wave during an animation is ignored. Epi turns to the face nearest the hand, which can
+  be a neighbour's when people stand close together and the waving person's face is not detected.
 - **Simulation.** Simulated servos start at 0 degrees and move at 45 degrees per second, so the
   first seconds and fast eye movements look different from the robot.
 

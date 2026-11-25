@@ -1,0 +1,25 @@
+<group name="FaceMemoryCallTest"
+       description="A CALL turns FaceMemory to the face nearest it without NEW_FACE, restarts the dwell when it is the face looked at, and does nothing far from every face"
+       start="true" stop="80" tick_duration="0.1" threads="1"
+       cli_args="-u${TEST_DIR}"
+       expected_output_contains="tick = {5}&#10;dwell = {0.4}&#10;new = {1}&#10;x = {-0.498}||tick = {19}&#10;dwell = {1.8}&#10;new = {0}&#10;x = {-0.498}||tick = {20}&#10;dwell = {0}&#10;new = {0}&#10;x = {0.5}||tick = {21}&#10;dwell = {0.1}&#10;new = {0}&#10;x = {0.502}||tick = {22}&#10;dwell = {0.2}&#10;new = {0}&#10;x = {0.5}||tick = {23}&#10;dwell = {0.3}&#10;new = {0}&#10;x = {0.502}||tick = {24}&#10;dwell = {0.4}&#10;new = {0}&#10;x = {0.5}||tick = {25}&#10;dwell = {0.5}&#10;new = {0}&#10;x = {0.502}||tick = {26}&#10;dwell = {0.6}&#10;new = {0}&#10;x = {0.5}||tick = {27}&#10;dwell = {0.7}&#10;new = {0}&#10;x = {0.502}||tick = {28}&#10;dwell = {0.8}&#10;new = {0}&#10;x = {0.5}||tick = {40}&#10;dwell = {0.1}&#10;new = {0}&#10;x = {0.5}||tick = {64}&#10;dwell = {2.5}&#10;new = {0}&#10;x = {0.5}||tick = {79}&#10;dwell = {4}&#10;new = {0}&#10;x = {0.502}">
+    <module class="InputFile" name="Script" filename="fixture_FaceMemory_call.jsonl" send_end_of_file="false" />
+    <module class="FaceMemory" name="Memory" horizontal_fov="90" vertical_fov="90" min_dwell="10" max_dwell="10" min_seen="0.3" seed="1" />
+    <module class="FaceTargetSelector" name="Selector" switch_ratio="3" />
+    <module class="Print" name="Out1" />
+    <module class="Print" name="Out2" />
+    <module class="Print" name="Out3" />
+    <module class="Print" name="Out4" />
+
+    <connection source="Script.BOXES" target="Memory.BOXES" delay="0" />
+    <connection source="Script.CAMERA" target="Memory.CAMERA" delay="0" />
+    <connection source="Script.CALL" target="Memory.CALL" delay="0" />
+    <connection source="Script.BOXES" target="Selector.BOXES" delay="0" />
+    <connection source="Memory.PREFERRED" target="Selector.PREFERRED" delay="0" />
+    <connection source="Selector.TARGET" target="Memory.TARGET" delay="1" />
+
+    <connection source="Script.TICK" target="Out1.INPUT" delay="0" label="tick" />
+    <connection source="Selector.TARGET[0:1]" target="Out2.INPUT" delay="0" label="x" />
+    <connection source="Memory.NEW_FACE" target="Out3.INPUT" delay="0" label="new" />
+    <connection source="Memory.DWELL" target="Out4.INPUT" delay="0" label="dwell" />
+</group>

@@ -52,7 +52,7 @@
          looks about twice as wide as a pointing finger at the same distance, so a hand that is not open
          counts from a width of 0.42 (a finger about 5 cm away) and an open hand only from 1.0 (about 5 to
          7 cm), when it nearly fills the view -->
-    <module class="AppleVisionHandDetector" name="Hands" point="index_tip" downsample="1" interval="2" _x="216" _y="1584" />
+    <module class="AppleVisionHandDetector" name="Hands" point="index_tip" downsample="0" interval="2" _x="216" _y="1584" />
     <module class="ProximityVergence" name="FingerNear" object_width="0.1" start_distance="0.3" full_distance="0.12" gain="3"
             max_vergence="31" rate="4" hold_time="0.3" _x="408" _y="1584" />
     <module class="Maximum" name="NearVergence" _x="600" _y="1584" />
@@ -62,6 +62,14 @@
     <module class="Threshold" name="FingerPoke" title="A hand that is not open, about 5 cm from the cameras" threshold="0.5" type="binary" _x="792" _y="1680" />
     <module class="Threshold" name="VeryClose" title="Any hand that nearly fills the view" threshold="1" type="binary" _x="792" _y="1776" />
     <module class="Or" name="Poke" title="A poke: a finger or a hand right in front of the cameras" _x="984" _y="1728" />
+
+    <!-- Waving: a hand that swings from side to side four times within 1.5 s, each swing at least a
+         twentieth of the image width, turns Epi to the face nearest the hand (Memory.CALL) and starts the
+         greeting. While an animation plays, the eyes' own movement could look like a wave, so waves
+         count only between animations -->
+    <module class="Subtract" name="WaveValid" title="A hand in view and no animation playing" _x="408" _y="1488" />
+    <module class="OscillationDetector" name="Wave" title="A hand waving from side to side" amplitude="0.1" swings="4" window="1.5"
+            refractory="5" _x="600" _y="1488" />
 
     <!-- The feared cue: a toy corn, a saturated yellow cob with a green base, in the left camera, whose
          colours are stronger than the right camera's. Yellow and green must be found together in one
@@ -146,7 +154,7 @@
     <module class="BehaviorSelector" name="Behaviors" count="12" greeting="-1" farewell="6"
             idle_weights="0, 0, 0, 0, 0, 0, 0.5, 0, 0, 2, 0, 0" engaged_weights="0, 1, 1.5, 1, 1.5, 1, 0.6, 1, 1.5, 0.3, 0.5, 0"
             arousal_levels="0.8, 0.5, 0.6, 0.5, 0.75, 0.9, 0.3, 0.35, 0.55, 0.15, 0.6, 0.9" arousal_width="0.3" memory="3"
-            min_interval="8" max_interval="16" excited_interval_scale="0.6" cooldown="10, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 1.5" reaction_cooldown="10" _x="216" _y="264" />
+            min_interval="8" max_interval="16" excited_interval_scale="0.6" cooldown="10, 12, 25, 25, 25, 25, 25, 25, 25, 25, 25, 1.5" reaction_cooldown="10" _x="216" _y="264" />
     <module class="KeyframeAnimator" name="Animator" file="../Projects/Epi/EpiAnimations.json"
             channels="eye_offset, vergence, head_tilt, head_pan, pupil, eye_r, eye_g, eye_b, eye_mix, mouth_r, mouth_g, mouth_b, mouth_mix, brightness, lid, mirror, hold"
             rest="0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0"
@@ -162,6 +170,7 @@
     <module class="Arousal" name="Arousal" idle_level="0.15" engaged_level="0.4" boosts="0.45, 0.06" drive_gain="0.6"
             decay_rate="0.12" response_rate="1.5" low="0.8, 0.6, 0.35" high="1.15, 1.2, 1" _x="216" _y="600" />
     <module class="Add" name="PupilOffset" _x="600" _y="408" />
+    <module class="Maximum" name="Noticed" title="A new face or a wave" _x="24" _y="616" />
 
     <!-- Liveliness: blinks and glances that run all the time -->
     <module class="Blinker" name="Blinker" min_interval="1.5" max_interval="4.5" double_blink_probability="0.2" _x="408" _y="720" />
@@ -226,7 +235,9 @@
     <connection source="Arousal.MAPPED[1:2]" target="Animator.INTENSITY" delay="0" />
 
     <connection source="Gaze.LOCKED" target="Arousal.ENGAGED" delay="1" />
-    <connection source="Memory.NEW_FACE" target="Arousal.STIMULUS[0:1]" delay="0" />
+    <connection source="Memory.NEW_FACE" target="Noticed.INPUT1" delay="0" />
+    <connection source="Wave.DETECTED" target="Noticed.INPUT2" delay="0" />
+    <connection source="Noticed.OUTPUT" target="Arousal.STIMULUS[0:1]" delay="0" />
     <connection source="Animator.PLAYING" target="Arousal.STIMULUS[1:2]" delay="1" />
     <connection source="Target.TARGET[2:3]" target="Arousal.DRIVE" delay="0" />
 
@@ -355,6 +366,15 @@
     <connection source="Near.VERGENCE" target="NearVergence.INPUT1" delay="0" />
     <connection source="FingerNear.VERGENCE" target="NearVergence.INPUT2" delay="0" />
 
+    <!-- Waving -->
+    <connection source="Hands.VALID" target="WaveValid.INPUT1" delay="1" />
+    <connection source="Animator.PLAYING" target="WaveValid.INPUT2" delay="1" />
+    <connection source="Hands.TARGET[0:1]" target="Wave.INPUT" delay="1" />
+    <connection source="WaveValid.OUTPUT" target="Wave.VALID" delay="0" />
+    <connection source="Hands.TARGET[0:2]" target="Memory.CALL[0:2]" delay="1" />
+    <connection source="Wave.DETECTED" target="Memory.CALL[2:3]" delay="0" />
+    <connection source="Wave.DETECTED" target="Behaviors.REQUEST[1:2]" delay="0" />
+
     <widget class="text" name="Title" text="Epi animatronics" style="font-size:20px;font-weight:bold;"
             x="1032" y="24" _x="1032" _y="24" width="880" height="32" show_title="no" show_frame="no" />
 
@@ -480,6 +500,8 @@
             x="1032" y="1440" _x="1032" _y="1440" width="236" height="56" show_title="yes" show_frame="yes" />
     <widget class="table" name="DwellTable" title="On this face for (s; turns after 5-12)" source="Memory.DWELL" decimals="1" colorize="no"
             x="1276" y="1440" _x="1276" _y="1440" width="236" height="56" show_title="yes" show_frame="yes" />
+    <widget class="table" name="WaveTable" title="Wave swings (Epi greets at 4)" source="Wave.SWINGS" decimals="0" colorize="no"
+            x="1032" y="1504" _x="1032" _y="1504" width="236" height="56" show_title="yes" show_frame="yes" />
     <widget class="text" name="LeftCameraCaption" text="Left eye camera"
             x="1528" y="1040" _x="1528" _y="1040" width="384" height="24" show_title="no" show_frame="no" />
     <widget class="image" name="LeftCameraImage" source="LeftEye.OUTPUT" format="rgb" scale="both"

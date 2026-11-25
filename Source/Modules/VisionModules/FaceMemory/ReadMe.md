@@ -34,6 +34,12 @@ at most, and the other face does not count as looked at. A switch is kept when t
 face was over, when the other face is twice as wide or more (someone much closer), or when the chosen
 face stays out of sight for `return_time`.
 
+`CALL` lets someone ask for the robot's attention, for example by waving: when its flag rises, its
+image position is turned into a direction, and on the next measured frame, within a second, the robot
+turns to the face in view nearest that direction within `call_radius`, also while `BUSY`. If that is
+the face looked at already, the robot stays with it for a new dwell. The face counts as looked at,
+so `NEW_FACE` does not mark it; the reaction to the call is left to the module that made it.
+
 `NEW_FACE` is 1 for one tick when the robot looks at a face it has never looked at, or has not looked
 at for `regreet_time` seconds. It is judged once the look has lasted `min_seen` with the camera
 settled. A face within half `match_radius` of a face looked at recently counts as known, because it is
@@ -64,6 +70,7 @@ and someone who steps into the spot where another person stood recently is taken
 | min_dwell | Shortest time in seconds on one face before turning to another | number | 3 |
 | max_dwell | Longest time in seconds on one face while others are in view | number | 8 |
 | regreet_time | Seconds without a look after which a face counts as new again | number | 60 |
+| call_radius | Degrees from a `CALL` within which the calling person's face is looked for | number | 20 |
 | return_time | Seconds after a switch the selector made by itself during which the robot turns back to the face it chose; 0 keeps every switch | number | 2 |
 | seed | Random seed; negative selects nondeterministic seeding | number | -1 |
 
@@ -75,6 +82,7 @@ and someone who steps into the spot where another person stood recently is taken
 | CAMERA | Elevation and azimuth of the camera's image center when the image was taken, for example `GazeLock.CAMERA_DIRECTION` | |
 | TARGET | The followed face: x, y, width, with width 0 when none, for example `FaceTargetSelector.TARGET` | |
 | BUSY | 1 while the robot does something else; it does not turn to another face | yes |
+| CALL | x, y in centered image coordinates of someone asking for attention, such as a waving hand, and a flag; a rising flag turns the robot to the face nearest that place | yes |
 
 ## Outputs
 
@@ -105,5 +113,5 @@ and someone who steps into the spot where another person stood recently is taken
 
 `GazeLock` and `FaceMemory` must use the same field of view and signs; in a group, set them once as
 group attributes. The tests in `tests/` check turning to new and known faces, `BUSY`, memory while the
-camera turns, a face seen during a fast camera move, `regreet_time`, `forget_time`, and turning back
-after the selector has switched by itself.
+camera turns, a face seen during a fast camera move, `regreet_time`, `forget_time`, turning back
+after the selector has switched by itself, and `CALL`.
