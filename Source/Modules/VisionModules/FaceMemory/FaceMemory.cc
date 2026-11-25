@@ -11,6 +11,8 @@ class FaceMemory : public Module
 {
     static constexpr float degreesPerRadian = 57.29577951308232f;
     static constexpr float continuityTime = 1.0f; // seconds a face counts as still in view for matching
+    static constexpr float closerRatio = 2.0f;    // a face this many times wider is someone much closer
+    static constexpr float returnInterval = 1.0f; // seconds between requests to turn back to a face
 
     struct Detection
     {
@@ -53,6 +55,7 @@ class FaceMemory : public Module
     parameter minDwell;
     parameter maxDwell;
     parameter regreetTime;
+    parameter returnTime;
     parameter seed;
 
     matrix boxes;
@@ -74,6 +77,9 @@ class FaceMemory : public Module
     float now = 0;
     int nextId = 1;
     int followedId = 0;                // face looked at last, 0 for none
+    int intendedId = 0;                // face the robot means to look at, 0 for none
+    float slipTime = 0;                // seconds the selector has followed another face than the intended one
+    float lastReturn = -1000;          // when the robot last asked to turn back to the intended face
     float lookStart = 0;               // when the present look began
     bool judged = true;                // whether the present look has been judged new or not
     float dwellTime = 0;
@@ -406,6 +412,21 @@ class FaceMemory : public Module
     }
 
 
+    // Whether the selector follows another face than the one FaceMemory chose, usually because it lost
+    // that face for a moment and took the largest one in view. Such a switch is undone for return_time
+    // while the dwell on the intended face is not over, unless the other face is much closer.
+    bool
+    Slipped(int followed) const
+    {
+        const int intended = IndexOf(intendedId);
+        if(intended < 0 || intended == followed || slipTime >= returnTime.as_float())
+            return false;
+        const Face & before = memory[intended];
+        return dwellTime < dwellLimit && now - before.lastSeen <= returnTime.as_float() &&
+               memory[followed].width < closerRatio * before.width;
+    }
+
+
     void
     StartDwell()
     {
@@ -452,6 +473,7 @@ public:
         Bind(minDwell, "min_dwell");
         Bind(maxDwell, "max_dwell");
         Bind(regreetTime, "regreet_time");
+        Bind(returnTime, "return_time");
         Bind(seed, "seed");
 
         Bind(boxes, "BOXES");
@@ -512,7 +534,28 @@ public:
         if(target(2) <= 0.0f)
             followedId = 0;
         // While the camera moves, the target's direction is uncertain, so the followed face is kept.
-        const int followed = still ? Followed() : IndexOf(followedId);
+        int followed = still ? Followed() : IndexOf(followedId);
+        if(followed >= 0 && Slipped(followed))
+        {
+            // The look at the intended face goes on; the other face does not count as looked at.
+            slipTime += dt;
+            const Face & intended = memory[IndexOf(intendedId)];
+            if(measured && intended.visible && now - lastReturn >= returnInterval - 1e-5f)
+            {
+                preferred(0) = intended.x;
+                preferred(1) = intended.y;
+                preferred(2) = 1;
+                lastReturn = now;
+            }
+            followed = -1;
+        }
+        else
+        {
+            slipTime = 0;
+            if(followed >= 0)
+                intendedId = memory[followed].id;
+        }
+
         const bool isBusy = busy.connected() && busy(0) > 0.5f;
         if(followed >= 0)
         {
@@ -547,6 +590,8 @@ public:
                     preferred(0) = memory[next].x;
                     preferred(1) = memory[next].y;
                     preferred(2) = 1;
+                    intendedId = memory[next].id;
+                    lastReturn = now; // the selector needs a new frame to turn; do not ask again before
                     StartDwell();
                 }
             }

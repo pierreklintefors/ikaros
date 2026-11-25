@@ -1,0 +1,24 @@
+<group name="FaceMemoryReturnTest"
+       description="When the selector loses the followed face for a moment and takes another face by itself, FaceMemory turns back to it, but not when the other face is much closer, and not after return_time without the face"
+       start="true" stop="100" tick_duration="0.1" threads="1"
+       cli_args="-u${TEST_DIR}"
+       expected_output_contains="tick = {23}&#10;dwell = {2.2}&#10;turn = {0}&#10;x = {0.502}||tick = {25}&#10;dwell = {2.2}&#10;turn = {1}&#10;x = {-0.498}||tick = {26}&#10;dwell = {2.3}&#10;turn = {0}&#10;x = {-0.5}||tick = {44}&#10;dwell = {0.1}&#10;turn = {0}&#10;x = {0.5}||tick = {59}&#10;dwell = {1.6}&#10;turn = {0}&#10;x = {0.502}||tick = {75}&#10;dwell = {2}&#10;turn = {0}&#10;x = {-0.498}||tick = {89}&#10;dwell = {1}&#10;turn = {0}&#10;x = {-0.498}">
+    <module class="InputFile" name="Script" filename="fixture_FaceMemory_return.jsonl" send_end_of_file="false" />
+    <module class="FaceMemory" name="Memory" horizontal_fov="90" vertical_fov="90" min_dwell="10" max_dwell="10" min_seen="0.3" return_time="2" seed="1" />
+    <module class="FaceTargetSelector" name="Selector" switch_ratio="3" hold_time="0.3" />
+    <module class="Print" name="Out1" />
+    <module class="Print" name="Out2" />
+    <module class="Print" name="Out3" />
+    <module class="Print" name="Out4" />
+
+    <connection source="Script.BOXES" target="Memory.BOXES" delay="0" />
+    <connection source="Script.CAMERA" target="Memory.CAMERA" delay="0" />
+    <connection source="Script.BOXES" target="Selector.BOXES" delay="0" />
+    <connection source="Memory.PREFERRED" target="Selector.PREFERRED" delay="0" />
+    <connection source="Selector.TARGET" target="Memory.TARGET" delay="1" />
+
+    <connection source="Script.TICK" target="Out1.INPUT" delay="0" label="tick" />
+    <connection source="Selector.TARGET[0:1]" target="Out2.INPUT" delay="0" label="x" />
+    <connection source="Memory.PREFERRED[2:3]" target="Out3.INPUT" delay="0" label="turn" />
+    <connection source="Memory.DWELL" target="Out4.INPUT" delay="0" label="dwell" />
+</group>

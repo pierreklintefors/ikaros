@@ -26,6 +26,14 @@ with the time since that face was last looked at. So the robot looks around a gr
 back and forth. Faces seen for less than `min_seen` are not chosen, and nothing changes while `BUSY` is
 1, for example while an animation plays; that time does not count toward the dwell.
 
+Only `FaceMemory` decides when the robot changes face. A face detector often misses a face for a
+second, and the selector then takes the largest face in view, which with people at the same distance
+is a matter of chance. When the selector follows another face than the one `FaceMemory` chose, and the
+chosen face is seen again within `return_time`, `PREFERRED` turns the robot back to it, once a second
+at most, and the other face does not count as looked at. A switch is kept when the dwell on the chosen
+face was over, when the other face is twice as wide or more (someone much closer), or when the chosen
+face stays out of sight for `return_time`.
+
 `NEW_FACE` is 1 for one tick when the robot looks at a face it has never looked at, or has not looked
 at for `regreet_time` seconds. It is judged once the look has lasted `min_seen` with the camera
 settled. A face within half `match_radius` of a face looked at recently counts as known, because it is
@@ -56,6 +64,7 @@ and someone who steps into the spot where another person stood recently is taken
 | min_dwell | Shortest time in seconds on one face before turning to another | number | 3 |
 | max_dwell | Longest time in seconds on one face while others are in view | number | 8 |
 | regreet_time | Seconds without a look after which a face counts as new again | number | 60 |
+| return_time | Seconds after a switch the selector made by itself during which the robot turns back to the face it chose; 0 keeps every switch | number | 2 |
 | seed | Random seed; negative selects nondeterministic seeding | number | -1 |
 
 ## Inputs
@@ -96,4 +105,5 @@ and someone who steps into the spot where another person stood recently is taken
 
 `GazeLock` and `FaceMemory` must use the same field of view and signs; in a group, set them once as
 group attributes. The tests in `tests/` check turning to new and known faces, `BUSY`, memory while the
-camera turns, a face seen during a fast camera move, `regreet_time`, and `forget_time`.
+camera turns, a face seen during a fast camera move, `regreet_time`, `forget_time`, and turning back
+after the selector has switched by itself.

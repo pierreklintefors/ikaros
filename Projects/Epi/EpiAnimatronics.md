@@ -32,11 +32,20 @@ synchronized with the motion:
 2. **Attention in a crowd.** `FaceMemory` (`Memory`) remembers where the faces around Epi are, as
    directions from Epi's body rather than places in the image, so a face keeps its place while the
    head and eyes turn and someone who leaves the view and comes back is still known. It also knows
-   whom Epi has looked at and when. Epi looks at one person for 3 to 8 s (`min_dwell`, `max_dwell`)
+   whom Epi has looked at and when. Epi looks at one person for 5 to 12 s (`min_dwell`, `max_dwell`)
    and then turns to someone else in view, as people do in a group: a face it has not looked at yet
-   comes first, as soon as 3 s have passed, and otherwise it picks at random, mostly among those it
+   comes first, as soon as 5 s have passed, and otherwise it picks at random, mostly among those it
    has not looked at for longest, so it looks around the group rather than going back and forth. It
-   blinks with each turn, and it does not turn away while it plays an animation. Someone who comes
+   blinks with each turn, and it does not turn away while it plays an animation. Only `Memory`
+   decides when Epi changes person. The face detector often loses a face for half a second to a
+   second, and then the selector takes the largest face left, which with people at the same distance
+   is a coin toss; on EpiBlack this made Epi swing back and forth between people 2 to 2.5 m away.
+   The selector now holds a lost face for 1 s (`hold_time`), and when it still takes another face by
+   itself, `Memory` turns Epi back to the person it was looking at as soon as that face is seen again
+   within 2 s (`return_time`), unless the other face is twice as wide or more. Faces down to 0.05 of
+   the image width count (`min_width`, about 3 m away at the image center), because the wide-angle
+   lens shows a face 2 to 2.5 m away only about 0.08 wide, the earlier limit, so it kept dropping
+   out. Someone who comes
    much closer than the others (2.5 times as wide, see above) still takes Epi's attention back after
    1.5 s. *Found you* plays only for a face Epi has not looked at before, or not for a minute
    (`regreet_time`), when it wants that person's attention again; it comes about half a second after
@@ -316,7 +325,10 @@ The character is tuned on the modules:
 | `Behaviors` | `min_interval`, `max_interval`, `excited_interval_scale` | How often Epi does something, and how much sooner when excited |
 | `Behaviors` | `idle_weights`, `engaged_weights`, `arousal_levels`, `arousal_width` | Which animations it prefers alone, with company, and in each mood |
 | `Behaviors` | `memory`, `cooldown` | How long before an animation can come back; `cooldown` has one value per animation, 25 s for most, 10 s for found you, so that Epi greets at most one new person every 10 s in a crowd, and 1.5 s for scared, so that every poke shows |
-| `Memory` | `min_dwell`, `max_dwell`, `regreet_time`, `forget_time` | How long Epi looks at one person before turning to another (3 to 8 s; a face not looked at yet after 3 s), after how long a person counts as new again and gets *found you* (60 s), and how long an unseen face is remembered (120 s) |
+| `Memory` | `min_dwell`, `max_dwell`, `regreet_time`, `forget_time` | How long Epi looks at one person before turning to another (5 to 12 s; a face not looked at yet after 5 s), after how long a person counts as new again and gets *found you* (60 s), and how long an unseen face is remembered (120 s) |
+| `Memory` | `return_time` | How long after the selector has lost the face Epi looks at and taken another one Epi still turns back to it (2 s); 0 lets the selector switch freely |
+| `Target`, `LeftTarget`, `Memory` | `min_width` | The smallest face that counts, as a fraction of the image width over 2 (0.05, about 3 m away); raise it if Epi attends to people far away or to faces on posters, but keep all three the same |
+| `Target` | `hold_time` | How long a face the detector misses is still followed (1 s) |
 | `Memory` | `match_radius`, `min_seen`, `max_camera_speed`, `still_time` | How far in degrees a face may move between frames and still be the same person (10), how long a face must be seen before Epi turns to it or greets it (0.5 s), and how still the camera must be before faces are measured (below 40 degrees per second for 0.25 s) |
 | `Arousal` | `idle_level`, `engaged_level`, `boosts`, `drive_gain`, `decay_rate` | How excitable Epi is and how fast it calms down |
 | `Arousal` | `low`, `high` | Tempo, size, and volume at arousal 0 and 1 |
@@ -374,7 +386,7 @@ the other program and start again.
   eye sees the corn, yellow and green together in one patch; **Corn yellow** and **Leaf green** show
   how much of the whole view each colour covers.
 - **Faces remembered** shows how many faces `Memory` knows, in view or not, and **On this face for**
-  how long Epi has looked at the present face; it turns to someone else in view after 3 to 8 s.
+  how long Epi has looked at the present face; it turns to someone else in view after 5 to 12 s.
 - Open the group `Brain` for the pupil model's page. The animated brain shows each nucleus glowing
   with its activity, spikes travelling along the pathways (yellow for light, cyan for narrowing the
   pupils, orange for widening them, magenta for fear, and red dashes for inhibition), and the eye
@@ -484,8 +496,10 @@ the robot needs someone next to it.
    `amplifier` on `Brain.Eyes`.
 14. **A group.** Stand in front of Epi with two or three other people, about 1 to 2 m away. Epi
    should play *found you* for each person the first time it looks at them, about half a second after
-   the gaze arrives, but not more than once every 10 s, and look from person to person every 3 to 8
-   s, blinking as it turns. **Faces remembered** should be about the number of people. Step out of
+   the gaze arrives, but not more than once every 10 s, and look from person to person every 5 to 12
+   s, blinking as it turns. Stand two people side by side 2 to 2.5 m away: Epi should stay on one of
+   them for the whole 5 to 12 s; a short glance at the other that comes straight back is the selector
+   losing the face, which `Memory` corrects. **Faces remembered** should be about the number of people. Step out of
    view for 20 s and come back: Epi should look at you again without *found you*; after more than a
    minute away it greets you again. If Epi turns too often or too seldom, change `min_dwell` and
    `max_dwell` on `Memory`; if it greets people it has already met, and **Faces remembered** is much
@@ -546,8 +560,10 @@ the robot needs someone next to it.
   the side can leave the eyes' range; the head follows again once they step back. The eyes cannot
   look up or down, so a close face that moves up or down can also leave the view.
 - **Two faces.** The right camera follows the face `Memory` chooses, and keeps it unless another
-  face is 2.5 times as wide for 1.5 s or the followed face is lost for 0.5 s; then the largest
-  remaining face is taken, which can be another person. The left camera takes the face nearest to
+  face is 2.5 times as wide for 1.5 s or the followed face is lost for 1 s; then the largest
+  remaining face is taken, which can be another person, and `Memory` turns Epi back once the face
+  it was looking at is seen again within 2 s. Epi then glances at the other person for about a
+  second before it returns. The left camera takes the face nearest to
   where the right camera's face is; with two people very close together it can still pick the other
   one, and detections at clearly different heights are ignored, but two people at the same height
   could give a wrong distance.

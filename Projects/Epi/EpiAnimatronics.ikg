@@ -26,19 +26,20 @@
     <!-- Vision: one eye camera finds faces; camera="InputVideo" uses the Mac's own camera instead -->
     <module class="@camera" name="Eye" url="@eye_url" id="@camera_id" size_x="640" size_y="480" _x="24" _y="24" />
     <module class="AppleVisionFaceDetector" name="Faces" max_faces="8" downsample="1" _x="216" _y="24" />
-    <module class="FaceTargetSelector" name="Target" selection="largest" min_width="0.08" min_confidence="0.6"
-            switch_ratio="2.5" switch_delay="1.5" hold_time="0.5" _x="408" _y="24" />
+    <module class="FaceTargetSelector" name="Target" selection="largest" min_width="0.05" min_confidence="0.6"
+            switch_ratio="2.5" switch_delay="1.5" hold_time="1" _x="408" _y="24" />
 
-    <!-- Attention in a crowd: Memory remembers where the faces around Epi are and, after 3 to 8 s on one
-         face, turns Epi to another face in view, someone not looked at yet first. Found you plays only
+    <!-- Attention in a crowd: Memory remembers where the faces around Epi are and, after 5 to 12 s on one
+         face, turns Epi to another face in view, someone not looked at yet first. When the detector loses
+         the face for a moment and the selector takes another, Memory turns Epi back. Found you plays only
          for a face Epi has not looked at before, or not for a minute -->
-    <module class="FaceMemory" name="Memory" min_width="0.08" min_confidence="0.6" min_dwell="3" max_dwell="8"
-            regreet_time="60" forget_time="120" _x="24" _y="336" />
+    <module class="FaceMemory" name="Memory" min_width="0.05" min_confidence="0.6" min_dwell="5" max_dwell="12"
+            return_time="2" regreet_time="60" forget_time="120" _x="24" _y="336" />
 
     <!-- Second eye: the left camera finds the same face, and the two views give its distance -->
     <module class="@left_camera" name="LeftEye" url="@left_eye_url" filename="../Projects/Epi/NoCamera.jpg" size_x="640" size_y="480" _x="24" _y="1296" />
     <module class="AppleVisionFaceDetector" name="LeftFaces" max_faces="8" downsample="1" _x="216" _y="1296" />
-    <module class="FaceTargetSelector" name="LeftTarget" selection="largest" min_width="0.08" min_confidence="0.6"
+    <module class="FaceTargetSelector" name="LeftTarget" selection="largest" min_width="0.05" min_confidence="0.6"
             switch_ratio="2.5" switch_delay="1.5" hold_time="0.5" _x="408" _y="1296" />
     <module class="StereoDistance" name="Stereo" still_time="0.25" position_offset="180" left_sign="1" max_distance="2" smoothing="6" hold_time="0.3" _x="600" _y="1296" />
 
@@ -477,7 +478,7 @@
             x="1276" y="1376" _x="1276" _y="1376" width="236" height="56" show_title="yes" show_frame="yes" />
     <widget class="table" name="RememberedTable" title="Faces remembered" source="Memory.COUNT" decimals="0" colorize="no"
             x="1032" y="1440" _x="1032" _y="1440" width="236" height="56" show_title="yes" show_frame="yes" />
-    <widget class="table" name="DwellTable" title="On this face for (s; turns after 3-8)" source="Memory.DWELL" decimals="1" colorize="no"
+    <widget class="table" name="DwellTable" title="On this face for (s; turns after 5-12)" source="Memory.DWELL" decimals="1" colorize="no"
             x="1276" y="1440" _x="1276" _y="1440" width="236" height="56" show_title="yes" show_frame="yes" />
     <widget class="text" name="LeftCameraCaption" text="Left eye camera"
             x="1528" y="1040" _x="1528" _y="1040" width="384" height="24" show_title="no" show_frame="no" />

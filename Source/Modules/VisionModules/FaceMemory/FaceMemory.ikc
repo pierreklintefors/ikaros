@@ -6,7 +6,8 @@
         a random time between min_dwell and max_dwell, PREFERRED asks FaceTargetSelector to turn to
         another face in view, preferring faces not looked at for longest; a face never looked at is taken
         as soon as min_dwell has passed. NEW_FACE marks a face looked at for the first time, or again
-        after regreet_time, once the look has lasted min_seen. Memory is updated only on new frames while
+        after regreet_time, once the look has lasted min_seen. When the selector loses the face for a
+        moment and takes another face by itself, the robot turns back within return_time. Memory is updated only on new frames while
         the camera has been nearly still for still_time.
     </description>
 
@@ -25,6 +26,7 @@
     <parameter name="min_dwell" type="number" default="3" min="0" description="Shortest time in seconds the robot looks at one face before turning to another" />
     <parameter name="max_dwell" type="number" default="8" min="0" description="Longest time in seconds the robot looks at one face while others are in view" />
     <parameter name="regreet_time" type="number" default="60" min="0" description="Seconds without being looked at after which a face counts as new again" />
+    <parameter name="return_time" type="number" default="2" min="0" description="When the selector loses the face looked at for a moment and takes another, the robot turns back to it if it is seen again within this many seconds and its dwell is not over, unless the other face is twice as wide or more, someone much closer; 0 keeps every switch the selector makes" />
     <parameter name="seed" type="number" default="-1" min="-1" description="Random seed; negative selects nondeterministic seeding" />
 
     <input name="BOXES" description="Face box rows: x, y, width, height, confidence in centered image coordinates, for example AppleVisionFaceDetector.BOXES" />
