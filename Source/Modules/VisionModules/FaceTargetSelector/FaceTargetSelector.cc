@@ -20,6 +20,7 @@ class FaceTargetSelector : public Module
 
     matrix boxes;
     matrix poses;
+    matrix preferred;
 
     matrix target;
     matrix valid;
@@ -36,6 +37,9 @@ class FaceTargetSelector : public Module
     float missingTime = 0;
     bool challenged = false;
     float challengeTime = 0; // seconds another face has been clearly better than the tracked one
+    bool preferencePending = false; // a preferred face waits for the next new frame
+    float preferredX = 0;
+    float preferredY = 0;
 
     std::vector<float> previousBoxes; // detector output of the previous tick, to recognize repeated frames
 
@@ -203,6 +207,7 @@ public:
 
         Bind(boxes, "BOXES");
         Bind(poses, "POSES");
+        Bind(preferred, "PREFERRED");
         Bind(target, "TARGET");
         Bind(valid, "VALID");
         Bind(targetBox, "TARGET_BOX");
@@ -222,6 +227,13 @@ public:
         newTarget.reset();
         targetBox.clear();
 
+        if(preferred.connected() && preferred(2) > 0.5f)
+        {
+            preferencePending = true;
+            preferredX = preferred(0);
+            preferredY = preferred(1);
+        }
+
         if(RepeatedDetection() && ignoreRepeated.as_bool())
         {
             if(challenged)
@@ -236,6 +248,8 @@ public:
         int best = -1;
         int matched = -1;
         float matchedDistance = matchDistance.as_float();
+        int chosen = -1;
+        float chosenDistance = matchDistance.as_float();
         int accepted = 0;
 
         for(int i = 0; i < n; ++i)
@@ -246,6 +260,18 @@ public:
 
             if(best < 0 || Score(i) > Score(best))
                 best = i;
+
+            if(preferencePending)
+            {
+                const float dx = CenterX(i) - preferredX;
+                const float dy = CenterY(i) - preferredY;
+                const float distance = std::sqrt(dx * dx + dy * dy);
+                if(distance <= chosenDistance)
+                {
+                    chosenDistance = distance;
+                    chosen = i;
+                }
+            }
 
             if(tracking)
             {
@@ -261,6 +287,18 @@ public:
         }
 
         count(0) = static_cast<float>(accepted);
+
+        // A preferred face is taken on the first new frame after the request.
+        if(preferencePending)
+        {
+            preferencePending = false;
+            if(chosen >= 0)
+            {
+                challenged = false;
+                Publish(chosen, chosen != matched);
+                return;
+            }
+        }
 
         if(matched >= 0)
         {

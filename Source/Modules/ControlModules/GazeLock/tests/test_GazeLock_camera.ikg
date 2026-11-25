@@ -1,0 +1,14 @@
+<group name="GazeLockCameraTest"
+       description="CAMERA_DIRECTION is the head tilt and the head pan plus the camera eye's pan from latency seconds earlier"
+       start="true" stop="8" tick_duration="0.1" threads="1"
+       cli_args="-u${TEST_DIR}"
+       expected_output_contains="tick = {1}&#10;camera = {0, 0}||tick = {5}&#10;camera = {3, 27}||tick = {7}&#10;camera = {5, 45}">
+    <module class="InputFile" name="Script" filename="fixture_GazeLock_camera.jsonl" send_end_of_file="false" />
+    <module class="GazeLock" name="Gaze" camera_eye="right" latency="0.2" />
+    <module class="Print" name="Out1" />
+    <module class="Print" name="Out2" />
+
+    <connection source="Script.PRESENT" target="Gaze.PRESENT_POSITION" delay="0" />
+    <connection source="Script.TICK" target="Out1.INPUT" delay="0" label="tick" />
+    <connection source="Gaze.CAMERA_DIRECTION" target="Out2.INPUT" delay="0" label="camera" />
+</group>

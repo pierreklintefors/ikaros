@@ -61,4 +61,5 @@
     <output name="EYE_GOAL" size="2" description="Left and right eye pan goals in centered degrees" />
     <output name="TARGET_DIRECTION" size="2" description="Stored target elevation and azimuth in the body frame, degrees" />
     <output name="LOCKED" size="1" description="1 while the gaze is locked on a target" />
+    <output name="CAMERA_DIRECTION" size="2" description="Elevation and azimuth in the body frame, in degrees, of the camera's image center latency seconds ago, when the image now being processed was taken; adding a target's angle in the image gives its direction, for example for FaceMemory" />
 </class>

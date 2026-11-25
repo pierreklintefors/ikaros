@@ -1,0 +1,17 @@
+<group name="FaceTargetSelectorPreferredTest"
+       description="PREFERRED selects the face nearest its point on the next new frame; a request with no face nearby or a flag below 0.5 changes nothing"
+       start="true" stop="7" tick_duration="0.05" threads="1"
+       cli_args="-u${TEST_DIR}"
+       expected_output_contains="new = {1}&#10;target = {0.5, 0, 0.375}&#10;tick = {0}||new = {0}&#10;target = {0.5, 0, 0.375}&#10;tick = {1}||new = {1}&#10;target = {-0.5, 0, 0.25}&#10;tick = {2}||new = {0}&#10;target = {-0.5, 0, 0.25}&#10;tick = {4}||new = {0}&#10;target = {-0.5, 0, 0.25}&#10;tick = {6}">
+    <module class="InputFile" name="Script" filename="fixture_FaceTargetSelector_preferred.jsonl" send_end_of_file="false" />
+    <module class="FaceTargetSelector" name="Selector" switch_ratio="2" />
+    <module class="Print" name="Out1" />
+    <module class="Print" name="Out2" />
+    <module class="Print" name="Out3" />
+
+    <connection source="Script.BOXES" target="Selector.BOXES" delay="0" />
+    <connection source="Script.PREFERRED" target="Selector.PREFERRED" delay="0" />
+    <connection source="Script.TICK" target="Out1.INPUT" delay="0" label="tick" />
+    <connection source="Selector.TARGET" target="Out2.INPUT" delay="0" label="target" />
+    <connection source="Selector.NEW_TARGET" target="Out3.INPUT" delay="0" label="new" />
+</group>

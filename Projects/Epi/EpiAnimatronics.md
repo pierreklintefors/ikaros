@@ -25,10 +25,25 @@ synchronized with the motion:
    how far away the face is, without assuming its size. Once a face is followed, another face takes
    over only when it is 2.5 times as wide for 1.5 s (`switch_ratio`, `switch_delay`): people at the
    same distance differ in face width by up to two times through head turn, hair, and the wide-angle
-   lens, and with the earlier 1.5 times for 0.7 s Epi switched back and forth between them. Before
-   either stream opens, two `UV4LSettings` modules give both eye cameras the same resolution, frame
-   rate, and JPEG quality.
-2. **Looking.** `GazeLock` keeps the eyes on the face and turns the head after it. `camera_eye`
+   lens, and with the earlier 1.5 times for 0.7 s Epi switched back and forth between them. The left
+   eye's selector is steered to the face nearest the right eye's (`PREFERRED`), so both cameras
+   measure the same person when several are in view. Before either stream opens, two `UV4LSettings`
+   modules give both eye cameras the same resolution, frame rate, and JPEG quality.
+2. **Attention in a crowd.** `FaceMemory` (`Memory`) remembers where the faces around Epi are, as
+   directions from Epi's body rather than places in the image, so a face keeps its place while the
+   head and eyes turn and someone who leaves the view and comes back is still known. It also knows
+   whom Epi has looked at and when. Epi looks at one person for 3 to 8 s (`min_dwell`, `max_dwell`)
+   and then turns to someone else in view, as people do in a group: a face it has not looked at yet
+   comes first, as soon as 3 s have passed, and otherwise it picks at random, mostly among those it
+   has not looked at for longest, so it looks around the group rather than going back and forth. It
+   blinks with each turn, and it does not turn away while it plays an animation. Someone who comes
+   much closer than the others (2.5 times as wide, see above) still takes Epi's attention back after
+   1.5 s. *Found you* plays only for a face Epi has not looked at before, or not for a minute
+   (`regreet_time`), when it wants that person's attention again; it comes about half a second after
+   the gaze arrives, once the camera has settled. The memory is measured only while the camera has
+   been still for a quarter of a second, because a frame taken while the eyes move would place the
+   faces in the wrong direction. A face that has not been seen for two minutes is forgotten.
+3. **Looking.** `GazeLock` keeps the eyes on the face and turns the head after it. `camera_eye`
    tells it that the camera is in the right eye, so the face direction stays correct while the eyes
    cross or dart. When someone comes really close, `ProximityVergence` makes the eyes converge on
    them, as people's eyes do, but three times as strongly: not at all beyond 1 m, about 15 degrees at
@@ -40,19 +55,19 @@ synchronized with the motion:
    head would turn as the face comes near, because the camera sits in the right eye and sees a close
    face at a different angle than the middle of the head does. When the person steps back, the head
    follows again.
-3. **Background life.** `Blinker` blinks every 1.5 to 4.5 seconds, sometimes twice, as an eyelid
+4. **Background life.** `Blinker` blinks every 1.5 to 4.5 seconds, sometimes twice, as an eyelid
    that closes from the top of the LED ring down. `EyeGlances` makes quick glances away and back, and
    `HeadGlances` slowly looks around while nobody is followed, which also lets the camera find new
    faces. The glances pause while an animation plays. Blinks continue through most animations and
    pause only where wide-open eyes carry the moment (found you, cross-eyed, and mind blown); a blink
    that falls due then follows right after it, as people blink after a surprise.
-4. **Mood.** `Arousal` keeps an excitement level from 0 to 1. It rests low when Epi is alone and a
-   little higher with company. Finding someone new raises it a lot, a face that comes close raises
+5. **Mood.** `Arousal` keeps an excitement level from 0 to 1. It rests low when Epi is alone and a
+   little higher with company. Finding someone new (`Memory.NEW_FACE`) raises it a lot, a face that comes close raises
    it, and each reaction raises it a little. It then falls back over about half a minute. Arousal
    sets the tempo of the animations (0.8 to 1.15 times), their size (0.8 to 1.2 times), and the sound
    volume, and it opens the pupils through the brain model below, as excitement does in people.
-5. **Choosing.** `BehaviorSelector` decides when Epi does what. When someone new appears it plays
-   *found you*, and when the person leaves, *curious*. Alone, it only now and then looks around or
+6. **Choosing.** `BehaviorSelector` decides when Epi does what. When `Memory` reports a new face it
+   plays *found you*, at most every 10 s, and when the last person leaves, *curious*. Alone, it only now and then looks around or
    peeks curiously. With company it starts an animation after 8 to 16 quiet seconds, sooner when
    excited, so the subtle background behaviour fills most of the time. When the person pans their
    head left, right, and left again within 3 seconds, `OscillationDetector` asks for *copycat* at
@@ -60,20 +75,20 @@ synchronized with the motion:
    level, and the ones that match the present arousal are preferred, so Epi is lively right after
    meeting someone and calmer later. The last three animations are avoided, and none comes back
    within 25 seconds.
-6. **Performing.** `KeyframeAnimator` plays the animations from `EpiAnimations.json` on 17
+7. **Performing.** `KeyframeAnimator` plays the animations from `EpiAnimations.json` on 17
    channels: eye offset, vergence, head tilt and pan, pupil, eye and mouth colors, brightness,
    eyelid, mirroring, and a blink hold. Each play varies a little in tempo and size, and the sideways
    movements are mirrored at random, so the same animation glances left one time and right the next.
-7. **Playing copycat.** Copycat starts when the person pans their head back and forth, and now
+8. **Playing copycat.** Copycat starts when the person pans their head back and forth, and now
    and then by itself. During the copycat animation its `mirror` channel turns on `HeadMirror`,
    which copies the person's head turns and nods as a mirror image, as in `EpiHeadMirroring.ikg`,
    while the eyes stay on the person and glow green.
-8. **A finger close up.** Bring a finger toward Epi's eyes and they cross on it, as they do for a
+9. **A finger close up.** Bring a finger toward Epi's eyes and they cross on it, as they do for a
    face that comes really close, while the head keeps following the face. `AppleVisionHandDetector`
    finds the hand in the right eye camera, and a second `ProximityVergence`, `FingerNear`, estimates
    its distance from the width of the hand. The eyes start to cross at about 0.3 m and cross fully at
    about 0.12 m. A hand further away has no effect, and Epi never follows a hand with its head.
-9. **Pupils.** A small brain model from Ikaros 2's pupil demo sets the pupil size, and the
+10. **Pupils.** A small brain model from Ikaros 2's pupil demo sets the pupil size, and the
    animations and the near response add their pupil movements on top. It lives in the group
    `Brain`, which has its own page in the WebUI. Two pathways pull against each other, as in people:
    - **Light narrows the pupils.** The light level of the right camera drives the pretectal area
@@ -130,10 +145,10 @@ synchronized with the motion:
    light shone into the camera closes them to 5 mm (about 7 mm when Epi is very excited). The Brain page
    shows the model as an animated side view of the brain, in which each nucleus glows with its
    activity and spikes travel along the pathways.
-10. **Voice.** Most sounds play only in some of the plays, and each time one of three variants is
+11. **Voice.** Most sounds play only in some of the plays, and each time one of three variants is
    chosen, so Epi is not chatty and never repeats itself exactly. The signature sounds of mind
    blown always play.
-11. **Body.** `EpiExpression` shows the state and the animation on the LEDs and pupils. `SoundOutput`
+12. **Body.** `EpiExpression` shows the state and the animation on the LEDs and pupils. `SoundOutput`
    plays the sounds, and `EpiServos` and `FadeCandy` drive the hardware.
 
 All modules apart from `EpiServos`, `EpiExpression`, and `FadeCandy` are general and can be used
@@ -300,7 +315,9 @@ The character is tuned on the modules:
 | --- | --- | --- |
 | `Behaviors` | `min_interval`, `max_interval`, `excited_interval_scale` | How often Epi does something, and how much sooner when excited |
 | `Behaviors` | `idle_weights`, `engaged_weights`, `arousal_levels`, `arousal_width` | Which animations it prefers alone, with company, and in each mood |
-| `Behaviors` | `memory`, `cooldown` | How long before an animation can come back; `cooldown` has one value per animation, 25 s for all but scared, which can come back after 1.5 s so that every poke shows |
+| `Behaviors` | `memory`, `cooldown` | How long before an animation can come back; `cooldown` has one value per animation, 25 s for most, 10 s for found you, so that Epi greets at most one new person every 10 s in a crowd, and 1.5 s for scared, so that every poke shows |
+| `Memory` | `min_dwell`, `max_dwell`, `regreet_time`, `forget_time` | How long Epi looks at one person before turning to another (3 to 8 s; a face not looked at yet after 3 s), after how long a person counts as new again and gets *found you* (60 s), and how long an unseen face is remembered (120 s) |
+| `Memory` | `match_radius`, `min_seen`, `max_camera_speed`, `still_time` | How far in degrees a face may move between frames and still be the same person (10), how long a face must be seen before Epi turns to it or greets it (0.5 s), and how still the camera must be before faces are measured (below 40 degrees per second for 0.25 s) |
 | `Arousal` | `idle_level`, `engaged_level`, `boosts`, `drive_gain`, `decay_rate` | How excitable Epi is and how fast it calms down |
 | `Arousal` | `low`, `high` | Tempo, size, and volume at arousal 0 and 1 |
 | `Animator` | `speed_variation`, `intensity_variation`, `mirror_channels` | How much each play varies |
@@ -337,7 +354,7 @@ the other program and start again.
 ## Dashboard
 
 - **Autonomous behaviours** turns the spontaneous animations and the reactions to people on and off.
-- **Faces**, **Locked**, **Animation**, **Next in**, and **Arousal** show how many faces passed the
+- **Faces**, **Locked**, **Animation**, **Next in**, and **Arousal** show how many faces in view passed the
   filters, whether the gaze is locked, the playing animation (-1 for none), the quiet seconds left
   before the next spontaneous animation, and the excitement level.
 - The twelve numbered buttons play each animation at once.
@@ -356,6 +373,8 @@ the other program and start again.
   is not open is wider than 0.42 or any hand is wider than 1.0. **Corn seen** is 1 while the left
   eye sees the corn, yellow and green together in one patch; **Corn yellow** and **Leaf green** show
   how much of the whole view each colour covers.
+- **Faces remembered** shows how many faces `Memory` knows, in view or not, and **On this face for**
+  how long Epi has looked at the present face; it turns to someone else in view after 3 to 8 s.
 - Open the group `Brain` for the pupil model's page. The animated brain shows each nucleus glowing
   with its activity, spikes travelling along the pathways (yellow for light, cyan for narrowing the
   pupils, orange for widening them, magenta for fear, and red dashes for inhibition), and the eye
@@ -463,7 +482,16 @@ the robot needs someone next to it.
    few or too many appearances, change `extinction` there; if the corn scares Epi too easily or never, change
    `threshold` on `Brain.FearCue`; if the pupils hardly change, raise `beta` on `Brain.LC` or
    `amplifier` on `Brain.Eyes`.
-14. **Pacing and mood.** Watch for a few minutes alone and with company. Raise `min_interval` and
+14. **A group.** Stand in front of Epi with two or three other people, about 1 to 2 m away. Epi
+   should play *found you* for each person the first time it looks at them, about half a second after
+   the gaze arrives, but not more than once every 10 s, and look from person to person every 3 to 8
+   s, blinking as it turns. **Faces remembered** should be about the number of people. Step out of
+   view for 20 s and come back: Epi should look at you again without *found you*; after more than a
+   minute away it greets you again. If Epi turns too often or too seldom, change `min_dwell` and
+   `max_dwell` on `Memory`; if it greets people it has already met, and **Faces remembered** is much
+   higher than the number of people, the camera direction does not line up with the image: check
+   `x_sign`, `y_sign`, and `horizontal_fov` as in `EpiFaceFollowing.md`, or raise `still_time`.
+15. **Pacing and mood.** Watch for a few minutes alone and with company. Raise `min_interval` and
    `max_interval` on `Behaviors` if Epi is too busy, and lower them if it is too calm. Lower
    `decay_rate` on `Arousal` if the excitement fades too fast.
 
@@ -517,11 +545,21 @@ the robot needs someone next to it.
 - **Close faces.** While a face is close the head holds still, so a close person who moves far to
   the side can leave the eyes' range; the head follows again once they step back. The eyes cannot
   look up or down, so a close face that moves up or down can also leave the view.
-- **Two faces.** Each camera follows the largest face it sees, and keeps it unless another face is
-  2.5 times as wide for 1.5 s or the followed face is lost for 0.5 s; then the largest remaining face
-  is taken, which can be another person. With several people close by, the two
-  cameras can pick different faces; detections at clearly different heights are ignored, but two
-  people at the same height could give a wrong distance.
+- **Two faces.** The right camera follows the face `Memory` chooses, and keeps it unless another
+  face is 2.5 times as wide for 1.5 s or the followed face is lost for 0.5 s; then the largest
+  remaining face is taken, which can be another person. The left camera takes the face nearest to
+  where the right camera's face is; with two people very close together it can still pick the other
+  one, and detections at clearly different heights are ignored, but two people at the same height
+  could give a wrong distance.
+- **Faces are known by place.** `Memory` tells people apart only by where they are, not by their
+  faces. Two people who cross paths can swap places in memory, so one of them can be greeted again
+  or not at all, and someone who steps into the spot where another person stood within the last
+  minute is taken for that person. People out of view are remembered, but Epi does not turn toward
+  them; it finds people out of view only by its looking around while it follows nobody. In a
+  scripted crowd of seven people, two minutes each with a camera that turned quickly and lagged the
+  image by one tick, Epi greeted every person who stood still when it first looked at them in all
+  eight runs, missed a person walking across the group in four runs, and greeted one person a second
+  time in four runs; the two of these that were traced came from the walker passing that person.
 - **Simulation.** Simulated servos start at 0 degrees and move at 45 degrees per second, so the
   first seconds and fast eye movements look different from the robot.
 

@@ -1,0 +1,40 @@
+<class name="FaceMemory" description="Remembers where the faces around a robot are and chooses whom to look at next">
+    <description type="text">
+        FaceMemory keeps the directions of the faces a robot has seen in the body frame, so a face keeps
+        its place in memory while the head and eyes move. It knows which face is followed now from the
+        selector's TARGET and when each face was last looked at. After the robot has looked at one face for
+        a random time between min_dwell and max_dwell, PREFERRED asks FaceTargetSelector to turn to
+        another face in view, preferring faces not looked at for longest; a face never looked at is taken
+        as soon as min_dwell has passed. NEW_FACE marks a face looked at for the first time, or again
+        after regreet_time, once the look has lasted min_seen. Memory is updated only on new frames while
+        the camera has been nearly still for still_time.
+    </description>
+
+    <parameter name="horizontal_fov" type="number" default="62.2" min="1" max="179" description="Horizontal camera field of view in degrees, as in GazeLock" />
+    <parameter name="vertical_fov" type="number" default="48.8" min="1" max="179" description="Vertical camera field of view in degrees, as in GazeLock" />
+    <parameter name="x_sign" type="number" default="1" description="Sign that maps image x to azimuth, as in GazeLock" />
+    <parameter name="y_sign" type="number" default="-1" description="Sign that maps image y to elevation, as in GazeLock" />
+    <parameter name="min_width" type="number" default="0.08" min="0" description="Ignore faces narrower than this, in centered image coordinates; use the selector's value" />
+    <parameter name="min_confidence" type="number" default="0.5" min="0" max="1" description="Ignore faces with a lower detector confidence; use the selector's value" />
+    <parameter name="capacity" type="number" default="16" min="1" description="Largest number of faces remembered; a new face replaces the one seen longest ago" />
+    <parameter name="match_radius" type="number" default="10" min="0" description="Degrees a face may move between measured frames and still count as the same face" />
+    <parameter name="max_camera_speed" type="number" default="40" min="0" description="Degrees per second above which the camera counts as moving; measurements are skipped then, because image and camera direction do not line up" />
+    <parameter name="still_time" type="number" default="0.25" min="0" description="Seconds the camera must have been slower than max_camera_speed before faces are measured, because the camera direction and the image are not taken at exactly the same moment" />
+    <parameter name="forget_time" type="number" default="120" min="0" description="Seconds after which a face that has not been seen is forgotten" />
+    <parameter name="min_seen" type="number" default="0.5" min="0" description="Seconds a face must have been known before the robot turns to it, and seconds a look must last before NEW_FACE judges it, so brief false detections and misjudged directions do not count" />
+    <parameter name="min_dwell" type="number" default="3" min="0" description="Shortest time in seconds the robot looks at one face before turning to another" />
+    <parameter name="max_dwell" type="number" default="8" min="0" description="Longest time in seconds the robot looks at one face while others are in view" />
+    <parameter name="regreet_time" type="number" default="60" min="0" description="Seconds without being looked at after which a face counts as new again" />
+    <parameter name="seed" type="number" default="-1" min="-1" description="Random seed; negative selects nondeterministic seeding" />
+
+    <input name="BOXES" description="Face box rows: x, y, width, height, confidence in centered image coordinates, for example AppleVisionFaceDetector.BOXES" />
+    <input name="CAMERA" size="2" description="Elevation and azimuth in degrees of the camera's image center when the image was taken, for example GazeLock.CAMERA_DIRECTION" />
+    <input name="TARGET" description="The followed face: x, y, width in centered image coordinates, with width 0 when none, for example FaceTargetSelector.TARGET" />
+    <input name="BUSY" optional="yes" size="1" description="1 while the robot does something else, for example KeyframeAnimator.PLAYING; it does not turn to another face and the time spent does not count" />
+
+    <output name="PREFERRED" size="3" description="x, y of the face to turn to and 1 on the tick the robot should turn; zero otherwise; for FaceTargetSelector.PREFERRED" />
+    <output name="NEW_FACE" size="1" description="1 for one tick, min_seen after the robot started looking at a face it has not looked at before, or not for regreet_time seconds" />
+    <output name="DWELL" size="1" description="Seconds the robot has looked at the present face, not counting BUSY time" />
+    <output name="COUNT" size="1" description="Number of faces remembered" />
+    <output name="FACES" size="@capacity,5" description="One row per remembered face: elevation, azimuth, width, seconds since seen, seconds since looked at (-1 if never); unused rows are zero" />
+</class>

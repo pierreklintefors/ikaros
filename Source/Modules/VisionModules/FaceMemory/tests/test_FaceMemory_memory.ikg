@@ -1,0 +1,22 @@
+<group name="FaceMemoryMemoryTest"
+       description="A face keeps its body direction while the camera turns, so it is not new when seen again; it is new again after regreet_time; a face seen while the camera moves fast is not remembered; an unseen face is forgotten after forget_time"
+       start="true" stop="200" tick_duration="0.1" threads="1"
+       cli_args="-u${TEST_DIR}"
+       expected_output_contains="tick = {6}&#10;new = {0}&#10;count = {1}||tick = {7}&#10;new = {1}&#10;count = {1}||tick = {40}&#10;new = {0}&#10;count = {1}||tick = {46}&#10;new = {0}&#10;count = {1}||tick = {62}&#10;new = {0}&#10;count = {1}||tick = {95}&#10;new = {0}&#10;count = {1}||tick = {96}&#10;new = {1}&#10;count = {1}||tick = {178}&#10;new = {0}&#10;count = {1}||tick = {179}&#10;new = {0}&#10;count = {0}">
+    <module class="InputFile" name="Script" filename="fixture_FaceMemory_memory.jsonl" send_end_of_file="false" />
+    <module class="FaceMemory" name="Memory" horizontal_fov="90" vertical_fov="90" regreet_time="3" forget_time="7" max_camera_speed="40" seed="1" />
+    <module class="FaceTargetSelector" name="Selector" />
+    <module class="Print" name="Out1" />
+    <module class="Print" name="Out2" />
+    <module class="Print" name="Out3" />
+
+    <connection source="Script.BOXES" target="Memory.BOXES" delay="0" />
+    <connection source="Script.CAMERA" target="Memory.CAMERA" delay="0" />
+    <connection source="Script.BOXES" target="Selector.BOXES" delay="0" />
+    <connection source="Memory.PREFERRED" target="Selector.PREFERRED" delay="0" />
+    <connection source="Selector.TARGET" target="Memory.TARGET" delay="1" />
+
+    <connection source="Script.TICK" target="Out1.INPUT" delay="0" label="tick" />
+    <connection source="Memory.COUNT" target="Out2.INPUT" delay="0" label="count" />
+    <connection source="Memory.NEW_FACE" target="Out3.INPUT" delay="0" label="new" />
+</group>

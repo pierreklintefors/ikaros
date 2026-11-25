@@ -1,0 +1,23 @@
+<group name="FaceMemoryAttentionTest"
+       description="FaceMemory turns to a face never looked at after min_dwell, to a known face after the dwell, not while BUSY, and marks a face looked at for the first time as new once the look has lasted min_seen"
+       start="true" stop="70" tick_duration="0.1" threads="1"
+       cli_args="-u${TEST_DIR}"
+       expected_output_contains="tick = {4}&#10;new = {0}&#10;target = {0.5, 0, 0.4}||tick = {5}&#10;new = {1}&#10;target = {0.5, 0, 0.4}||tick = {10}&#10;new = {0}&#10;target = {0.5, 0, 0.4}||tick = {11}&#10;new = {0}&#10;target = {-0.5, 0, 0.2}||tick = {14}&#10;new = {0}&#10;target = {-0.5, 0, 0.2}||tick = {15}&#10;new = {1}&#10;target = {-0.5, 0, 0.2}||tick = {20}&#10;new = {0}&#10;target = {-0.5, 0, 0.2}||tick = {21}&#10;new = {0}&#10;target = {0.5, 0, 0.4}||tick = {34}&#10;new = {0}&#10;target = {0.5, 0, 0.4}||tick = {40}&#10;new = {0}&#10;target = {0.5, 0, 0.4}||tick = {41}&#10;new = {0}&#10;target = {-0.5, 0, 0.2}||tick = {50}&#10;new = {0}&#10;target = {-0.5, 0, 0.2}||tick = {51}&#10;new = {0}&#10;target = {0, -0.5, 0.3}||tick = {55}&#10;new = {1}&#10;target = {0, -0.5, 0.3}">
+    <module class="InputFile" name="Script" filename="fixture_FaceMemory_attention.jsonl" send_end_of_file="false" />
+    <module class="FaceMemory" name="Memory" horizontal_fov="90" vertical_fov="90" min_dwell="1" max_dwell="1" min_seen="0.3" seed="1" />
+    <module class="FaceTargetSelector" name="Selector" switch_ratio="3" />
+    <module class="Print" name="Out1" />
+    <module class="Print" name="Out2" />
+    <module class="Print" name="Out3" />
+
+    <connection source="Script.BOXES" target="Memory.BOXES" delay="0" />
+    <connection source="Script.CAMERA" target="Memory.CAMERA" delay="0" />
+    <connection source="Script.BUSY" target="Memory.BUSY" delay="0" />
+    <connection source="Script.BOXES" target="Selector.BOXES" delay="0" />
+    <connection source="Memory.PREFERRED" target="Selector.PREFERRED" delay="0" />
+    <connection source="Selector.TARGET" target="Memory.TARGET" delay="1" />
+
+    <connection source="Script.TICK" target="Out1.INPUT" delay="0" label="tick" />
+    <connection source="Selector.TARGET" target="Out2.INPUT" delay="0" label="target" />
+    <connection source="Memory.NEW_FACE" target="Out3.INPUT" delay="0" label="new" />
+</group>

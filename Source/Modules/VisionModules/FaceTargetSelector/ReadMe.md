@@ -34,6 +34,12 @@ is selected, so the target jumps directly to the new person instead of sliding a
 `NEW_TARGET` is 1 on the tick a different face is selected. Modules that react to the person, such
 as `HeadMirror`, use it to fade out and start again with the new person.
 
+Another module can choose the face through `PREFERRED`: x, y, and a flag. While the flag is above
+0.5, the first new frame selects the accepted face nearest x, y, if it lies within `match_distance`,
+regardless of size; if no face is that close, the request is dropped and the usual rules apply.
+`FaceMemory` uses a one-tick flag to turn Epi to another person; a second selector for another
+camera can get this selector's `TARGET` and `VALID`, so both cameras follow the same face.
+
 When `POSES` is connected, for example to `AppleVisionFaceDetector.POSES`, `TARGET_POSE` contains
 the pose row of the selected face. It is smoothed, held, and reset together with `TARGET`.
 
@@ -60,6 +66,7 @@ image center, and a full image width is `2`.
 | --- | --- | --- |
 | BOXES | Face box rows: x, y, width, height, confidence in centered image coordinates | |
 | POSES | Head pose rows aligned with `BOXES`: yaw, pitch, roll in degrees | yes |
+| PREFERRED | x, y, flag: while the flag is above 0.5, the next new frame selects the accepted face nearest x, y within `match_distance`, instead of the size-based choice | yes |
 
 ## Outputs
 

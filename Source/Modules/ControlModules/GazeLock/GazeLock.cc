@@ -61,6 +61,7 @@ class GazeLock : public Module
     matrix eyeGoal;
     matrix targetDirection;
     matrix locked;
+    matrix cameraDirection;
 
     matrix gazeHistory; // rows of head tilt, head pan, eye pan in centered degrees
     int historyIndex = 0;
@@ -259,6 +260,7 @@ public:
         Bind(eyeGoal, "EYE_GOAL");
         Bind(targetDirection, "TARGET_DIRECTION");
         Bind(locked, "LOCKED");
+        Bind(cameraDirection, "CAMERA_DIRECTION");
 
         if(presentPosition.size() < 4)
             throw exception("GazeLock: PRESENT_POSITION must contain at least tilt, pan, left eye, and right eye.", path_);
@@ -300,6 +302,10 @@ public:
         const float rightEyePan = presentAvailable ? presentPosition(3) - offset : eyeGoal(1);
         const float eyePan = camera == 1 ? leftEyePan : camera == 2 ? rightEyePan : 0.5f * (leftEyePan + rightEyePan);
         RecordGaze(headTilt, headPan, eyePan);
+
+        const int imageRow = DelayedHistoryIndex(dt);
+        cameraDirection(0) = gazeHistory(imageRow, 0);
+        cameraDirection(1) = gazeHistory(imageRow, 1) + gazeHistory(imageRow, 2);
 
         if(releaseRequested.exchange(false))
         {

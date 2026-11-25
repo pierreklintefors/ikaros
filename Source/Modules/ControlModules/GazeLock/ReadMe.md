@@ -186,6 +186,7 @@ The default field of view matches the Raspberry Pi Camera Module v2.
 | EYE_GOAL | Left and right eye pan goals in centered degrees |
 | TARGET_DIRECTION | Stored target elevation and azimuth in the body frame, degrees |
 | LOCKED | 1 while the gaze is locked on a target |
+| CAMERA_DIRECTION | Elevation and azimuth of the camera's image center, in body-frame degrees, `latency` seconds ago when the processed image was taken |
 
 ## Example
 
@@ -203,4 +204,4 @@ The default field of view matches the Raspberry Pi Camera Module v2.
 The tests in `tests/` feed `GOAL_POSITION` back as `PRESENT_POSITION` to model ideal servos. They
 check eye compensation during a manual head move, release after `hold_time`, the head dead zone,
 eye clipping, the pupil input, the aim point, the acceleration-limited head motion, the behaviour
-offsets, `camera_eye`, and `HOLD_HEAD`.
+offsets, `camera_eye`, `HOLD_HEAD`, and the latency of `CAMERA_DIRECTION`.

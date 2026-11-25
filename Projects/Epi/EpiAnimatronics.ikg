@@ -29,6 +29,12 @@
     <module class="FaceTargetSelector" name="Target" selection="largest" min_width="0.08" min_confidence="0.6"
             switch_ratio="2.5" switch_delay="1.5" hold_time="0.5" _x="408" _y="24" />
 
+    <!-- Attention in a crowd: Memory remembers where the faces around Epi are and, after 3 to 8 s on one
+         face, turns Epi to another face in view, someone not looked at yet first. Found you plays only
+         for a face Epi has not looked at before, or not for a minute -->
+    <module class="FaceMemory" name="Memory" min_width="0.08" min_confidence="0.6" min_dwell="3" max_dwell="8"
+            regreet_time="60" forget_time="120" _x="24" _y="336" />
+
     <!-- Second eye: the left camera finds the same face, and the two views give its distance -->
     <module class="@left_camera" name="LeftEye" url="@left_eye_url" filename="../Projects/Epi/NoCamera.jpg" size_x="640" size_y="480" _x="24" _y="1296" />
     <module class="AppleVisionFaceDetector" name="LeftFaces" max_faces="8" downsample="1" _x="216" _y="1296" />
@@ -136,10 +142,10 @@
 
     <!-- Behaviour: when to do what, and how it looks -->
     <module class="Constant" name="BehaviorsEnable" data="1" _x="24" _y="264" />
-    <module class="BehaviorSelector" name="Behaviors" count="12" greeting="0" greeting_delay="0.3" farewell="6"
+    <module class="BehaviorSelector" name="Behaviors" count="12" greeting="-1" farewell="6"
             idle_weights="0, 0, 0, 0, 0, 0, 0.5, 0, 0, 2, 0, 0" engaged_weights="0, 1, 1.5, 1, 1.5, 1, 0.6, 1, 1.5, 0.3, 0.5, 0"
             arousal_levels="0.8, 0.5, 0.6, 0.5, 0.75, 0.9, 0.3, 0.35, 0.55, 0.15, 0.6, 0.9" arousal_width="0.3" memory="3"
-            min_interval="8" max_interval="16" excited_interval_scale="0.6" cooldown="25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 1.5" reaction_cooldown="10" _x="216" _y="264" />
+            min_interval="8" max_interval="16" excited_interval_scale="0.6" cooldown="10, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 1.5" reaction_cooldown="10" _x="216" _y="264" />
     <module class="KeyframeAnimator" name="Animator" file="../Projects/Epi/EpiAnimations.json"
             channels="eye_offset, vergence, head_tilt, head_pan, pupil, eye_r, eye_g, eye_b, eye_mix, mouth_r, mouth_g, mouth_b, mouth_mix, brightness, lid, mirror, hold"
             rest="0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0"
@@ -158,6 +164,7 @@
 
     <!-- Liveliness: blinks and glances that run all the time -->
     <module class="Blinker" name="Blinker" min_interval="1.5" max_interval="4.5" double_blink_probability="0.2" _x="408" _y="720" />
+    <module class="Maximum" name="BlinkTrigger" title="Blink with an animation's blink and with each turn to another face" _x="24" _y="720" />
     <module class="GlanceGenerator" name="EyeGlances" amplitude="5" min_fraction="0.4" min_interval="1.2" max_interval="3.5"
             center_probability="0.2" return_time="0.6" _x="408" _y="624" />
     <module class="Maximum" name="HeadIdle" _x="216" _y="504" />
@@ -202,8 +209,14 @@
     <connection source="Faces.BOXES" target="Target.BOXES" delay="0" />
     <connection source="Faces.POSES" target="Target.POSES" delay="0" />
 
+    <connection source="Faces.BOXES" target="Memory.BOXES" delay="0" />
+    <connection source="Gaze.CAMERA_DIRECTION" target="Memory.CAMERA" delay="1" />
+    <connection source="Target.TARGET" target="Memory.TARGET" delay="1" />
+    <connection source="Animator.PLAYING" target="Memory.BUSY" delay="1" />
+    <connection source="Memory.PREFERRED" target="Target.PREFERRED" delay="0" />
+
     <connection source="Gaze.LOCKED" target="Behaviors.ENGAGED" delay="1" />
-    <connection source="Target.NEW_TARGET" target="Behaviors.NEW_TARGET" delay="0" />
+    <connection source="Memory.NEW_FACE" target="Behaviors.REQUEST[0:1]" delay="0" />
     <connection source="Animator.PLAYING" target="Behaviors.BUSY" delay="1" />
     <connection source="BehaviorsEnable.OUTPUT" target="Behaviors.ENABLE" delay="0" />
     <connection source="Arousal.AROUSAL" target="Behaviors.AROUSAL" delay="1" />
@@ -212,13 +225,15 @@
     <connection source="Arousal.MAPPED[1:2]" target="Animator.INTENSITY" delay="0" />
 
     <connection source="Gaze.LOCKED" target="Arousal.ENGAGED" delay="1" />
-    <connection source="Target.NEW_TARGET" target="Arousal.STIMULUS[0:1]" delay="0" />
+    <connection source="Memory.NEW_FACE" target="Arousal.STIMULUS[0:1]" delay="0" />
     <connection source="Animator.PLAYING" target="Arousal.STIMULUS[1:2]" delay="1" />
     <connection source="Target.TARGET[2:3]" target="Arousal.DRIVE" delay="0" />
 
     <connection source="Animator.EVENTS[1:31]" target="Sounds.TRIG" delay="0" />
     <connection source="Arousal.MAPPED[2:3]" target="Sounds.GAIN" delay="0" />
-    <connection source="Animator.EVENTS[0:1]" target="Blinker.TRIGGER" delay="0" />
+    <connection source="Animator.EVENTS[0:1]" target="BlinkTrigger.INPUT1" delay="0" />
+    <connection source="Memory.PREFERRED[2:3]" target="BlinkTrigger.INPUT2" delay="0" />
+    <connection source="BlinkTrigger.OUTPUT" target="Blinker.TRIGGER" delay="0" />
     <connection source="Animator.OUTPUT[16:17]" target="Blinker.INHIBIT" delay="0" />
     <connection source="Animator.PLAYING" target="EyeGlances.INHIBIT" delay="0" />
     <connection source="Gaze.LOCKED" target="HeadIdle.INPUT1" delay="1" />
@@ -253,6 +268,8 @@
     <connection source="EyeOffset.OUTPUT" target="Gaze.EYE_OFFSET" delay="0" />
     <connection source="LeftEye.OUTPUT" target="LeftFaces.INPUT" delay="0" />
     <connection source="LeftFaces.BOXES" target="LeftTarget.BOXES" delay="0" />
+    <connection source="Target.TARGET[0:2]" target="LeftTarget.PREFERRED[0:2]" delay="1" />
+    <connection source="Target.VALID" target="LeftTarget.PREFERRED[2:3]" delay="1" />
     <connection source="LeftTarget.TARGET" target="Stereo.LEFT_TARGET" delay="1" />
     <connection source="LeftTarget.VALID" target="Stereo.LEFT_VALID" delay="1" />
     <connection source="Target.TARGET" target="Stereo.RIGHT_TARGET" delay="0" />
@@ -458,6 +475,10 @@
             x="1032" y="1376" _x="1032" _y="1376" width="236" height="56" show_title="yes" show_frame="yes" />
     <widget class="table" name="PokeTable" title="Poke" source="Poke.OUTPUT" decimals="0" colorize="no"
             x="1276" y="1376" _x="1276" _y="1376" width="236" height="56" show_title="yes" show_frame="yes" />
+    <widget class="table" name="RememberedTable" title="Faces remembered" source="Memory.COUNT" decimals="0" colorize="no"
+            x="1032" y="1440" _x="1032" _y="1440" width="236" height="56" show_title="yes" show_frame="yes" />
+    <widget class="table" name="DwellTable" title="On this face for (s; turns after 3-8)" source="Memory.DWELL" decimals="1" colorize="no"
+            x="1276" y="1440" _x="1276" _y="1440" width="236" height="56" show_title="yes" show_frame="yes" />
     <widget class="text" name="LeftCameraCaption" text="Left eye camera"
             x="1528" y="1040" _x="1528" _y="1040" width="384" height="24" show_title="no" show_frame="no" />
     <widget class="image" name="LeftCameraImage" source="LeftEye.OUTPUT" format="rgb" scale="both"

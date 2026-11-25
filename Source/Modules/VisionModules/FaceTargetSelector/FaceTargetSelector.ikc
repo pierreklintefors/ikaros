@@ -4,7 +4,8 @@
         follows one face over time. A new face is chosen by size (closest person) or by distance to the
         image center. The selected face is tracked by matching its position from tick to tick, so the
         detector's row order does not matter. Another face takes over only when it is clearly better
-        (switch_ratio) or when the tracked face has been missing for longer than hold_time.
+        (switch_ratio) or when the tracked face has been missing for longer than hold_time. PREFERRED lets
+        another module choose the face instead.
     </description>
 
     <parameter name="selection" type="number" default="largest" options="largest,center" description="How a new target is chosen: the largest face (closest person) or the face nearest the image center" />
@@ -18,6 +19,7 @@
     <parameter name="ignore_repeated" type="bool" default="true" description="Treat detector output identical to the previous tick as a repeated camera frame: VALID stays 0 and the target is held" />
 
     <input name="BOXES" description="Face box rows: x, y, width, height, confidence in centered image coordinates" />
+    <input name="PREFERRED" optional="yes" size="3" description="x, y in centered image coordinates and a flag: while the flag is above 0.5, the next new frame selects the accepted face nearest x, y if it lies within match_distance, overriding the size-based choice; for example FaceMemory.PREFERRED to turn to another person, or another selector's TARGET and VALID to follow the same face in a second camera" />
     <input name="POSES" optional="yes" description="Head pose rows aligned with BOXES, such as AppleVisionFaceDetector.POSES: yaw, pitch, roll in degrees" />
 
     <output name="TARGET" size="3" description="Selected face center_x, center_y, width; held during hold_time and zero when no face is tracked" />
