@@ -16,6 +16,8 @@ add_subdirectory(ConvolutionalVariationalAutoEncoder)
 add_subdirectory(Delta)
 add_subdirectory(EyeModel)
 
+add_subdirectory(BAM_CX1)
+
 set(SOURCE ${SOURCE} PARENT_SCOPE)
 set(MODULES_INCLUDS ${MODULES_INCLUDS} PARENT_SCOPE)
 set(MODULES_LIBS ${MODULES_LIBS} PARENT_SCOPE)

@@ -57,7 +57,8 @@ The notes below are practical facts that are easy to miss and cost time in earli
 ## Face-following and head-mirroring demos
 
 - `Projects/Epi/EpiFaceFollowing.ikg` with its guide `EpiFaceFollowing.md`, built from
-  `FaceTargetSelector`, `GazeLock`, and `EpiExpression`. Open items are in `status.md` under the
-  EpiBlack sections.
+  `FaceTargetSelector`, `GazeLock`, and `EpiExpression`. Open items are in `status-epi.md`.
+- Record Epi tasks in `status-epi.md` instead of `status.md`, which follows the original repository
+  and conflicts on merges from `upstream`.
 - `Projects/Epi/EpiHeadMirroring.ikg` with its guide `EpiHeadMirroring.md` adds `HeadMirror`, which
   drives `GazeLock.MANUAL_HEAD` from the head pose given by `AppleVisionFaceDetector.POSES`.
